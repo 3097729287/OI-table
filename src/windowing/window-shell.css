@@ -57,23 +57,13 @@
   background: var(--title-bar-hover);
 }
 
-.title-bar button.title-bar__action {
-  inline-size: auto;
-  padding-inline: 12px;
-  font: inherit;
-  white-space: nowrap;
+.title-bar .title-bar__sidebar {
+  inline-size: 38px;
 }
 
 .title-bar .title-bar__close:enabled:hover {
   background: var(--title-bar-close-hover);
   color: var(--title-bar-close-color);
-}
-
-.title-bar__controls svg {
-  width: 10px;
-  height: 10px;
-  fill: none;
-  stroke: currentColor;
 }
 
 .title-bar-status {

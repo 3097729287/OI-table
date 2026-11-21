@@ -1,0 +1,9 @@
+.app-icon {
+  display: inline-block;
+  flex: none;
+  background-color: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  forced-color-adjust: none;
+}

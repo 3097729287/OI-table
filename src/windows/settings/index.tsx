@@ -7,7 +7,6 @@ import "./settings.css";
 
 export const windowOptions = {
   title: messages.settings,
-  showInToolbar: true,
 } satisfies WindowOptions;
 
 const themeLabels = {
@@ -16,7 +15,7 @@ const themeLabels = {
   dark: messages.themeDark,
 } satisfies Record<Theme, string>;
 
-export default function Settings() {
+export default function SettingsWindow() {
   const { settings, loadFailed } = useSettings();
   const [saveFailed, setSaveFailed] = useState(false);
   const [saving, setSaving] = useState(false);

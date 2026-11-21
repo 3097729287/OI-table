@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700" role="img" aria-labelledby="title description">
+  <title id="title">OI-table 工作台</title>
+  <desc id="description">透明背景的 OI-table 产品插画。工作台上展示题库和 C++ 编辑区，窗口两角点缀算法图和花括号。</desc>
+  <defs>
+    <linearGradient id="frame" x2="1" y2="1">
+      <stop stop-color="#fffaff"/>
+      <stop offset="1" stop-color="#e9e7fc"/>
+    </linearGradient>
+    <linearGradient id="graph-card" x2="1" y2="1">
+      <stop stop-color="#f1fffa"/>
+      <stop offset="1" stop-color="#c6f2e8"/>
+    </linearGradient>
+    <linearGradient id="code-card" x2="1" y2="1">
+      <stop stop-color="#f8eaff"/>
+      <stop offset="1" stop-color="#dbd2ff"/>
+    </linearGradient>
+    <linearGradient id="tab" x2="1" y2="0">
+      <stop stop-color="#ad8de3"/>
+      <stop offset="1" stop-color="#7bbdb9"/>
+    </linearGradient>
+    <clipPath id="window-clip"><rect x="164" y="145" width="674" height="400" rx="27"/></clipPath>
+    <path id="spark" d="M0-13C1-4 4-1 13 0 4 1 1 4 0 13-1 4-4 1-13 0-4-1-1-4 0-13Z"/>
+  </defs>
+
+  <!-- Window frame -->
+  <rect x="170" y="157" width="674" height="404" rx="28" fill="#40306e" opacity=".13"/>
+  <rect x="164" y="150" width="674" height="401" rx="28" fill="#b7a7dd" stroke="#65558d" stroke-width="2"/>
+  <g clip-path="url(#window-clip)">
+    <rect x="164" y="145" width="674" height="400" fill="url(#frame)"/>
+    <path d="M165 193h672v352H165z" fill="#faf9ff"/>
+    <path d="M165 193h52v352h-52z" fill="#eae4fa"/>
+    <path d="M217 193h191v352H217z" fill="#f2effa"/>
+    <path d="M164 193h674m-621 0v352m191-352v352" fill="none" stroke="#cec4e4" stroke-width="1.5"/>
+
+    <!-- Window title and activity rail -->
+    <rect x="184" y="158" width="22" height="22" rx="6" fill="#7664a8"/>
+    <path d="M189 164h12v10h-12zm0 5h12m-6-5v10" fill="none" stroke="#fff8ff" stroke-width="1.15" stroke-linejoin="round"/>
+    <text x="215" y="175" fill="#4c3b74" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">OI-table</text>
+    <path d="M746 169h9m20-4h8v8h-8zm28 0 8 8m0-8-8 8" fill="none" stroke="#7d709a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="174" y="207" width="33" height="33" rx="8" fill="#d9cdf5"/>
+    <path d="M183 218h15v11h-15zm0 5h15m-7.5-5v11m-3 27-5 5 5 5m6-10 5 5-5 5m-3-12-2 14" fill="none" stroke="#6c589d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Problem list -->
+    <g font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="13">
+      <text x="235" y="229" fill="#5e517b" font-size="15" font-weight="700">题库</text>
+      <rect x="227" y="244" width="169" height="35" rx="7" fill="#e5daf7"/>
+      <path d="M233 252v19" stroke="#9779d0" stroke-width="2.5" stroke-linecap="round"/>
+      <text x="245" y="266" fill="#51406f">01　最短路</text>
+      <text x="245" y="311" fill="#64577b">02　区间动态规划</text>
+      <text x="245" y="356" fill="#64577b">03　并查集</text>
+    </g>
+    <path d="M244 328h135m-135 44h135" stroke="#ded6eb"/>
+
+    <!-- Editor -->
+    <path d="M409 194h428v43H409z" fill="#f0edf9"/>
+    <path d="M409 194h148v43H409z" fill="#faf9ff"/>
+    <path d="M409 236h428" stroke="#ddd4ec"/>
+    <path d="M410 236h147" stroke="url(#tab)" stroke-width="2"/>
+    <path d="m425 212-4 4 4 4m5-8 4 4-4 4m108-8 7 7m0-7-7 7" fill="none" stroke="#8a74bd" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M491 293v132m18-105v54" stroke="#e7e0f0" stroke-dasharray="3 4"/>
+    <g font-family="Consolas, Courier New, monospace" font-size="15">
+      <text x="448" y="286" fill="#817496">1<tspan x="474" fill="#8052b8">for</tspan><tspan fill="#43385c"> (auto [v, w] : graph[u]) {</tspan></text>
+      <text x="448" y="322" fill="#817496">2<tspan x="492" fill="#8052b8">if</tspan><tspan fill="#43385c"> (dist[u] + w &lt; dist[v]) {</tspan></text>
+      <text x="448" y="358" fill="#817496">3<tspan x="510" fill="#357b72">dist[v]</tspan><tspan fill="#43385c"> = dist[u] + w;</tspan></text>
+      <text x="448" y="394" fill="#817496">4<tspan x="492" fill="#8052b8">}</tspan></text>
+      <text x="448" y="430" fill="#817496">5<tspan x="474" fill="#8052b8">}</tspan></text>
+      <text x="442" y="220" fill="#524472" font-size="13">solve.cpp</text>
+    </g>
+    <rect x="473" y="447" width="2" height="16" rx="1" fill="#a991d5"/>
+  </g>
+  <rect x="164" y="145" width="674" height="400" rx="27" fill="none" stroke="#65558d" stroke-width="2"/>
+  <path d="M190 149h320" stroke="#fff" stroke-linecap="round" opacity=".72"/>
+
+  <!-- Algorithm graph sticker -->
+  <g transform="translate(195 507) rotate(-10)">
+    <rect x="-98" y="-55" width="202" height="132" rx="23" fill="#3f4776" opacity=".14"/>
+    <rect x="-104" y="-65" width="202" height="132" rx="23" fill="url(#graph-card)" stroke="#5a8f89" stroke-width="2"/>
+    <rect x="-97" y="-58" width="188" height="118" rx="18" fill="none" stroke="#fff" stroke-opacity=".85"/>
+    <path d="m-65 21 43-48 34 59 44-50m-121 39 77 11m-34-59 78 9" fill="none" stroke="#689e98" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="-65" cy="21" r="10" fill="#fff9ff" stroke="#60978f" stroke-width="2"/>
+    <circle cx="-22" cy="-27" r="10" fill="#f2e5ff" stroke="#8e78b9" stroke-width="2"/>
+    <circle cx="12" cy="32" r="10" fill="#fff9ff" stroke="#60978f" stroke-width="2"/>
+    <circle cx="56" cy="-18" r="10" fill="#f2e5ff" stroke="#8e78b9" stroke-width="2"/>
+  </g>
+
+  <!-- Code sticker -->
+  <g transform="translate(817 476) rotate(10)">
+    <rect x="-42" y="-34" width="112" height="83" rx="21" fill="#40306e" opacity=".16"/>
+    <rect x="-47" y="-42" width="112" height="83" rx="21" fill="url(#code-card)" stroke="#7f69ad" stroke-width="2"/>
+    <rect x="-41" y="-36" width="100" height="71" rx="16" fill="none" stroke="#fff" stroke-opacity=".8"/>
+    <path d="M1-15c-8 0-12 1-12 8v3q0 4-7 4 7 0 7 4v3c0 7 4 8 12 8m16-30c8 0 12 1 12 8v3q0 4 7 4-7 0-7 4v3c0 7-4 8-12 8" fill="none" stroke="#7156a1" stroke-width="3.2" stroke-linecap="round"/>
+  </g>
+
+  <g stroke-width="1.4" stroke-linejoin="round">
+    <use href="#spark" transform="translate(133 175) scale(.85)" fill="#c6eee6" stroke="#77a59d"/>
+    <use href="#spark" transform="translate(858 141)" fill="#ead9ff" stroke="#a188c6"/>
+    <use href="#spark" transform="translate(882 168) scale(.48)" fill="#c6eee6" stroke="#77a59d"/>
+    <use href="#spark" transform="translate(309 575) scale(.7)" fill="#ead9ff" stroke="#a188c6"/>
+  </g>
+</svg>

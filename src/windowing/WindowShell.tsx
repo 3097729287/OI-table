@@ -2,15 +2,15 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { useSettings } from "../shared/settings";
 import { messages } from "../i18n";
 import { StatusMessage } from "../shared/StatusMessage";
-import { applyMainWindowOptions, currentWindow, desktop, isMainWindow, openWindow, toolbarWindows } from "./routes";
+import { WorkspaceSidebar } from "../workspace/sidebar";
+import { applyMainWindowOptions, currentWindow, isMainWindow } from "./routes";
 import { TitleBar } from "./TitleBar";
 import "./window-shell.css";
 
 export function WindowShell() {
   const theme = useSettings().settings?.theme;
-  const [opening, setOpening] = useState(false);
-  const [openFailed, setOpenFailed] = useState(false);
   const [configurationFailed, setConfigurationFailed] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const Page = currentWindow?.Page;
 
   useLayoutEffect(() => {
@@ -25,36 +25,25 @@ export function WindowShell() {
     return () => { active = false; };
   }, []);
 
-  async function openChildWindow(name: string) {
-    setOpening(true);
-    setOpenFailed(false);
-    try {
-      await openWindow(name);
-    } catch {
-      setOpenFailed(true);
-    } finally {
-      setOpening(false);
-    }
-  }
-
   return (
     <div className="window-shell">
       <TitleBar
         title={currentWindow?.title ?? "OI-table"}
-        feedback={openFailed || configurationFailed ? {
-          state: "error",
-          message: openFailed ? messages.windowOpenFailed : messages.windowConfigurationFailed,
+        sidebar={isMainWindow ? {
+          visible: sidebarVisible,
+          toggle: () => setSidebarVisible((visible) => !visible),
         } : undefined}
-      >
-        {isMainWindow && toolbarWindows.map(({ name, title }) => (
-          <button key={name} type="button" className="title-bar__action" disabled={!desktop || opening}
-            onClick={() => void openChildWindow(name)}>
-            {title}
-          </button>
-        ))}
-      </TitleBar>
+        feedback={configurationFailed ? {
+          state: "error",
+          message: messages.windowConfigurationFailed,
+        } : undefined}
+      />
       <div className="window-content">
-        {Page ? <Page /> : (
+        {Page ? (
+          <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true) }}>
+            <Page />
+          </WorkspaceSidebar.Provider>
+        ) : (
           <main className="workspace">
             <StatusMessage state="error">{messages.windowPageUnavailable}</StatusMessage>
           </main>

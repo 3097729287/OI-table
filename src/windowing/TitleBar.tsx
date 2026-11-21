@@ -1,23 +1,25 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { messages } from "../i18n";
+import { Icon } from "../shared/Icon";
 import { StatusMessage } from "../shared/StatusMessage";
 
 const desktopWindow = isTauri() ? getCurrentWindow() : undefined;
 
 interface TitleBarProps {
   title: string;
+  sidebar?: { visible: boolean; toggle: () => void };
   feedback?: { state: "loading" | "error"; message: string };
-  children?: ReactNode;
 }
 
-export function TitleBar({ title, feedback, children }: TitleBarProps) {
+export function TitleBar({ title, sidebar, feedback }: TitleBarProps) {
   const [maximized, setMaximized] = useState(false);
   const [actionState, setActionState] = useState<"idle" | "loading" | "error">("idle");
   const [windowStateFailed, setWindowStateFailed] = useState(false);
   const maximizeLabel = maximized ? messages.restore : messages.maximize;
   const controlsDisabled = !desktopWindow || actionState === "loading";
+  const sidebarLabel = sidebar?.visible ? messages.collapseSidebar : messages.expandSidebar;
   const status = actionState === "loading"
     ? { state: "loading" as const, message: messages.windowActionPending }
     : actionState === "error" || windowStateFailed
@@ -80,21 +82,24 @@ export function TitleBar({ title, feedback, children }: TitleBarProps) {
       <div className="title-bar__title" data-tauri-drag-region>
         <span>{title}</span>
       </div>
-      {children}
       <div className="title-bar__controls" role="group" aria-label={messages.windowControls}>
+        {sidebar && (
+          <button type="button" className="title-bar__sidebar" title={sidebarLabel} aria-label={sidebarLabel}
+            aria-expanded={sidebar.visible} aria-controls="workspace-sidebar" onClick={sidebar.toggle}>
+            <Icon name={sidebar.visible ? "sidebarVisible" : "sidebarHidden"} />
+          </button>
+        )}
         <button type="button" aria-label={messages.minimize} title={messages.minimize} disabled={controlsDisabled}
           onClick={() => void runAction("minimize")}>
-          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6h10" /></svg>
+          <Icon name="minimize" size={13} />
         </button>
         <button type="button" aria-label={maximizeLabel} title={maximizeLabel} disabled={controlsDisabled}
           onClick={() => void runAction("toggleMaximize")}>
-          <svg viewBox="0 0 12 12" aria-hidden="true">
-            {maximized ? <path d="M4 3V1h7v7H9M1 4h7v7H1z" /> : <path d="M1 1h10v10H1z" />}
-          </svg>
+          <Icon name={maximized ? "restore" : "maximize"} size={13} />
         </button>
         <button type="button" className="title-bar__close" aria-label={messages.close} title={messages.close}
           disabled={controlsDisabled} onClick={() => void runAction("close")}>
-          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m1 1 10 10M11 1 1 11" /></svg>
+          <Icon name="close" size={13} />
         </button>
       </div>
       {status && (

@@ -6,7 +6,6 @@ export interface WindowOptions {
   title?: string;
   size?: [width: number, height: number];
   minSize?: [width: number, height: number];
-  showInToolbar?: boolean;
 }
 
 interface WindowModule {
@@ -26,7 +25,6 @@ const routes = new Map(Object.entries(pages).map(([path, page]) => {
     title: page.windowOptions?.title ?? (name === mainRoute ? "OI-table" : name),
     size: page.windowOptions?.size,
     minSize: page.windowOptions?.minSize,
-    showInToolbar: page.windowOptions?.showInToolbar ?? false,
   }] as const;
 }));
 
@@ -35,7 +33,6 @@ const label = desktop ? getCurrentWindow().label : mainRoute;
 const routeName = label.startsWith(childLabelPrefix) ? label.slice(childLabelPrefix.length) : label;
 export const currentWindow = routes.get(routeName);
 export const isMainWindow = label === mainRoute;
-export const toolbarWindows = [...routes.values()].filter((route) => route.showInToolbar && route.name !== mainRoute);
 
 let mainWindowSetup: Promise<void> | undefined;
 
