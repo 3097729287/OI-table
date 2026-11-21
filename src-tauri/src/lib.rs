@@ -1,3 +1,4 @@
+mod triggers;
 mod windowing;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -9,8 +10,13 @@ pub fn run() {
     }));
 
     builder
-        .setup(windowing::setup)
+        .setup(|app| {
+            triggers::setup(app)?;
+            windowing::setup(app)
+        })
         .invoke_handler(tauri::generate_handler![
+            triggers::get_trigger,
+            triggers::increment_trigger,
             windowing::open_window,
             windowing::configure_main_window
         ])
