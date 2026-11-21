@@ -1,4 +1,17 @@
+.window-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  block-size: 100vh;
+}
+
+.window-content {
+  min-inline-size: 0;
+  overflow: auto;
+}
+
 .title-bar {
+  position: relative;
+  z-index: 1;
   display: flex;
   block-size: 36px;
   color: var(--title-bar-color);
@@ -32,6 +45,12 @@
   background: var(--title-bar-hover);
 }
 
+.title-bar button.title-bar__action {
+  inline-size: auto;
+  padding-inline: var(--space-md);
+  font: inherit;
+}
+
 .title-bar .title-bar__close:enabled:hover {
   background: var(--title-bar-close-hover);
   color: var(--title-bar-close-color);
@@ -45,6 +64,11 @@
 }
 
 .title-bar-status {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  max-inline-size: 100%;
   padding: var(--space-sm) var(--space-md);
+  background: var(--title-bar-background);
   text-align: end;
 }

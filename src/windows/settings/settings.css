@@ -1,0 +1,12 @@
+.appearance-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-block-start: var(--space-lg);
+}
+
+.appearance-setting select {
+  padding: var(--space-sm);
+  font: inherit;
+}

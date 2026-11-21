@@ -1,5 +1,5 @@
-import en from "./locales/en.json";
-import zhCN from "./locales/zh-CN.json";
+import en from "./en.json";
+import zhCN from "./zh-CN.json";
 
 const catalogs = {
   en,

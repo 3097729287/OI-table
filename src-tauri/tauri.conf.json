@@ -9,18 +9,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "OI-table",
-        "decorations": false,
-        "width": 920,
-        "height": 620,
-        "minWidth": 360,
-        "minHeight": 400,
-        "center": true
-      }
-    ],
     "security": {
       "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost",
       "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:11420"

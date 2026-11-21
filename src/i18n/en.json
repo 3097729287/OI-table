@@ -1,0 +1,22 @@
+{
+  "helloWorld": "Hello, world!",
+  "emptyWorkspace": "No data yet.",
+  "windowActionPending": "Applying window action…",
+  "windowActionFailed": "The window action failed. Please try again.",
+  "windowStateFailed": "Could not read the window state.",
+  "windowControls": "Window controls",
+  "minimize": "Minimize",
+  "maximize": "Maximize",
+  "restore": "Restore",
+  "close": "Close",
+  "settings": "Settings",
+  "appearance": "Appearance",
+  "themeSystem": "Follow system",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "windowOpenFailed": "Could not open the window. Please try again.",
+  "windowConfigurationFailed": "Could not apply the window settings.",
+  "windowPageUnavailable": "This window page is unavailable.",
+  "settingsSaveFailed": "Could not save the appearance setting.",
+  "settingsSyncFailed": "Saved, but could not notify the other windows."
+}
