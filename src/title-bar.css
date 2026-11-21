@@ -1,0 +1,55 @@
+body {
+  margin: 0;
+}
+
+.title-bar {
+  display: flex;
+  block-size: 36px;
+  color: var(--title-bar-color, #1b2534);
+  background: var(--title-bar-background, #f2f5f9);
+  font: 13px "Segoe UI", "Microsoft YaHei", sans-serif;
+  user-select: none;
+}
+
+.title-bar__title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  padding-inline: 14px;
+  font-weight: 600;
+}
+
+.title-bar__controls {
+  display: flex;
+}
+
+.title-bar button {
+  display: grid;
+  place-items: center;
+  inline-size: 46px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+.title-bar button:enabled:hover {
+  background: var(--title-bar-hover, #dfe5ed);
+}
+
+.title-bar .title-bar__close:enabled:hover {
+  background: var(--title-bar-close-hover, #c42b1c);
+  color: #fff;
+}
+
+.title-bar button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -3px;
+}
+
+.title-bar svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+}

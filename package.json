@@ -10,6 +10,7 @@
     "icon": "tauri icon src-tauri/app-icon.svg"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2",
     "react": "^19",
     "react-dom": "^19"
   },
