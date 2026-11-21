@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { useTheme } from "../shared/appearance";
+import { useSettings } from "../shared/settings";
 import { messages } from "../i18n";
 import { StatusMessage } from "../shared/StatusMessage";
 import { applyMainWindowOptions, currentWindow, desktop, isMainWindow, openWindow, toolbarWindows } from "./routes";
@@ -7,14 +7,14 @@ import { TitleBar } from "./TitleBar";
 import "./window-shell.css";
 
 export function WindowShell() {
-  const theme = useTheme();
+  const theme = useSettings().settings?.theme;
   const [opening, setOpening] = useState(false);
   const [openFailed, setOpenFailed] = useState(false);
   const [configurationFailed, setConfigurationFailed] = useState(false);
   const Page = currentWindow?.Page;
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    if (theme) document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   useEffect(() => {

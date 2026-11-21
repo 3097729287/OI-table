@@ -17,6 +17,7 @@
   "windowOpenFailed": "Could not open the window. Please try again.",
   "windowConfigurationFailed": "Could not apply the window settings.",
   "windowPageUnavailable": "This window page is unavailable.",
-  "settingsSaveFailed": "Could not save the appearance setting.",
-  "settingsSyncFailed": "Saved, but could not notify the other windows."
+  "settingsLoading": "Loading settings…",
+  "settingsLoadFailed": "Could not load settings.",
+  "settingsSaveFailed": "Could not save settings."
 }

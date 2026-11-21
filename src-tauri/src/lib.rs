@@ -1,3 +1,5 @@
+mod settings;
+mod storage;
 mod triggers;
 mod windowing;
 
@@ -11,10 +13,12 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            triggers::setup(app)?;
+            storage::setup(app)?;
             windowing::setup(app)
         })
         .invoke_handler(tauri::generate_handler![
+            settings::get_settings,
+            settings::update_settings,
             triggers::get_trigger,
             triggers::increment_trigger,
             windowing::open_window,

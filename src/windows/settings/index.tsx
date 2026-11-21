@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { changeTheme, themes, useTheme, type Theme } from "../../shared/appearance";
+import { themes, updateSettings, useSettings, type Theme } from "../../shared/settings";
 import { messages } from "../../i18n";
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { WindowOptions } from "../../windowing/routes";
@@ -17,28 +17,38 @@ const themeLabels = {
 } satisfies Record<Theme, string>;
 
 export default function Settings() {
-  const theme = useTheme();
-  const [error, setError] = useState<Awaited<ReturnType<typeof changeTheme>>>();
+  const { settings, loadFailed } = useSettings();
+  const [saveFailed, setSaveFailed] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function selectTheme(next: Theme) {
     setSaving(true);
-    setError(await changeTheme(next));
-    setSaving(false);
+    setSaveFailed(false);
+    try {
+      await updateSettings({ theme: next });
+    } catch {
+      setSaveFailed(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <main className="workspace">
       <h1>{messages.settings}</h1>
-      <label className="appearance-setting">
-        {messages.appearance}
-        <select value={theme} disabled={saving} onChange={(event) => {
-          void selectTheme(event.currentTarget.value as Theme);
-        }}>
-          {themes.map((option) => <option key={option} value={option}>{themeLabels[option]}</option>)}
-        </select>
-      </label>
-      {error && <StatusMessage state="error">{messages[error]}</StatusMessage>}
+      {settings && (
+        <label className="appearance-setting">
+          {messages.appearance}
+          <select value={settings.theme} disabled={saving} onChange={(event) => {
+            void selectTheme(event.currentTarget.value as Theme);
+          }}>
+            {themes.map((option) => <option key={option} value={option}>{themeLabels[option]}</option>)}
+          </select>
+        </label>
+      )}
+      {!settings && !loadFailed && <StatusMessage state="loading">{messages.settingsLoading}</StatusMessage>}
+      {loadFailed && <StatusMessage state="error">{messages.settingsLoadFailed}</StatusMessage>}
+      {saveFailed && <StatusMessage state="error">{messages.settingsSaveFailed}</StatusMessage>}
     </main>
   );
 }

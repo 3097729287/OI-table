@@ -17,6 +17,7 @@
   "windowOpenFailed": "无法打开窗口，请重试。",
   "windowConfigurationFailed": "无法应用窗口设置。",
   "windowPageUnavailable": "这个窗口的页面不可用。",
-  "settingsSaveFailed": "无法保存外观设置。",
-  "settingsSyncFailed": "设置已保存，但未能通知其他窗口。"
+  "settingsLoading": "正在加载设置…",
+  "settingsLoadFailed": "无法读取设置。",
+  "settingsSaveFailed": "无法保存设置。"
 }
