@@ -61,11 +61,17 @@ pub async fn open_window(
     }
 
     match build_window(&app, &label, &title, size, min_size) {
-        Ok(_) => Ok(()),
+        Ok(_) => {
+            log::info!("Auxiliary window opened");
+            Ok(())
+        }
         // A concurrent request may have opened the same route.
         Err(error) => match app.get_webview_window(&label) {
             Some(window) => focus_window(&window).map_err(|error| error.to_string()),
-            None => Err(error.to_string()),
+            None => {
+                log::warn!("Could not open an auxiliary window: {error}");
+                Err(error.to_string())
+            }
         },
     }
 }
@@ -106,7 +112,7 @@ fn focus_window(window: &WebviewWindow) -> tauri::Result<()> {
 pub fn focus_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         if let Err(error) = focus_window(&window) {
-            eprintln!("Could not restore the main window: {error}");
+            log::warn!("Could not restore the main window: {error}");
         }
     }
 }
@@ -136,6 +142,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let app_handle = app.handle().clone();
     main_window.on_window_event(move |event| {
         if matches!(event, WindowEvent::Destroyed) {
+            log::info!("Main window closed");
             app_handle.exit(0);
         }
     });

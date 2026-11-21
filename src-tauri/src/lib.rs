@@ -1,3 +1,4 @@
+mod logging;
 mod settings;
 mod storage;
 mod triggers;
@@ -14,7 +15,26 @@ pub fn run() {
     builder
         .setup(|app| {
             storage::setup(app)?;
+            let log_limit = settings::startup_log_limit(app);
+            if let Err(error) = logging::setup(
+                app,
+                log_limit
+                    .as_ref()
+                    .copied()
+                    .unwrap_or(settings::DEFAULT_LOG_MAX_SIZE_MIB),
+            ) {
+                eprintln!("Could not initialize local logs: {error}");
+            }
+            if let Err(error) = log_limit {
+                log::warn!(
+                    "Could not read the saved log size limit ({:?})",
+                    error.kind()
+                );
+            }
             windowing::setup(app)
+                .inspect_err(|error| log::error!("Could not open the main window: {error}"))?;
+            log::info!("Application started");
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             settings::get_settings,

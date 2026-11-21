@@ -8,8 +8,9 @@ const settingsChanged = "oi-table:settings-changed";
 export const themes = ["system", "light", "dark"] as const;
 export type Theme = (typeof themes)[number];
 
-interface AppSettings {
+export interface AppSettings {
   theme: Theme;
+  logMaxSizeMib: number;
 }
 
 interface SettingsSnapshot {
@@ -51,7 +52,7 @@ async function refreshSettings(legacyTheme?: Theme): Promise<boolean> {
 
 async function initializeSettings() {
   if (!isTauri()) {
-    publish({ settings: { theme: readLegacyTheme() ?? "system" }, loadFailed: false });
+    publish({ settings: { theme: readLegacyTheme() ?? "system", logMaxSizeMib: 5 }, loadFailed: false });
     return;
   }
 

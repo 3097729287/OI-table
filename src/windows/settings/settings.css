@@ -1,4 +1,4 @@
-.appearance-setting {
+.settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6,7 +6,34 @@
   margin-block-start: var(--space-lg);
 }
 
-.appearance-setting select {
+.settings-row :is(select, input, button) {
   padding: var(--space-sm);
   font: inherit;
+}
+
+.log-settings {
+  margin-block-start: var(--space-lg);
+}
+
+.log-settings h2 {
+  font-size: 16px;
+}
+
+.log-settings .settings-row,
+.log-settings p {
+  margin-block-start: var(--space-sm);
+}
+
+.log-settings p {
+  color: var(--muted-color);
+  font-size: 13px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.settings-actions input {
+  inline-size: 5.5rem;
 }

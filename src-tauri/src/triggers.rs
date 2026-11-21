@@ -31,7 +31,10 @@ fn increment(storage: &Storage, name: &str, notify: impl FnOnce(u32)) -> io::Res
 
 #[tauri::command]
 pub async fn get_trigger(storage: State<'_, Storage>, name: String) -> Result<u32, String> {
-    get(&storage, &name).map_err(|error| error.to_string())
+    get(&storage, &name).map_err(|error| {
+        log::warn!("Could not read trigger counts ({:?})", error.kind());
+        error.to_string()
+    })
 }
 
 #[tauri::command]
@@ -42,10 +45,13 @@ pub async fn increment_trigger(
 ) -> Result<u32, String> {
     increment(&storage, &name, |count| {
         if let Err(error) = app.emit(TRIGGER_CHANGED, (&name, count)) {
-            eprintln!("Could not notify trigger listeners: {error}");
+            log::warn!("Could not notify trigger listeners: {error}");
         }
     })
-    .map_err(|error| error.to_string())
+    .map_err(|error| {
+        log::warn!("Could not save trigger counts ({:?})", error.kind());
+        error.to_string()
+    })
 }
 
 #[cfg(test)]
