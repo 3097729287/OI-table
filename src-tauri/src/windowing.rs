@@ -3,6 +3,7 @@ use tauri::{
     WebviewWindowBuilder, WindowEvent,
 };
 
+const MAIN_WINDOW: &str = "main";
 const CHILD_PREFIX: &str = "child-";
 const DEFAULT_SIZE: [f64; 2] = [920.0, 620.0];
 const DEFAULT_MIN_SIZE: [f64; 2] = [360.0, 400.0];
@@ -76,7 +77,7 @@ pub async fn configure_main_window(
     size: Option<[f64; 2]>,
     min_size: Option<[f64; 2]>,
 ) -> Result<(), String> {
-    if window.label() != "main" {
+    if window.label() != MAIN_WINDOW {
         return Err("Only the main window can apply startup options".into());
     }
 
@@ -101,10 +102,19 @@ fn focus_window(window: &WebviewWindow) -> tauri::Result<()> {
     window.set_focus()
 }
 
+#[cfg(desktop)]
+pub fn focus_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        if let Err(error) = focus_window(&window) {
+            eprintln!("Could not restore the main window: {error}");
+        }
+    }
+}
+
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.add_capability(
         CapabilityBuilder::new("app-windows")
-            .window("main")
+            .window(MAIN_WINDOW)
             .window(format!("{CHILD_PREFIX}*"))
             .permission("core:event:allow-listen")
             .permission("core:event:allow-unlisten")
@@ -118,7 +128,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let main_window = build_window(
         app.handle(),
-        "main",
+        MAIN_WINDOW,
         app.config().product_name.as_deref().unwrap_or("OI-table"),
         DEFAULT_SIZE,
         DEFAULT_MIN_SIZE,
