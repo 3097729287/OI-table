@@ -4,6 +4,7 @@ import { Icon } from "../shared/Icon";
 import emptyWorkbenchImage from "./assets/oi-table-product.svg?no-inline";
 import { collectPaneFrames, initialLayout, previewBounds, workspaceReducer, type LayoutAction, type PaneBounds, type PaneFrame, type PaneId } from "./layout";
 import { WorkspaceSidebar } from "./sidebar";
+import { useSidebarResize } from "./useSidebarResize";
 import { useTabDrag } from "./useTabDrag";
 import { workspaceViews } from "./views";
 import { WorkspaceNavigator } from "./WorkspaceNavigator";
@@ -17,6 +18,8 @@ function position(bounds: PaneBounds) {
     "--pane-y": `${bounds.y}%`,
     "--pane-width": `${bounds.width}%`,
     "--pane-height": `${bounds.height}%`,
+    "--pane-inline-divider-width": bounds.x + bounds.width < 100 ? "1px" : "0px",
+    "--pane-block-divider-width": bounds.y + bounds.height < 100 ? "1px" : "0px",
   } as CSSProperties;
 }
 
@@ -122,10 +125,22 @@ export function Workbench() {
   const splitTarget = drag.destination?.type === "split" ? drag.destination : undefined;
   const splitFrame = splitTarget ? frameByPane.get(splitTarget.pane) : undefined;
   const sidebar = useContext(WorkspaceSidebar);
+  const sidebarResize = useSidebarResize(sidebar.visible);
 
   return (
-    <main className="workbench" data-sidebar-visible={sidebar.visible}>
+    <main ref={sidebarResize.workbench} className="workbench"
+      data-sidebar-resizing={sidebarResize.resizing}
+      style={{ "--sidebar-width": `${sidebar.visible ? sidebarResize.width : 0}px` } as CSSProperties}>
       <WorkspaceNavigator onOpen={(view) => dispatch({ type: "open", view })} />
+      {sidebar.visible && (
+        <div className="workbench-sidebar-resizer" role="separator" tabIndex={0}
+          aria-orientation="vertical" aria-controls="workspace-sidebar" aria-label={messages.resizeSidebar}
+          aria-valuemin={sidebarResize.minWidth} aria-valuemax={sidebarResize.maxWidth}
+          aria-valuenow={sidebarResize.width}
+          onPointerDown={sidebarResize.start} onPointerMove={sidebarResize.track}
+          onPointerUp={sidebarResize.stop} onPointerCancel={sidebarResize.stop}
+          onLostPointerCapture={sidebarResize.stop} onKeyDown={sidebarResize.handleKeyDown} />
+      )}
       {layout.root ? (
         <div className="workbench-panes"
           data-tab-dragging={drag.draggedView !== undefined}

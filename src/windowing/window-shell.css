@@ -16,7 +16,6 @@
   block-size: 32px;
   color: var(--title-bar-color);
   background: var(--navigation-background);
-  border-block-end: 1px solid color-mix(in srgb, currentColor 12%, transparent);
   font-size: 12px;
   line-height: 1.25;
 }

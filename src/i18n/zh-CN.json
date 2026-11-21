@@ -20,6 +20,7 @@
   "scratchPad": "临时编辑区",
   "collapseSidebar": "收起侧栏",
   "expandSidebar": "展开侧栏",
+  "resizeSidebar": "调整侧栏宽度",
   "editorPane": "编辑区域 {number}",
   "closeView": "关闭{title}",
   "save": "保存",
