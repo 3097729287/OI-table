@@ -1,11 +1,12 @@
 :root {
   color-scheme: light dark;
   --window-background: light-dark(#fff, #161b24);
+  --navigation-background: light-dark(#eceff2, #1b2028);
+  --sidebar-background: light-dark(#f7f8f9, #252b35);
   --text-color: light-dark(#1b2534, #edf2f8);
   --muted-color: light-dark(#526070, #aab8c9);
   --error-color: light-dark(#a1241c, #ff9a90);
   --title-bar-color: var(--text-color);
-  --title-bar-background: light-dark(#f2f5f9, #202936);
   --title-bar-hover: light-dark(#dfe5ed, #344155);
   --title-bar-close-hover: #c42b1c;
   --title-bar-close-color: #fff;

@@ -1,9 +1,6 @@
 .workbench {
-  --navigation-rail: light-dark(#eceff2, #1b2028);
-  --navigation-panel: light-dark(#f7f8f9, #20252e);
   --navigation-hover: light-dark(#e8ebef, #2a313c);
   --navigation-selected: light-dark(#e2e9ed, #303d48);
-  --workbench-toolbar: color-mix(in srgb, var(--window-background) 93%, #728aa8);
   --workbench-border: color-mix(in srgb, var(--text-color) 15%, transparent);
   --workbench-accent: light-dark(#235a78, #93c8e4);
   --workspace-rail-width: 52px;
@@ -25,7 +22,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--navigation-rail);
+  background: var(--navigation-background);
   border-inline-end: 1px solid var(--workbench-border);
 }
 
@@ -59,13 +56,13 @@
   padding: var(--space-sm);
   border: 1px solid var(--workbench-border);
   border-radius: 4px;
-  background: var(--navigation-panel);
+  background: var(--sidebar-background);
   font-size: 13px;
 }
 
 .workspace-rail button[aria-pressed="true"] {
   color: var(--workbench-accent);
-  background: var(--navigation-panel);
+  background: var(--sidebar-background);
   border-inline-start-color: var(--workbench-accent);
 }
 
@@ -76,7 +73,7 @@
   overflow: auto;
   padding: 12px 8px 8px;
   border-inline-end: 1px solid var(--workbench-border);
-  background: var(--navigation-panel);
+  background: var(--sidebar-background);
 }
 
 :is(.workspace-rail, .workbench-sidebar, .pane-toolbar) button {
@@ -175,7 +172,7 @@
   block-size: min(var(--pane-tabs-height), var(--pane-height));
   border-inline-end: 1px solid var(--workbench-border);
   border-block-end: 1px solid var(--workbench-border);
-  background: var(--workbench-toolbar);
+  background: var(--window-background);
 }
 
 .pane-tabs {
@@ -221,7 +218,7 @@
 }
 
 .workbench-tab[data-selected="true"] {
-  background: var(--window-background);
+  background: color-mix(in srgb, var(--text-color) 6%, transparent);
 }
 
 .workbench-tab:hover,
@@ -251,7 +248,7 @@
 }
 
 .pane-tabs[data-drop-end="true"] {
-  background: color-mix(in srgb, var(--workbench-accent) 12%, var(--workbench-toolbar));
+  background: color-mix(in srgb, var(--workbench-accent) 12%, var(--window-background));
 }
 
 .pane-toolbar[data-focused="true"] .workbench-tab[data-selected="true"] {
@@ -303,7 +300,7 @@
   padding: var(--space-sm);
   border: 1px solid var(--workbench-border);
   border-radius: 4px;
-  background: var(--workbench-toolbar);
+  background: var(--window-background);
   color: inherit;
   font: 13px/1.6 Consolas, monospace;
   resize: vertical;
