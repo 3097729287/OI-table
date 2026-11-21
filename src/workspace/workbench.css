@@ -1,13 +1,9 @@
 .workbench {
-  --navigation-rail: light-dark(#eceff2, #1b2028);
-  --navigation-panel: light-dark(#f7f8f9, #20252e);
   --navigation-hover: light-dark(#e8ebef, #2a313c);
   --navigation-selected: light-dark(#e2e9ed, #303d48);
-  --workbench-toolbar: color-mix(in srgb, var(--window-background) 93%, #728aa8);
   --workbench-border: color-mix(in srgb, var(--text-color) 15%, transparent);
   --workbench-accent: light-dark(#235a78, #93c8e4);
   --workspace-rail-width: 52px;
-  --sidebar-width: 152px;
   --workspace-motion: 180ms cubic-bezier(0.2, 0.75, 0.25, 1);
   display: grid;
   grid-template-columns: var(--workspace-rail-width) var(--sidebar-width) minmax(0, 1fr);
@@ -16,8 +12,8 @@
   transition: grid-template-columns var(--workspace-motion);
 }
 
-.workbench[data-sidebar-visible="false"] {
-  --sidebar-width: 0px;
+.workbench[data-sidebar-resizing="true"] {
+  transition: none;
 }
 
 .workspace-rail {
@@ -25,8 +21,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--navigation-rail);
-  border-inline-end: 1px solid var(--workbench-border);
+  background: var(--navigation-background);
 }
 
 .workspace-rail button:is([aria-pressed], .workspace-rail__settings) {
@@ -35,8 +30,6 @@
   inline-size: 100%;
   min-block-size: 50px;
   padding-inline: 0;
-  border-inline-start: 2px solid transparent;
-  border-inline-end: 2px solid transparent;
   color: var(--muted-color);
   transition: background-color var(--workspace-motion), color var(--workspace-motion);
 }
@@ -59,24 +52,37 @@
   padding: var(--space-sm);
   border: 1px solid var(--workbench-border);
   border-radius: 4px;
-  background: var(--navigation-panel);
+  background: var(--sidebar-background);
   font-size: 13px;
 }
 
 .workspace-rail button[aria-pressed="true"] {
-  color: var(--workbench-accent);
-  background: var(--navigation-panel);
-  border-inline-start-color: var(--workbench-accent);
+  color: light-dark(#103d66, #b7e8ff);
+  background: color-mix(in srgb, currentColor 18%, var(--navigation-background));
+}
+
+.workbench-sidebar,
+.workbench-sidebar-resizer {
+  grid-area: 1 / 2;
 }
 
 .workbench-sidebar {
-  grid-column: 2;
   min-inline-size: 0;
   min-block-size: 0;
   overflow: auto;
   padding: 12px 8px 8px;
-  border-inline-end: 1px solid var(--workbench-border);
-  background: var(--navigation-panel);
+  background: var(--sidebar-background);
+}
+
+.workbench-sidebar-resizer {
+  justify-self: end;
+  inline-size: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.workbench[data-sidebar-resizing="true"] .workbench-sidebar-resizer {
+  box-shadow: none;
 }
 
 :is(.workspace-rail, .workbench-sidebar, .pane-toolbar) button {
@@ -173,9 +179,8 @@
   min-inline-size: 0;
   inset-block-start: var(--pane-y);
   block-size: min(var(--pane-tabs-height), var(--pane-height));
-  border-inline-end: 1px solid var(--workbench-border);
-  border-block-end: 1px solid var(--workbench-border);
-  background: var(--workbench-toolbar);
+  border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
+  background: var(--window-background);
 }
 
 .pane-tabs {
@@ -221,7 +226,7 @@
 }
 
 .workbench-tab[data-selected="true"] {
-  background: var(--window-background);
+  background: color-mix(in srgb, var(--text-color) 6%, transparent);
 }
 
 .workbench-tab:hover,
@@ -251,7 +256,7 @@
 }
 
 .pane-tabs[data-drop-end="true"] {
-  background: color-mix(in srgb, var(--workbench-accent) 12%, var(--workbench-toolbar));
+  background: color-mix(in srgb, var(--workbench-accent) 12%, var(--window-background));
 }
 
 .pane-toolbar[data-focused="true"] .workbench-tab[data-selected="true"] {
@@ -273,8 +278,8 @@
   min-inline-size: 0;
   min-block-size: 0;
   overflow: auto;
-  border-inline-end: 1px solid var(--workbench-border);
-  border-block-end: 1px solid var(--workbench-border);
+  border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
+  border-block-end: var(--pane-block-divider-width) solid var(--workbench-border);
   background: var(--window-background);
 }
 
@@ -303,16 +308,10 @@
   padding: var(--space-sm);
   border: 1px solid var(--workbench-border);
   border-radius: 4px;
-  background: var(--workbench-toolbar);
+  background: var(--window-background);
   color: inherit;
   font: 13px/1.6 Consolas, monospace;
   resize: vertical;
-}
-
-@media (max-width: 680px) {
-  .workbench[data-sidebar-visible="true"] {
-    --sidebar-width: 116px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

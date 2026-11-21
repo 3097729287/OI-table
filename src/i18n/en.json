@@ -20,6 +20,7 @@
   "scratchPad": "Session scratch pad",
   "collapseSidebar": "Collapse sidebar",
   "expandSidebar": "Expand sidebar",
+  "resizeSidebar": "Resize sidebar",
   "editorPane": "Editor pane {number}",
   "closeView": "Close {title}",
   "save": "Save",
