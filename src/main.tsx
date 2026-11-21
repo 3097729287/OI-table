@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { TitleBar } from "./TitleBar";
+import { StatusMessage } from "./StatusMessage";
 import { locale, messages } from "./i18n";
 import "./app.css";
 
@@ -10,6 +11,7 @@ function App() {
       <TitleBar />
       <main className="workspace">
         <h1>{messages.helloWorld}</h1>
+        <StatusMessage state="empty">{messages.emptyWorkspace}</StatusMessage>
       </main>
     </>
   );

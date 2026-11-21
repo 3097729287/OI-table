@@ -1,13 +1,57 @@
-body {
+:root {
+  --window-background: #fff;
+  --text-color: #1b2534;
+  --muted-color: #526070;
+  --error-color: #a1241c;
+  --title-bar-color: var(--text-color);
+  --title-bar-background: #f2f5f9;
+  --title-bar-hover: #dfe5ed;
+  --title-bar-close-hover: #c42b1c;
+  --title-bar-close-color: #fff;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+}
+
+
+.workspace .status-message {
+  margin-block-start: var(--space-sm);
+}
+
+.status-message {
+  color: var(--muted-color);
+}
+
+.status-message--error {
+  color: var(--error-color);
+}
+
+:where(*, *::before, *::after) {
+  box-sizing: border-box;
   margin: 0;
+  outline: none;
+  user-select: none;
+}
+
+[data-selectable],
+[data-selectable] * {
+  user-select: text;
+}
+
+:focus-visible {
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+body {
+  background: var(--window-background);
+  color: var(--text-color);
   font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 
 .workspace {
-  padding: 24px;
+  padding: var(--space-lg);
 }
 
 .workspace h1 {
-  margin: 0;
   font-size: 24px;
 }

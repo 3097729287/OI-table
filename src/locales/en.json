@@ -1,5 +1,9 @@
 {
   "helloWorld": "Hello, world!",
+  "emptyWorkspace": "No data yet.",
+  "windowActionPending": "Applying window action…",
+  "windowActionFailed": "The window action failed. Please try again.",
+  "windowStateFailed": "Could not read the window state.",
   "windowControls": "Window controls",
   "minimize": "Minimize",
   "maximize": "Maximize",
