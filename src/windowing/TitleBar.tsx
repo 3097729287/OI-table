@@ -77,7 +77,9 @@ export function TitleBar({ title, feedback, children }: TitleBarProps) {
 
   return (
     <header className="title-bar">
-      <div className="title-bar__title" data-tauri-drag-region>{title}</div>
+      <div className="title-bar__title" data-tauri-drag-region>
+        <span>{title}</span>
+      </div>
       {children}
       <div className="title-bar__controls" role="group" aria-label={messages.windowControls}>
         <button type="button" aria-label={messages.minimize} title={messages.minimize} disabled={controlsDisabled}
