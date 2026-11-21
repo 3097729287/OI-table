@@ -1,0 +1,8 @@
+{
+  "helloWorld": "Hello, world!",
+  "windowControls": "Window controls",
+  "minimize": "Minimize",
+  "maximize": "Maximize",
+  "restore": "Restore",
+  "close": "Close"
+}
