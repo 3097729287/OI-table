@@ -151,7 +151,7 @@
 }
 
 .workbench-panes {
-  --pane-tabs-height: 36px;
+  --pane-tabs-height: 38px;
   grid-column: 3;
   position: relative;
   min-block-size: 0;
@@ -177,6 +177,7 @@
 }
 
 .pane-toolbar {
+  --tab-strip-background: var(--navigation-background);
   --tab-scrollbar-line: 2px;
   --tab-scrollbar-hit-extension: 3px;
   display: flex;
@@ -187,12 +188,13 @@
   block-size: min(var(--pane-tabs-height), var(--pane-height));
   padding-block-end: var(--tab-scrollbar-line);
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
-  background: var(--window-background);
+  background: var(--tab-strip-background);
 }
 
 .pane-tabs {
   display: flex;
   flex: 1;
+  container-type: inline-size;
   min-block-size: 0;
   overflow: auto hidden;
   scrollbar-width: none;
@@ -278,21 +280,34 @@
 }
 
 .workbench-tab {
+  --tab-close-width: 26px;
+  --tab-close-inset: 6px;
+  position: relative;
   display: flex;
   flex: none;
-  align-items: stretch;
-  border-block-end: 2px solid transparent;
-  transition: background-color var(--workspace-motion), opacity var(--workspace-motion);
+  min-inline-size: min(88px, 100cqi);
+  max-inline-size: min(248px, 100cqi);
+  color: var(--muted-color);
+  transition: background-color var(--workspace-motion), color var(--workspace-motion),
+    opacity var(--workspace-motion);
 }
 
 .workbench-tab .workbench-tab__label {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
-  gap: 6px;
-  padding-inline: 10px 4px;
-  white-space: nowrap;
+  gap: 8px;
+  min-inline-size: 0;
+  padding-block: 6px;
+  padding-inline: 12px calc(var(--tab-close-width) + var(--tab-close-inset) + 4px);
   font-size: 12px;
   touch-action: none;
+}
+
+.workbench-tab__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pane-toolbar .workbench-tab__label:enabled {
@@ -300,27 +315,60 @@
 }
 
 .workbench-tab .workbench-tab__close {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: var(--tab-close-inset);
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
-  align-self: center;
-  margin-inline-end: 4px;
-  inline-size: 22px;
-  block-size: 22px;
+  inline-size: var(--tab-close-width);
+  block-size: 24px;
+  padding: 0;
   border-radius: 3px;
   color: var(--muted-color);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--workspace-motion), background-color var(--workspace-motion);
+}
+
+.workbench-tab:is([data-selected="true"], :hover, :focus-within) .workbench-tab__close {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .workbench-tab .workbench-tab__close {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.workbench-tab:is(:hover, :focus-within) {
+  background: var(--title-bar-hover);
+  color: var(--text-color);
 }
 
 .workbench-tab[data-selected="true"] {
-  background: color-mix(in srgb, var(--text-color) 6%, transparent);
+  background: var(--window-background);
+  color: var(--text-color);
 }
 
-.workbench-tab:hover,
-.workbench-tab:focus-within {
-  background: var(--title-bar-hover);
+.workbench-tab[data-selected="true"]::after {
+  position: absolute;
+  inset: auto 0 0;
+  block-size: 2px;
+  background: var(--workbench-border);
+  content: "";
+  pointer-events: none;
+}
+
+.pane-toolbar[data-focused="true"] .workbench-tab[data-selected="true"]::after {
+  background: var(--workbench-accent);
 }
 
 .workbench-tab .workbench-tab__close:hover {
-  background: color-mix(in srgb, currentColor 12%, transparent);
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  color: var(--text-color);
 }
 
 .workbench-panes[data-tab-dragging="true"],
@@ -341,11 +389,7 @@
 }
 
 .pane-tabs[data-drop-end="true"] {
-  background: color-mix(in srgb, var(--workbench-accent) 12%, var(--window-background));
-}
-
-.pane-toolbar[data-focused="true"] .workbench-tab[data-selected="true"] {
-  border-block-end-color: var(--workbench-accent);
+  background: color-mix(in srgb, var(--workbench-accent) 12%, var(--tab-strip-background));
 }
 
 .workbench-dock-preview {

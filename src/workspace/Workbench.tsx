@@ -2,7 +2,7 @@ import { useContext, useLayoutEffect, useMemo, useReducer, useRef, type CSSPrope
 import { messages } from "../i18n";
 import { Icon } from "../shared/Icon";
 import emptyWorkbenchImage from "./assets/oi-table-product.svg?no-inline";
-import { collectPaneFrames, initialLayout, previewBounds, workspaceReducer, type LayoutAction, type PaneBounds, type PaneFrame, type PaneId } from "./layout";
+import { collectPaneFrames, initialLayout, nextTabAfterClose, previewBounds, workspaceReducer, type LayoutAction, type PaneBounds, type PaneFrame, type PaneId } from "./layout";
 import { WorkspaceSidebar } from "./sidebar";
 import { TabScrollbar } from "./TabScrollbar";
 import { useSidebarResize } from "./useSidebarResize";
@@ -24,8 +24,12 @@ function position(bounds: PaneBounds) {
   } as CSSProperties;
 }
 
+function tabLabel(view: string) {
+  return document.getElementById(`workbench-tab-${view}`);
+}
+
 function revealTab(view: string) {
-  const tab = document.getElementById(`workbench-tab-${view}`)?.closest<HTMLElement>(".workbench-tab");
+  const tab = tabLabel(view)?.closest<HTMLElement>(".workbench-tab");
   const strip = tab?.closest<HTMLElement>(".pane-tabs");
   if (!tab || !strip) return;
 
@@ -76,7 +80,23 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
     tabOffsets.current = next;
   }, [group.tabs]);
 
-  function navigateTabs(event: KeyboardEvent, index: number) {
+  function closeTab(view: string) {
+    const tab = tabLabel(view)?.parentElement;
+    if (group.active === view || tab?.contains(document.activeElement)) {
+      const next = nextTabAfterClose(group, view);
+      if (next !== undefined) tabLabel(next)?.focus({ preventScroll: true });
+    }
+
+    dispatch({ type: "close", pane, view });
+  }
+
+  function handleTabKey(event: KeyboardEvent, index: number) {
+    if (event.key === "Delete") {
+      event.preventDefault();
+      closeTab(group.tabs[index]);
+      return;
+    }
+
     const last = group.tabs.length - 1;
     let next: number;
     switch (event.key) {
@@ -89,7 +109,8 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
     event.preventDefault();
     const view = group.tabs[next];
     dispatch({ type: "select", pane, view });
-    document.getElementById(`workbench-tab-${view}`)?.focus();
+    tabLabel(view)?.focus({ preventScroll: true });
+    revealTab(view);
   }
 
   return (
@@ -108,24 +129,32 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
               : undefined;
             return (
               <div key={id} className="workbench-tab" role="presentation" data-selected={selected}
-                data-tab-view={id} data-dragged={drag.draggedView === id} data-drop-edge={dropEdge}>
+                data-tab-view={id} data-dragged={drag.draggedView === id} data-drop-edge={dropEdge}
+                onMouseDown={(event) => {
+                  if (event.button === 1) event.preventDefault();
+                }}
+                onAuxClick={(event) => {
+                  if (event.button !== 1) return;
+                  event.preventDefault();
+                  closeTab(id);
+                }}>
                 <button type="button" className="workbench-tab__label" role="tab" id={`workbench-tab-${id}`}
                   title={view.title} aria-label={view.title}
                   aria-controls={`workbench-panel-${id}`} aria-selected={selected} tabIndex={selected ? 0 : -1}
                   onClick={() => dispatch({ type: "select", pane, view: id })}
                   onPointerDown={(event) => drag.start(event, pane, id)}
-                  onKeyDown={(event) => navigateTabs(event, index)}>
-                  <Icon name={view.icon} />
-                  {view.title}
+                  onKeyDown={(event) => handleTabKey(event, index)}>
+                  <Icon name={view.icon} size={14} />
+                  <span className="workbench-tab__title">{view.title}</span>
                 </button>
                 <button type="button" className="workbench-tab__close"
                   title={messages.closeView.replace("{title}", view.title)}
                   aria-label={messages.closeView.replace("{title}", view.title)}
-                  onClick={() => {
-                    const next = selected ? group.tabs[index + 1] ?? group.tabs[index - 1] : group.active;
-                    if (next) document.getElementById(`workbench-tab-${next}`)?.focus();
-                    dispatch({ type: "close", pane, view: id });
-                  }}><Icon name="close" size={12} /></button>
+                  tabIndex={selected ? 0 : -1}
+                  onMouseDown={(event) => {
+                    if (event.button === 0) event.preventDefault();
+                  }}
+                  onClick={() => closeTab(id)}><Icon name="close" size={14} /></button>
               </div>
             );
           })}
