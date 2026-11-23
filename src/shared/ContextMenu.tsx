@@ -44,15 +44,18 @@ export function ContextMenu<Extra>({ x, y, label, items, onDismiss }: ContextMen
 
   useEffect(() => {
     const dismiss = () => onDismiss(false);
-    const pointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !menu.current?.contains(event.target)) dismiss();
+    const dismissOutside = (event: Event) => {
+      const element = menu.current;
+      if (element && event.target instanceof Node && !element.contains(event.target)) dismiss();
     };
 
-    document.addEventListener("pointerdown", pointerDown, true);
+    document.addEventListener("pointerdown", dismissOutside, true);
+    document.addEventListener("scroll", dismissOutside, { capture: true, passive: true });
     window.addEventListener("blur", dismiss);
     window.addEventListener("resize", dismiss);
     return () => {
-      document.removeEventListener("pointerdown", pointerDown, true);
+      document.removeEventListener("pointerdown", dismissOutside, true);
+      document.removeEventListener("scroll", dismissOutside, true);
       window.removeEventListener("blur", dismiss);
       window.removeEventListener("resize", dismiss);
     };
