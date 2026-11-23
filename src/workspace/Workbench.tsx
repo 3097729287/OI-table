@@ -152,7 +152,7 @@ export function Workbench() {
               focused={layout.focused === frame.pane.id} dispatch={dispatch} drag={drag} />
           ))}
           {/* Keep panels keyed by view when their pane changes so drafts and scroll state survive. */}
-          {workspaceViews.map(({ id, Page }) => {
+          {workspaceViews.map(({ id, title, Page }) => {
             const frame = frameByView.get(id);
             if (!frame) return null;
             const { pane, bounds } = frame;
@@ -162,7 +162,7 @@ export function Workbench() {
                 role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                 hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                 onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
-                <Page />
+                <Page title={title} />
               </section>
             );
           })}

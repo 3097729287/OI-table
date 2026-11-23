@@ -1,10 +1,10 @@
-import { messages } from "../../i18n";
-import type { WorkspaceViewOptions } from "../../workspace/views";
+import { messages } from "../../../i18n";
+import type { WorkspaceViewOptions } from "../../../workspace/views";
 
 export const workspaceView = {
   title: messages.editor,
   icon: "scratchPad",
-  section: "editor",
+  section: "catalog",
   sidebarTitle: messages.scratchPad,
   order: 20,
 } satisfies WorkspaceViewOptions;
