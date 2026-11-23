@@ -5,6 +5,8 @@ import "./app.css";
 import { WindowShell } from "./windowing/WindowShell";
 
 document.documentElement.lang = locale;
+document.addEventListener("contextmenu", (event) => event.preventDefault());
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <WindowShell />

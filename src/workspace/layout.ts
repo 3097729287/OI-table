@@ -1,5 +1,6 @@
 export type PaneId = `pane-${number}`;
 export type SplitEdge = "left" | "right" | "top" | "bottom";
+export type TabCloseScope = "current" | "left" | "right" | "others" | "all";
 type SplitAxis = "horizontal" | "vertical";
 
 export interface TabDestination {
@@ -44,7 +45,7 @@ export type LayoutAction =
   | { type: "open"; view: string }
   | { type: "select"; pane: PaneId; view: string }
   | { type: "focus"; pane: PaneId }
-  | { type: "close"; pane: PaneId; view: string }
+  | { type: "close"; pane: PaneId; view: string; scope?: TabCloseScope }
   | { type: "place"; from: PaneId; view: string; destination: TabDestination }
   | { type: "split"; from: PaneId; target: PaneId; view: string; edge: SplitEdge };
 
@@ -71,20 +72,33 @@ function replacePane(node: PaneNode, id: PaneId, replacement: PaneNode | null): 
   return first === node.first && second === node.second ? node : { ...node, first, second };
 }
 
-export function nextTabAfterClose(pane: Pane, view: string): string | undefined {
-  if (view !== pane.active) return pane.active;
-
+export function closePaneTabs(pane: Pane, view: string, scope: TabCloseScope = "current"): Pane | null {
   const index = pane.tabs.indexOf(view);
-  return pane.tabs[index + 1] ?? pane.tabs[index - 1];
-}
+  if (index < 0) return pane;
 
-function removeTab(pane: Pane, view: string): Pane | null {
-  const active = nextTabAfterClose(pane, view);
-  return active === undefined ? null : { ...pane, tabs: pane.tabs.filter((tab) => tab !== view), active };
+  let tabs: string[];
+  switch (scope) {
+    case "current": tabs = pane.tabs.filter((tab) => tab !== view); break;
+    case "left": tabs = pane.tabs.slice(index); break;
+    case "right": tabs = pane.tabs.slice(0, index + 1); break;
+    case "others": tabs = [view]; break;
+    case "all": return null;
+  }
+  if (tabs.length === pane.tabs.length) return pane;
+  if (tabs.length === 0) return null;
+
+  let active = pane.active;
+  if (!tabs.includes(active)) {
+    const activeIndex = pane.tabs.indexOf(active);
+    const remaining = new Set(tabs);
+    active = pane.tabs.find((tab, index) => index > activeIndex && remaining.has(tab))
+      ?? tabs[tabs.length - 1];
+  }
+  return { ...pane, tabs, active };
 }
 
 function removeFromTree(root: PaneNode, source: Pane, view: string): PaneNode | null {
-  return replacePane(root, source.id, removeTab(source, view));
+  return replacePane(root, source.id, closePaneTabs(source, view));
 }
 
 function splitDirection(edge: SplitEdge) {
@@ -158,8 +172,10 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       return { ...layout, focused: action.pane };
     case "close": {
       const pane = paneById(action.pane);
-      if (!pane?.tabs.includes(action.view)) return layout;
-      const nextRoot = removeFromTree(root, pane, action.view);
+      if (!pane) return layout;
+      const remaining = closePaneTabs(pane, action.view, action.scope);
+      if (remaining === pane) return layout;
+      const nextRoot = replacePane(root, pane.id, remaining);
       if (!nextRoot) return { ...layout, root: null, focused: null };
       const focused = findPane(nextRoot, (candidate) => candidate.id === layout.focused)
         ?? findPane(nextRoot, () => true)!;
@@ -187,7 +203,7 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       const target = paneById(action.target);
       if (!source?.tabs.includes(action.view) || !target) return layout;
       const samePane = source.id === target.id;
-      const remaining = samePane ? removeTab(source, action.view) : target;
+      const remaining = samePane ? closePaneTabs(source, action.view) : target;
       if (!remaining) return layout;
 
       const detached = createPane(layout.nextPaneId, action.view);

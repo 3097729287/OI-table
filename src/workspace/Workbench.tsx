@@ -1,8 +1,9 @@
-import { useContext, useLayoutEffect, useMemo, useReducer, useRef, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
+import { useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
 import { messages } from "../i18n";
+import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
 import emptyWorkbenchImage from "./assets/oi-table-product.svg?no-inline";
-import { collectPaneFrames, initialLayout, nextTabAfterClose, previewBounds, workspaceReducer, type LayoutAction, type PaneBounds, type PaneFrame, type PaneId } from "./layout";
+import { closePaneTabs, collectPaneFrames, initialLayout, previewBounds, workspaceReducer, type LayoutAction, type PaneBounds, type PaneFrame, type PaneId, type TabCloseScope } from "./layout";
 import { WorkspaceSidebar } from "./sidebar";
 import { TabScrollbar } from "./TabScrollbar";
 import { useSidebarResize } from "./useSidebarResize";
@@ -12,6 +13,20 @@ import { WorkspaceNavigator } from "./WorkspaceNavigator";
 import "./workbench.css";
 
 const viewsById = new Map(workspaceViews.map((view) => [view.id, view]));
+const tabCloseActions: ReadonlyArray<{ scope: TabCloseScope; label: string }> = [
+  { scope: "current", label: messages.closeTab },
+  { scope: "right", label: messages.closeTabsToRight },
+  { scope: "left", label: messages.closeTabsToLeft },
+  { scope: "others", label: messages.closeOtherTabs },
+  { scope: "all", label: messages.closeAllTabs },
+];
+
+interface TabMenuAnchor {
+  pane: PaneId;
+  view: string;
+  x: number;
+  y: number;
+}
 
 function position(bounds: PaneBounds) {
   return {
@@ -44,12 +59,13 @@ function revealTab(view: string) {
   if (tab && strip) revealTabInStrip(strip, tab);
 }
 
-function PaneToolbar({ frame, focused, number, dispatch, drag }: {
+function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: {
   frame: PaneFrame;
   focused: boolean;
   number: number;
   dispatch: Dispatch<LayoutAction>;
   drag: ReturnType<typeof useTabDrag>;
+  onOpenTabMenu: (anchor: TabMenuAnchor) => void;
 }) {
   const { pane: group, bounds } = frame;
   const pane = group.id;
@@ -121,14 +137,21 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
   function closeTab(view: string) {
     const tab = tabLabel(view)?.parentElement;
     if (group.active === view || tab?.contains(document.activeElement)) {
-      const next = nextTabAfterClose(group, view);
+      const next = closePaneTabs(group, view)?.active;
       if (next !== undefined) tabLabel(next)?.focus({ preventScroll: true });
     }
 
     dispatch({ type: "close", pane, view });
   }
 
-  function handleTabKey(event: KeyboardEvent, index: number) {
+  function handleTabKey(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+      event.preventDefault();
+      const { left, bottom } = event.currentTarget.getBoundingClientRect();
+      onOpenTabMenu({ pane, view: group.tabs[index], x: left, y: bottom });
+      return;
+    }
+
     if (event.key === "Delete") {
       event.preventDefault();
       closeTab(group.tabs[index]);
@@ -168,6 +191,11 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
             return (
               <div key={id} className="workbench-tab" role="presentation" data-selected={selected}
                 data-tab-view={id} data-dragged={drag.draggedView === id} data-drop-edge={dropEdge}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  if (drag.draggedView !== undefined) return;
+                  onOpenTabMenu({ pane, view: id, x: event.clientX, y: event.clientY });
+                }}
                 onMouseDown={(event) => {
                   if (event.button === 1) event.preventDefault();
                 }}
@@ -178,6 +206,7 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
                 }}>
                 <button type="button" className="workbench-tab__label" role="tab" id={`workbench-tab-${id}`}
                   title={view.title} aria-label={view.title}
+                  aria-haspopup="menu"
                   aria-controls={`workbench-panel-${id}`} aria-selected={selected} tabIndex={selected ? 0 : -1}
                   onClick={() => dispatch({ type: "select", pane, view: id })}
                   onPointerDown={(event) => drag.start(event, pane, id)}
@@ -206,6 +235,7 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
 
 export function Workbench() {
   const [layout, dispatch] = useReducer(workspaceReducer, initialLayout);
+  const [tabMenu, setTabMenu] = useState<TabMenuAnchor | null>(null);
   const frames = useMemo(() => collectPaneFrames(layout.root), [layout.root]);
   const frameByPane = useMemo(() => new Map(frames.map((frame) => [frame.pane.id, frame])), [frames]);
   const frameByView = useMemo(() => new Map(frames.flatMap((frame) =>
@@ -218,6 +248,31 @@ export function Workbench() {
   const splitFrame = splitTarget ? frameByPane.get(splitTarget.pane) : undefined;
   const sidebar = useContext(WorkspaceSidebar);
   const sidebarResize = useSidebarResize(sidebar.visible);
+  const tabMenuPane = tabMenu ? frameByPane.get(tabMenu.pane)?.pane : undefined;
+
+  function dismissTabMenu(restoreFocus: boolean) {
+    if (restoreFocus && tabMenu) tabLabel(tabMenu.view)?.focus({ preventScroll: true });
+    setTabMenu(null);
+  }
+
+  function closeFromTabMenu(scope: TabCloseScope) {
+    if (!tabMenu || !tabMenuPane) return;
+    const next = closePaneTabs(tabMenuPane, tabMenu.view, scope);
+    if (next === tabMenuPane) return;
+
+    const fallback = frames.find(({ pane }) => pane.id !== tabMenu.pane && pane.id === layout.focused)
+      ?? frames.find(({ pane }) => pane.id !== tabMenu.pane);
+    const view = next?.active ?? fallback?.pane.active;
+    if (view !== undefined) {
+      tabLabel(view)?.focus({ preventScroll: true });
+    } else {
+      const rail = sidebarResize.workbench.current?.querySelector(".workspace-rail nav");
+      const button = rail?.querySelector<HTMLButtonElement>("[aria-pressed=true]")
+        ?? rail?.querySelector<HTMLButtonElement>("button");
+      button?.focus({ preventScroll: true });
+    }
+    dispatch({ type: "close", pane: tabMenu.pane, view: tabMenu.view, scope });
+  }
 
   return (
     <main ref={sidebarResize.workbench} className="workbench"
@@ -244,7 +299,8 @@ export function Workbench() {
           onLostPointerCapture={drag.cancel}>
           {frames.map((frame, index) => (
             <PaneToolbar key={frame.pane.id} frame={frame} number={index + 1}
-              focused={layout.focused === frame.pane.id} dispatch={dispatch} drag={drag} />
+              focused={layout.focused === frame.pane.id} dispatch={dispatch} drag={drag}
+              onOpenTabMenu={setTabMenu} />
           ))}
           {/* Keep panels keyed by view when their pane changes so drafts and scroll state survive. */}
           {workspaceViews.map(({ id, title, Page }) => {
@@ -268,6 +324,16 @@ export function Workbench() {
         </div>
       ) : (
         <img className="workbench-empty-image" src={emptyWorkbenchImage} alt="" draggable={false} />
+      )}
+      {tabMenu && tabMenuPane?.tabs.includes(tabMenu.view) && (
+        <ContextMenu key={`${tabMenu.pane}:${tabMenu.view}`} x={tabMenu.x} y={tabMenu.y}
+          label={messages.tabActions} onDismiss={dismissTabMenu}
+          items={tabCloseActions.map(({ scope, label }) => ({
+            id: scope,
+            label,
+            enabled: closePaneTabs(tabMenuPane, tabMenu.view, scope) !== tabMenuPane,
+            onSelect: () => closeFromTabMenu(scope),
+          }))} />
       )}
     </main>
   );
