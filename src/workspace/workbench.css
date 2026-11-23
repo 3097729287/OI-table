@@ -177,22 +177,104 @@
 }
 
 .pane-toolbar {
+  --tab-scrollbar-line: 2px;
+  --tab-scrollbar-hit-extension: 3px;
   display: flex;
+  flex-direction: column;
   z-index: 1;
   min-inline-size: 0;
   inset-block-start: var(--pane-y);
   block-size: min(var(--pane-tabs-height), var(--pane-height));
+  padding-block-end: var(--tab-scrollbar-line);
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
   background: var(--window-background);
 }
 
 .pane-tabs {
-  position: relative;
   display: flex;
   flex: 1;
-  min-inline-size: 0;
+  min-block-size: 0;
   overflow: auto hidden;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.pane-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.pane-tab-row {
+  position: relative;
+  display: flex;
+  flex: none;
+  inline-size: max-content;
+  min-inline-size: 100%;
+  overflow: clip;
+}
+
+.pane-tab-scrollbar {
+  --tab-thumb-color: color-mix(in srgb, var(--muted-color) 44%, transparent);
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: calc(-1 * var(--tab-scrollbar-hit-extension));
+  block-size: calc(var(--tab-scrollbar-line) + 2 * var(--tab-scrollbar-hit-extension));
+  color: var(--muted-color);
+  opacity: 0;
+  touch-action: none;
+  transition: opacity var(--workspace-motion);
+}
+
+.pane-tab-scrollbar[data-overflow="false"] {
+  visibility: hidden;
+}
+
+.workbench-panes[data-tab-dragging="true"] .pane-tab-scrollbar {
+  pointer-events: none;
+}
+
+.pane-toolbar:hover .pane-tab-scrollbar,
+.pane-toolbar:has(:focus-visible) .pane-tab-scrollbar,
+.pane-tab-scrollbar[data-dragging="true"] {
+  opacity: 1;
+}
+
+.pane-tab-scrollbar__thumb {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+
+.pane-tab-scrollbar__thumb::after {
+  position: absolute;
+  inset: var(--tab-scrollbar-hit-extension) 0 auto;
+  block-size: var(--tab-scrollbar-line);
+  background: var(--tab-thumb-color);
+  content: "";
+  transition: background-color var(--workspace-motion);
+}
+
+.pane-tab-scrollbar__thumb:hover {
+  --tab-thumb-color: color-mix(in srgb, var(--muted-color) 64%, transparent);
+}
+
+.pane-tab-scrollbar[data-dragging="true"] .pane-tab-scrollbar__thumb {
+  --tab-thumb-color: color-mix(in srgb, var(--muted-color) 84%, transparent);
+}
+
+.pane-tab-scrollbar:focus-visible {
+  box-shadow: none;
+  --tab-thumb-color: var(--text-color);
+}
+
+@media (hover: none), (forced-colors: active) {
+  .pane-tab-scrollbar {
+    opacity: 1;
+  }
+}
+
+@media (forced-colors: active) {
+  .pane-tab-scrollbar__thumb::after {
+    forced-color-adjust: none;
+    background: ButtonText;
+  }
 }
 
 .workbench-tab {

@@ -36,6 +36,7 @@
   "expandSidebar": "Expand sidebar",
   "resizeSidebar": "Resize sidebar",
   "editorPane": "Editor pane {number}",
+  "scrollEditorTabs": "Scroll tabs in {pane}",
   "closeView": "Close {title}",
   "save": "Save",
   "localLogs": "Local logs",
