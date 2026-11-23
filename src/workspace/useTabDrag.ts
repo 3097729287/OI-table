@@ -1,17 +1,56 @@
-import { useRef, useState, type Dispatch, type MouseEvent, type PointerEvent } from "react";
+import { useLayoutEffect, useRef, useState, type Dispatch, type MouseEvent, type PointerEvent } from "react";
 import type { LayoutAction, PaneFrame, PaneId, SplitEdge, TabDestination } from "./layout";
 
 type DragDestination =
   | { type: "place"; placement: TabDestination; region: "tabs" | "content" }
   | { type: "split"; pane: PaneId; edge: SplitEdge };
 
+interface DragPoint {
+  clientX: number;
+  clientY: number;
+}
+
+interface DropHit {
+  target: Element;
+  region: HTMLElement;
+}
+
 interface DragSession {
   pointerId: number;
   from: PaneId;
   view: string;
-  x: number;
-  y: number;
+  origin: DragPoint;
+  point: DragPoint;
   dragging: boolean;
+}
+
+function hitAt(container: HTMLElement, { clientX, clientY }: DragPoint): DropHit | null {
+  const target = document.elementFromPoint(clientX, clientY);
+  const region = target?.closest<HTMLElement>("[data-tablist-pane], [data-drop-pane]");
+  return target && region && container.contains(region) ? { target, region } : null;
+}
+
+function edgeScrollAt(hit: DropHit | null, { clientX, clientY }: DragPoint) {
+  if (!hit?.region.dataset.tablistPane) return null;
+  const viewport = hit.region.querySelector<HTMLElement>("[data-tab-scrollport]");
+  if (!viewport) return null;
+
+  const limit = viewport.scrollWidth - viewport.clientWidth;
+  if (limit <= 0) return null;
+
+  const bounds = viewport.getBoundingClientRect();
+  if (clientY < bounds.top || clientY >= bounds.bottom) return null;
+  const left = clientX - bounds.left;
+  const right = bounds.right - clientX;
+  const distance = Math.min(left, right);
+  // Keep a neutral middle area even in a narrow split pane.
+  const edgeWidth = Math.min(40, bounds.width / 4);
+  if (distance < 0 || distance >= edgeWidth) return null;
+
+  const direction = left < right ? -1 : 1;
+  if (direction < 0 ? viewport.scrollLeft <= 0 : viewport.scrollLeft >= limit) return null;
+
+  return { viewport, direction, speed: 160 + 560 * (1 - distance / edgeWidth) };
 }
 
 function nearestEdge(bounds: DOMRect, x: number, y: number): SplitEdge | undefined {
@@ -32,19 +71,19 @@ function nearestEdge(bounds: DOMRect, x: number, y: number): SplitEdge | undefin
 }
 
 function destinationAt(
-  event: PointerEvent<HTMLElement>,
+  hit: DropHit | null,
+  { clientX, clientY }: DragPoint,
   drag: DragSession,
   frames: Map<PaneId, PaneFrame>,
 ): DragDestination | null {
-  const target = document.elementFromPoint(event.clientX, event.clientY);
-  const region = target?.closest<HTMLElement>("[data-tablist-pane], [data-drop-pane]");
-  if (!region || !event.currentTarget.contains(region)) return null;
+  if (!hit) return null;
 
+  const { target, region } = hit;
   const pane = (region.dataset.tablistPane ?? region.dataset.dropPane) as PaneId;
   const frame = frames.get(pane);
   if (!frame) return null;
   if (region.dataset.tablistPane) {
-    const tab = target?.closest<HTMLElement>("[data-tab-view]");
+    const tab = target.closest<HTMLElement>("[data-tab-view]");
     const bounds = tab?.getBoundingClientRect();
     return {
       type: "place",
@@ -52,13 +91,13 @@ function destinationAt(
       placement: {
         pane,
         anchor: tab?.dataset.tabView ?? null,
-        after: bounds ? event.clientX >= bounds.left + bounds.width / 2 : false,
+        after: bounds ? clientX >= bounds.left + bounds.width / 2 : false,
       },
     };
   }
 
   if (pane !== drag.from || frame.pane.tabs.length > 1) {
-    const edge = nearestEdge(region.getBoundingClientRect(), event.clientX, event.clientY);
+    const edge = nearestEdge(region.getBoundingClientRect(), clientX, clientY);
     if (edge) return { type: "split", pane, edge };
   }
   return pane !== drag.from
@@ -76,19 +115,76 @@ function sameDestination(a: DragDestination | null, b: DragDestination | null) {
 
 export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId, PaneFrame>) {
   const session = useRef<DragSession | null>(null);
+  const scrollFrame = useRef<number | null>(null);
+  const currentFrames = useRef(frames);
   const suppressClick = useRef(false);
   const [draggedView, setDraggedView] = useState<string>();
   const [destination, setDestination] = useState<DragDestination | null>(null);
 
+  useLayoutEffect(() => {
+    currentFrames.current = frames;
+    const drag = session.current;
+    if (drag && !frames.get(drag.from)?.pane.tabs.includes(drag.view)) clear();
+  }, [frames]);
+
+  useLayoutEffect(() => {
+    function handleBlur() {
+      if (session.current) clear();
+    }
+
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      stopScrolling();
+    };
+  }, []);
+
+  function stopScrolling() {
+    if (scrollFrame.current === null) return;
+    cancelAnimationFrame(scrollFrame.current);
+    scrollFrame.current = null;
+  }
+
+  function updateDestination(hit: DropHit | null, drag: DragSession) {
+    const next = destinationAt(hit, drag.point, drag, currentFrames.current);
+    setDestination((previous) => sameDestination(previous, next) ? previous : next);
+  }
+
+  function scheduleScroll(container: HTMLElement, previousTime = performance.now()) {
+    if (scrollFrame.current !== null) return;
+
+    scrollFrame.current = requestAnimationFrame((time) => {
+      scrollFrame.current = null;
+      const drag = session.current;
+      if (!drag?.dragging) return;
+
+      const hit = hitAt(container, drag.point);
+      const edge = edgeScrollAt(hit, drag.point);
+      if (!edge) {
+        updateDestination(hit, drag);
+        return;
+      }
+
+      const { viewport, direction, speed } = edge;
+      const previousOffset = viewport.scrollLeft;
+      // Bound long frames and keep the step above the scroll offset's pixel rounding.
+      const step = Math.max(1, Math.round(speed * Math.min(time - previousTime, 32) / 1000));
+      viewport.scrollLeft += direction * step;
+      updateDestination(hitAt(container, drag.point), drag);
+      if (viewport.scrollLeft !== previousOffset) scheduleScroll(container, time);
+    });
+  }
+
   function start(event: PointerEvent<HTMLButtonElement>, from: PaneId, view: string) {
     if (event.button !== 0 || !event.isPrimary || session.current) return;
+    const point = { clientX: event.clientX, clientY: event.clientY };
     event.currentTarget.setPointerCapture(event.pointerId);
     session.current = {
       pointerId: event.pointerId,
       from,
       view,
-      x: event.clientX,
-      y: event.clientY,
+      origin: point,
+      point,
       dragging: false,
     };
   }
@@ -96,17 +192,22 @@ export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId,
   function track(event: PointerEvent<HTMLElement>) {
     const drag = session.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    const point = { clientX: event.clientX, clientY: event.clientY };
     if (!drag.dragging) {
-      if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
+      if (Math.hypot(point.clientX - drag.origin.clientX, point.clientY - drag.origin.clientY) < 5) return;
       drag.dragging = true;
       setDraggedView(drag.view);
     }
 
-    const next = destinationAt(event, drag, frames);
-    setDestination((previous) => sameDestination(previous, next) ? previous : next);
+    drag.point = point;
+    const hit = hitAt(event.currentTarget, point);
+    updateDestination(hit, drag);
+    if (edgeScrollAt(hit, point)) scheduleScroll(event.currentTarget);
+    else stopScrolling();
   }
 
   function clear() {
+    stopScrolling();
     session.current = null;
     setDraggedView(undefined);
     setDestination(null);
@@ -119,7 +220,7 @@ export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId,
     if (!drag.dragging) return;
 
     suppressClick.current = true;
-    const target = destinationAt(event, drag, frames);
+    const target = destinationAt(hitAt(event.currentTarget, event), event, drag, frames);
     if (target?.type === "split") {
       dispatch({ type: "split", from: drag.from, target: target.pane, view: drag.view, edge: target.edge });
     } else if (target?.type === "place") {

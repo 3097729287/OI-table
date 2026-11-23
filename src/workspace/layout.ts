@@ -71,12 +71,16 @@ function replacePane(node: PaneNode, id: PaneId, replacement: PaneNode | null): 
   return first === node.first && second === node.second ? node : { ...node, first, second };
 }
 
-function removeTab(pane: Pane, view: string): Pane | null {
+export function nextTabAfterClose(pane: Pane, view: string): string | undefined {
+  if (view !== pane.active) return pane.active;
+
   const index = pane.tabs.indexOf(view);
-  const tabs = pane.tabs.filter((tab) => tab !== view);
-  if (tabs.length === 0) return null;
-  const active = pane.active === view ? tabs[Math.min(index, tabs.length - 1)] : pane.active;
-  return { ...pane, tabs, active };
+  return pane.tabs[index + 1] ?? pane.tabs[index - 1];
+}
+
+function removeTab(pane: Pane, view: string): Pane | null {
+  const active = nextTabAfterClose(pane, view);
+  return active === undefined ? null : { ...pane, tabs: pane.tabs.filter((tab) => tab !== view), active };
 }
 
 function removeFromTree(root: PaneNode, source: Pane, view: string): PaneNode | null {
@@ -134,7 +138,11 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       const existing = findPane(root, (pane) => pane.tabs.includes(action.view));
       const pane = existing ?? paneById(layout.focused);
       if (!pane) return layout;
-      const tabs = existing ? pane.tabs : [...pane.tabs, action.view];
+      let tabs = pane.tabs;
+      if (!existing) {
+        tabs = [...tabs];
+        tabs.splice(tabs.indexOf(pane.active) + 1, 0, action.view);
+      }
       const nextRoot = replacePane(root, pane.id, { ...pane, tabs, active: action.view });
       return { ...layout, root: nextRoot, focused: pane.id };
     }
