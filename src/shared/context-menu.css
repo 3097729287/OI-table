@@ -37,6 +37,10 @@
   background: var(--title-bar-hover);
 }
 
+.context-menu button:enabled:active {
+  background: color-mix(in srgb, var(--title-bar-hover) 90%, var(--text-color));
+}
+
 :is(.context-menu, .context-menu button):focus-visible {
   box-shadow: none;
   outline: 1px solid currentColor;
@@ -52,4 +56,23 @@
   color: var(--muted-color);
   font-size: 12px;
   white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .context-menu {
+    animation: context-menu-open 125ms cubic-bezier(0.2, 0.75, 0.25, 1);
+  }
+
+  .context-menu button:enabled {
+    transition: background-color 90ms ease-out;
+  }
+
+  .context-menu button:enabled:active {
+    transition-duration: 45ms;
+  }
+}
+
+@keyframes context-menu-open {
+  from { transform: scale(0.96); }
+  to { transform: none; }
 }

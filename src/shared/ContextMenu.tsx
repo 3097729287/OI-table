@@ -27,9 +27,14 @@ export function ContextMenu<Extra>({ x, y, label, items, onDismiss }: ContextMen
     if (!element) return;
 
     const gap = 4;
-    const { width, height } = element.getBoundingClientRect();
-    element.style.left = `${Math.max(gap, Math.min(x, window.innerWidth - width - gap))}px`;
-    element.style.top = `${Math.max(gap, Math.min(y, window.innerHeight - height - gap))}px`;
+    const { offsetWidth: width, offsetHeight: height } = element;
+    const left = Math.max(gap, Math.min(x, window.innerWidth - width - gap));
+    const top = Math.max(gap, Math.min(y, window.innerHeight - height - gap));
+    element.style.left = `${left}px`;
+    element.style.top = `${top}px`;
+    const originX = Math.max(0, Math.min(width, x - left));
+    const originY = Math.max(0, Math.min(height, y - top));
+    element.style.transformOrigin = `${originX}px ${originY}px`;
     const active = document.activeElement;
     if (!element.contains(active) || active?.matches("button:disabled")) {
       const first = element.querySelector<HTMLButtonElement>("button:enabled") ?? element;
