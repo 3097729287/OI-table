@@ -4,7 +4,9 @@ import type { IconName } from "../shared/Icon";
 
 export const workspaceSections = {
   catalog: { title: messages.catalog, icon: "catalog" },
-  editor: { title: messages.editor, icon: "editor" },
+  archive: { title: messages.archive, icon: "archive" },
+  favorites: { title: messages.favorites, icon: "favorites" },
+  submissions: { title: messages.submissionHistory, icon: "submissions" },
 } satisfies Record<string, { title: string; icon: IconName }>;
 
 export type WorkspaceSection = keyof typeof workspaceSections;
@@ -22,7 +24,7 @@ interface ViewModule {
   workspaceView: WorkspaceViewOptions;
 }
 
-const modules = import.meta.glob<ViewModule>("../features/*/view.tsx", { eager: true });
+const modules = import.meta.glob<ViewModule>("../features/**/view.tsx", { eager: true });
 
 export const workspaceViews = Object.entries(modules)
   .map(([path, view]) => ({
