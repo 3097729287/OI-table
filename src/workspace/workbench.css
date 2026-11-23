@@ -186,7 +186,6 @@
   min-inline-size: 0;
   inset-block-start: var(--pane-y);
   block-size: min(var(--pane-tabs-height), var(--pane-height));
-  padding-block-end: var(--tab-scrollbar-line);
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
   background: var(--tab-strip-background);
 }
@@ -217,7 +216,7 @@
   --tab-thumb-color: color-mix(in srgb, var(--muted-color) 44%, transparent);
   position: absolute;
   inset-inline: 0;
-  inset-block-end: calc(-1 * var(--tab-scrollbar-hit-extension));
+  inset-block-start: calc(100% - var(--tab-scrollbar-hit-extension));
   block-size: calc(var(--tab-scrollbar-line) + 2 * var(--tab-scrollbar-hit-extension));
   color: var(--muted-color);
   opacity: 0;
