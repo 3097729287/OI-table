@@ -28,11 +28,7 @@ function tabLabel(view: string) {
   return document.getElementById(`workbench-tab-${view}`);
 }
 
-function revealTab(view: string) {
-  const tab = tabLabel(view)?.closest<HTMLElement>(".workbench-tab");
-  const strip = tab?.closest<HTMLElement>(".pane-tabs");
-  if (!tab || !strip) return;
-
+function revealTabInStrip(strip: HTMLElement, tab: HTMLElement) {
   const start = tab.offsetLeft;
   const end = start + tab.offsetWidth;
   if (start < strip.scrollLeft || tab.offsetWidth > strip.clientWidth) {
@@ -40,6 +36,12 @@ function revealTab(view: string) {
   } else if (end > strip.scrollLeft + strip.clientWidth) {
     strip.scrollLeft = end - strip.clientWidth;
   }
+}
+
+function revealTab(view: string) {
+  const tab = tabLabel(view)?.closest<HTMLElement>(".workbench-tab");
+  const strip = tab?.closest<HTMLElement>(".pane-tabs");
+  if (tab && strip) revealTabInStrip(strip, tab);
 }
 
 function PaneToolbar({ frame, focused, number, dispatch, drag }: {
@@ -60,7 +62,43 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
     drag.destination.placement.pane === pane ? drag.destination.placement : null;
 
   useLayoutEffect(() => {
-    revealTab(group.active);
+    const strip = list.current;
+    const tab = tabLabel(group.active)?.closest<HTMLElement>(".workbench-tab");
+    if (!strip || !tab) return;
+
+    revealTabInStrip(strip, tab);
+    const panes = strip.closest<HTMLElement>("[data-tab-dragging]");
+
+    const isVisible = (width: number) => {
+      const left = strip.scrollLeft;
+      const start = tab.offsetLeft;
+      return start >= left - 1 && start + tab.offsetWidth <= left + width + 1;
+    };
+
+    let width = strip.clientWidth;
+    let wasVisible = isVisible(width);
+
+    const onScroll = () => {
+      // A scroll event from layout can arrive before the resize notification.
+      if (strip.clientWidth === width) wasVisible = isVisible(width);
+    };
+
+    const observer = new ResizeObserver(() => {
+      const nextWidth = strip.clientWidth;
+      if (nextWidth === width) return;
+      if (nextWidth < width && wasVisible && panes?.dataset.tabDragging !== "true") {
+        revealTabInStrip(strip, tab);
+      }
+      width = nextWidth;
+      wasVisible = isVisible(width);
+    });
+
+    strip.addEventListener("scroll", onScroll, { passive: true });
+    observer.observe(strip);
+    return () => {
+      strip.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
   }, [group.active]);
 
   useLayoutEffect(() => {
@@ -117,7 +155,7 @@ function PaneToolbar({ frame, focused, number, dispatch, drag }: {
     <div className="pane-toolbar" data-tablist-pane={pane} data-focused={focused} style={position(bounds)}
       onPointerDown={() => dispatch({ type: "focus", pane })}
       onFocusCapture={() => dispatch({ type: "focus", pane })}>
-      <div ref={list} id={listId} className="pane-tabs" role="tablist"
+      <div ref={list} id={listId} className="pane-tabs" role="tablist" data-tab-scrollport
         data-drop-end={destination?.anchor === null} aria-label={label}>
         <div ref={row} className="pane-tab-row" role="presentation">
           {group.tabs.map((id, index) => {
