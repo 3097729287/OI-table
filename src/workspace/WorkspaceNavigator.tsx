@@ -4,14 +4,14 @@ import { Icon } from "../shared/Icon";
 import { StatusMessage } from "../shared/StatusMessage";
 import { desktop, openWindow } from "../windowing/routes";
 import { WorkspaceSidebar } from "./sidebar";
-import { workspaceSections, workspaceViews, type WorkspaceSection } from "./views";
+import { WorkspaceMenu } from "./WorkspaceMenu";
+import { workspaceSections, type WorkspaceSection } from "./views";
 
 const railIconSize = 24;
 
 export function WorkspaceNavigator({ onOpen }: { onOpen: (view: string) => void }) {
   const sidebar = useContext(WorkspaceSidebar);
   const [section, setSection] = useState<WorkspaceSection>("catalog");
-  const [selectedEntry, setSelectedEntry] = useState<string>();
   const [settingsState, setSettingsState] = useState<"idle" | "opening" | "error">("idle");
 
   async function openSettings() {
@@ -51,21 +51,7 @@ export function WorkspaceNavigator({ onOpen }: { onOpen: (view: string) => void 
         )}
       </aside>
       <aside id="workspace-sidebar" className="workbench-sidebar" hidden={!sidebar.visible}>
-        <h2>{workspaceSections[section].title}</h2>
-        <nav aria-label={workspaceSections[section].title}>
-          {workspaceViews.filter((view) => view.section === section).map((view) => (
-            <button key={view.id} type="button" aria-current={selectedEntry === view.id || undefined}
-              title={view.sidebarTitle ?? view.title}
-              aria-label={view.sidebarTitle ?? view.title}
-              onClick={() => {
-                setSelectedEntry(view.id);
-                onOpen(view.id);
-              }}>
-              <Icon name={view.icon} size={17} />
-              <span className="workbench-sidebar__label">{view.sidebarTitle ?? view.title}</span>
-            </button>
-          ))}
-        </nav>
+        <WorkspaceMenu section={section} onOpen={onOpen} />
       </aside>
     </>
   );

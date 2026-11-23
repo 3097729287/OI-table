@@ -1,5 +1,6 @@
 import archive from "./icons/archive.svg?no-inline";
 import catalog from "./icons/catalog.svg?no-inline";
+import chevronRight from "./icons/chevron-right.svg?no-inline";
 import close from "./icons/close.svg?no-inline";
 import editor from "./icons/editor.svg?no-inline";
 import favorites from "./icons/favorites.svg?no-inline";
@@ -18,6 +19,7 @@ import "./icons/icon.css";
 const sources = {
   archive,
   catalog,
+  chevronRight,
   close,
   editor,
   favorites,

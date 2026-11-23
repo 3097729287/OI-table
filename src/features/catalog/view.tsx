@@ -7,6 +7,7 @@ export const workspaceView = {
   icon: "problems",
   section: "catalog",
   sidebarTitle: messages.allProblems,
+  sidebarGroups: [{ id: "problems", title: messages.catalog }],
   order: 10,
 } satisfies WorkspaceViewOptions;
 
