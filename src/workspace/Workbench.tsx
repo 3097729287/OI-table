@@ -1,4 +1,5 @@
-import { useCallback, useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
+import { useCallback, useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useMessages, type MessageKey } from "../i18n";
 import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
@@ -71,9 +72,26 @@ function tabDetails(view: WorkspaceView, target: WorkspaceTarget, messages: Retu
   return { title: messages[variant?.title ?? view.title], icon: variant?.icon ?? view.icon };
 }
 
-function PaneToolbar({ frame, size, focused, number, targets, dispatch, drag, onOpenTabMenu }: {
+// Keep the mounted page and its scrollport together when moving between pane elements.
+function PanePanelHost({ pane, children }: { pane: PaneId; children: ReactNode }) {
+  const [host] = useState(() => {
+    const element = document.createElement("div");
+    element.className = "workbench-panel-host";
+    return element;
+  });
+  useLayoutEffect(() => {
+    const parent = document.getElementById(`workbench-${pane}`);
+    if (parent && host.parentNode !== parent) {
+      if (host.isConnected && "moveBefore" in parent && typeof parent.moveBefore === "function") parent.moveBefore(host, null);
+      else parent.appendChild(host);
+    }
+  }, [host, pane]);
+  useLayoutEffect(() => () => host.remove(), [host]);
+  return createPortal(children, host);
+}
+
+function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTabMenu }: {
   frame: PaneFrame;
-  size: PaneSize;
   focused: boolean;
   number: number;
   targets: ReadonlyMap<string, WorkspaceTarget>;
@@ -82,7 +100,7 @@ function PaneToolbar({ frame, size, focused, number, targets, dispatch, drag, on
   onOpenTabMenu: (anchor: TabMenuAnchor) => void;
 }) {
   const messages = useMessages();
-  const { pane: group, bounds } = frame;
+  const { pane: group } = frame;
   const pane = group.id;
   const list = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLDivElement>(null);
@@ -190,7 +208,7 @@ function PaneToolbar({ frame, size, focused, number, targets, dispatch, drag, on
   }
 
   return (
-    <div className="pane-toolbar scrollbar-host" data-tablist-pane={pane} data-focused={focused} style={position(bounds, size)}
+    <div className="pane-toolbar scrollbar-host" data-tablist-pane={pane} data-focused={focused}
       onPointerDown={() => dispatch({ type: "focus", pane })}
       onFocusCapture={() => dispatch({ type: "focus", pane })}>
       <div ref={list} id={listId} className="pane-tabs" role="tablist" data-tab-scrollport
@@ -355,30 +373,33 @@ export function Workbench() {
           onPointerMove={drag.track} onPointerUp={drag.finish} onPointerCancel={drag.cancel}
           onLostPointerCapture={drag.cancel}>
           {frames.map((frame, index) => (
-            <PaneToolbar key={frame.pane.id} frame={frame} size={size} number={index + 1}
-              focused={layout.focused === frame.pane.id} targets={layout.targets} dispatch={dispatch} drag={drag}
-              onOpenTabMenu={setTabMenu} />
+            <div key={frame.pane.id} id={`workbench-${frame.pane.id}`} className="workbench-pane"
+              style={position(frame.bounds, size)}>
+              <PaneToolbar frame={frame} number={index + 1} focused={layout.focused === frame.pane.id}
+                targets={layout.targets} dispatch={dispatch} drag={drag} onOpenTabMenu={setTabMenu} />
+            </div>
           ))}
-          {/* Keep panels keyed by view when their pane changes so drafts and scroll state survive. */}
           {Array.from(layout.targets, ([id, target]) => {
             const frame = frameByView.get(id);
             const view = viewsById.get(target.id);
             if (!frame || !view) return null;
-            const { pane, bounds } = frame;
+            const { pane } = frame;
             const { Page } = view;
             return (
-              <ScrollArea as="section" key={id} id={`workbench-panel-${id}`} className="workbench-panel" style={position(bounds, size)}
-                data-drop-pane={pane.id} data-drop-target={contentDropPane === pane.id}
-                role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
-                hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
-                onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
-                <Page {...target} title={tabDetails(view, target, messages).title} open={openTarget} />
-              </ScrollArea>
+              <PanePanelHost key={id} pane={pane.id}>
+                <ScrollArea as="section" id={`workbench-panel-${id}`} className="workbench-panel"
+                  data-drop-pane={pane.id} data-drop-target={contentDropPane === pane.id}
+                  role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
+                  hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
+                  onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
+                  <Page {...target} title={tabDetails(view, target, messages).title} open={openTarget} />
+                </ScrollArea>
+              </PanePanelHost>
             );
           })}
           {splits.map((split) => (
-            <PaneSeparator key={split.id} frame={split} controls={`workbench-tabs-${split.primaryPane}`}
-              onResize={(ratio) => dispatch({ type: "resize", split: split.id, ratio })} />
+            <PaneSeparator key={`${split.id}:${split.primaryPane}`} frame={split} controls={`workbench-tabs-${split.primaryPane}`}
+              onResize={(ratio) => dispatch({ type: "resize", frame: split, ratio })} />
           ))}
           {splitPreview && (
             <div className="workbench-dock-preview" style={position(splitPreview, size)}

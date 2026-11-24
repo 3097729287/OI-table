@@ -33,14 +33,14 @@ export interface Pane {
   active: string;
 }
 
-type PaneNode = Pane | {
+type PaneNode = Pane | SplitGroup;
+
+interface SplitGroup {
   kind: "split";
   id: SplitId;
   axis: SplitAxis;
-  ratio: number;
-  first: PaneNode;
-  second: PaneNode;
-};
+  children: { node: PaneNode; weight: number }[];
+}
 
 export interface Layout {
   root: PaneNode | null;
@@ -66,6 +66,8 @@ export interface PaneFrame {
 
 export interface SplitFrame {
   id: SplitId;
+  index: number;
+  sizes: number[];
   axis: SplitAxis;
   bounds: PaneBounds;
   ratio: number;
@@ -81,7 +83,7 @@ export type LayoutAction =
   | { type: "close"; pane: PaneId; view: string; scope?: TabCloseScope }
   | { type: "place"; from: PaneId; view: string; destination: TabDestination }
   | { type: "split"; from: PaneId; target: PaneId; view: string; edge: SplitEdge }
-  | { type: "resize"; split: SplitId; ratio: number };
+  | { type: "resize"; frame: SplitFrame; ratio: number };
 
 const minimumPaneSize: PaneSize = { width: 128, height: 112 };
 
@@ -98,23 +100,77 @@ function createPane(nextPaneId: number, view: string): Pane {
 
 function findPane(node: PaneNode, matches: (pane: Pane) => boolean): Pane | undefined {
   if (node.kind === "pane") return matches(node) ? node : undefined;
-  return findPane(node.first, matches) ?? findPane(node.second, matches);
+  for (const child of node.children) {
+    const found = findPane(child.node, matches);
+    if (found) return found;
+  }
 }
 
-function replacePane(node: PaneNode, id: PaneId, replacement: PaneNode | null): PaneNode | null {
-  if (node.kind === "pane") return node.id === id ? replacement : node;
-  const first = replacePane(node.first, id, replacement);
-  const second = replacePane(node.second, id, replacement);
-  if (!first || !second) return first ?? second;
-  return first === node.first && second === node.second ? node : { ...node, first, second };
-}
-
-function resizeSplit(node: PaneNode, id: SplitId, ratio: number): PaneNode {
+function replaceNode(node: PaneNode, id: PaneId | SplitId, replacement: PaneNode | null): PaneNode | null {
+  if (node.id === id) return replacement;
   if (node.kind === "pane") return node;
-  if (node.id === id) return node.ratio === ratio ? node : { ...node, ratio };
-  const first = resizeSplit(node.first, id, ratio);
-  const second = resizeSplit(node.second, id, ratio);
-  return first === node.first && second === node.second ? node : { ...node, first, second };
+  for (const [index, child] of node.children.entries()) {
+    const next = replaceNode(child.node, id, replacement);
+    if (next === child.node) continue;
+    const children = [...node.children];
+    if (!next) {
+      children.splice(index, 1);
+      if (children.length === 1) return children[0].node;
+    } else if (next.kind === "split" && next.axis === node.axis) {
+      // Collapsing a perpendicular group can expose grandchildren on this axis.
+      const total = next.children.reduce((sum, item) => sum + item.weight, 0);
+      children.splice(index, 1, ...next.children.map((item) => ({
+        node: item.node, weight: child.weight * item.weight / total,
+      })));
+    } else {
+      children[index] = { ...child, node: next };
+    }
+    return { ...node, children };
+  }
+  return node;
+}
+
+function parentGroup(node: PaneNode, pane: PaneId): SplitGroup | undefined {
+  if (node.kind === "pane") return;
+  if (node.children.some(child => child.node.id === pane)) return node;
+  for (const child of node.children) {
+    const parent = parentGroup(child.node, pane);
+    if (parent) return parent;
+  }
+}
+
+function insertBeside(root: PaneNode, target: Pane, pane: Pane, axis: SplitAxis, leading: boolean, id: SplitId): PaneNode {
+  const group = parentGroup(root, target.id);
+  if (group?.axis === axis) {
+    const existing = group.children.find(child => child.node.id === pane.id);
+    const children = group.children.filter(child => child !== existing);
+    const index = children.findIndex(child => child.node.id === target.id);
+    const weight = children.reduce((sum, item) => sum + item.weight, 0) / children.length;
+    children.splice(index + (leading ? 0 : 1), 0, existing ?? { node: pane, weight });
+    return replaceNode(root, group.id, { ...group, children })!;
+  }
+  const nodes = leading ? [pane, target] : [target, pane];
+  return replaceNode(root, target.id, { kind: "split", id, axis, children: nodes.map(node => ({ node, weight: 1 })) })!;
+}
+
+function resizeSplit(node: PaneNode, frame: SplitFrame, ratio: number): PaneNode {
+  if (node.kind === "pane") return node;
+  if (node.id === frame.id) {
+    const { index, sizes } = frame;
+    if (sizes.length !== node.children.length || ratio === frame.ratio) return node;
+    const pair = sizes[index] + sizes[index + 1];
+    const weights = [...sizes];
+    weights.splice(index, 2, pair * ratio, pair * (1 - ratio));
+    return { ...node, children: node.children.map((child, i) => ({ ...child, weight: weights[i] })) };
+  }
+  for (const [index, child] of node.children.entries()) {
+    const next = resizeSplit(child.node, frame, ratio);
+    if (next === child.node) continue;
+    const children = [...node.children];
+    children[index] = { ...child, node: next };
+    return { ...node, children };
+  }
+  return node;
 }
 
 export function closePaneTabs(pane: Pane, view: string, scope: TabCloseScope = "current"): Pane | null {
@@ -143,7 +199,7 @@ export function closePaneTabs(pane: Pane, view: string, scope: TabCloseScope = "
 }
 
 function removeFromTree(root: PaneNode, source: Pane, view: string): PaneNode | null {
-  return replacePane(root, source.id, closePaneTabs(source, view));
+  return replaceNode(root, source.id, closePaneTabs(source, view));
 }
 
 function splitDirection(edge: SplitEdge) {
@@ -153,24 +209,37 @@ function splitDirection(edge: SplitEdge) {
   };
 }
 
-function splitBounds(bounds: PaneBounds, axis: SplitAxis, ratio: number): [PaneBounds, PaneBounds] {
-  if (axis === "horizontal") {
-    const width = bounds.width * ratio;
-    return [{ ...bounds, width }, { ...bounds, x: bounds.x + width, width: bounds.width - width }];
-  }
-  const height = bounds.height * ratio;
-  return [{ ...bounds, height }, { ...bounds, y: bounds.y + height, height: bounds.height - height }];
-}
-
 function measureMinimums(node: PaneNode, minimums: Map<PaneNode, PaneSize>): PaneSize {
   if (node.kind === "pane") return minimumPaneSize;
-  const first = measureMinimums(node.first, minimums);
-  const second = measureMinimums(node.second, minimums);
+  const sizes = node.children.map((child) => measureMinimums(child.node, minimums));
   const size = node.axis === "horizontal"
-    ? { width: first.width + second.width, height: Math.max(first.height, second.height) }
-    : { width: Math.max(first.width, second.width), height: first.height + second.height };
+    ? { width: sizes.reduce((sum, s) => sum + s.width, 0), height: Math.max(...sizes.map(s => s.height)) }
+    : { width: Math.max(...sizes.map(s => s.width)), height: sizes.reduce((sum, s) => sum + s.height, 0) };
   minimums.set(node, size);
   return size;
+}
+
+function distributeSpan(span: number, children: SplitGroup["children"], minima: number[]): number[] {
+  const minimum = minima.reduce((sum, value) => sum + value, 0);
+  if (span <= minimum) return minima.map(value => span * value / minimum);
+
+  // Reserve constrained panes first, then share the remainder by preferred weight.
+  const sizes = [...minima];
+  let pending = children.map((_, index) => index);
+  while (pending.length) {
+    const weight = pending.reduce((sum, i) => sum + children[i].weight, 0);
+    const unit = span / weight;
+    const flexible = pending.filter(i => children[i].weight * unit >= minima[i]);
+    if (flexible.length === pending.length) {
+      for (const i of flexible) sizes[i] = children[i].weight * unit;
+      break;
+    }
+    for (const i of pending) {
+      if (children[i].weight * unit < minima[i]) span -= minima[i];
+    }
+    pending = flexible;
+  }
+  return sizes;
 }
 
 export function collectWorkspaceFrames(root: PaneNode | null, size: PaneSize): {
@@ -187,26 +256,26 @@ export function collectWorkspaceFrames(root: PaneNode | null, size: PaneSize): {
       return;
     }
     const dimension = node.axis === "horizontal" ? "width" : "height";
-    const firstMin = (minimums.get(node.first) ?? minimumPaneSize)[dimension];
-    const secondMin = (minimums.get(node.second) ?? minimumPaneSize)[dimension];
-    const span = bounds[dimension];
-    const totalMin = firstMin + secondMin;
-    // When both minima cannot fit, divide the available space in proportion to them.
-    const minRatio = span > totalMin ? firstMin / span : firstMin / totalMin;
-    const maxRatio = span > totalMin ? 1 - secondMin / span : minRatio;
-    const ratio = Math.min(maxRatio, Math.max(minRatio, node.ratio));
-    splits.push({
-      id: node.id,
-      axis: node.axis,
-      bounds,
-      ratio,
-      minRatio,
-      maxRatio,
-      primaryPane: findPane(node.first, () => true)!.id,
+    const origin = node.axis === "horizontal" ? "x" : "y";
+    const minima = node.children.map(child => (minimums.get(child.node) ?? minimumPaneSize)[dimension]);
+    const sizes = distributeSpan(bounds[dimension], node.children, minima);
+    let offset = bounds[origin];
+    node.children.forEach(({ node: child }, index) => {
+      const childBounds = { ...bounds, [origin]: offset, [dimension]: sizes[index] };
+      visit(child, childBounds);
+      if (index + 1 < sizes.length) {
+        const pair = sizes[index] + sizes[index + 1];
+        const totalMin = minima[index] + minima[index + 1];
+        const ratio = pair > 0 ? sizes[index] / pair : minima[index] / totalMin;
+        splits.push({
+          id: node.id, index, sizes, axis: node.axis, bounds: { ...childBounds, [dimension]: pair },
+          ratio, minRatio: pair > totalMin ? minima[index] / pair : ratio,
+          maxRatio: pair > totalMin ? 1 - minima[index + 1] / pair : ratio,
+          primaryPane: findPane(child, () => true)!.id,
+        });
+      }
+      offset += sizes[index];
     });
-    const [first, second] = splitBounds(bounds, node.axis, ratio);
-    visit(node.first, first);
-    visit(node.second, second);
   }
 
   if (root) {
@@ -269,14 +338,14 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
         tabs = [...tabs];
         tabs.splice(tabs.indexOf(pane.active) + 1, 0, action.view);
       }
-      const nextRoot = replacePane(root, pane.id, { ...pane, tabs, active: action.view });
+      const nextRoot = replaceNode(root, pane.id, { ...pane, tabs, active: action.view });
       return { ...layout, root: nextRoot, focused: pane.id, targets };
     }
     case "select": {
       const pane = paneById(action.pane);
       if (!pane?.tabs.includes(action.view)) return layout;
       const nextRoot = pane.active === action.view ? root
-        : replacePane(root, pane.id, { ...pane, active: action.view });
+        : replaceNode(root, pane.id, { ...pane, active: action.view });
       return { ...layout, root: nextRoot, focused: pane.id };
     }
     case "focus":
@@ -284,8 +353,8 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       return { ...layout, focused: action.pane };
     case "resize": {
       if (!Number.isFinite(action.ratio)) return layout;
-      const ratio = Math.min(1, Math.max(0, action.ratio));
-      const nextRoot = resizeSplit(root, action.split, ratio);
+      const ratio = Math.min(action.frame.maxRatio, Math.max(action.frame.minRatio, action.ratio));
+      const nextRoot = resizeSplit(root, action.frame, ratio);
       return nextRoot === root ? layout : { ...layout, root: nextRoot };
     }
     case "close": {
@@ -297,7 +366,7 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       for (const tab of pane.tabs) {
         if (!remaining?.tabs.includes(tab)) targets.delete(tab);
       }
-      const nextRoot = replacePane(root, pane.id, remaining);
+      const nextRoot = replaceNode(root, pane.id, remaining);
       if (!nextRoot) return { ...layout, root: null, focused: null, targets };
       const focused = findPane(nextRoot, (candidate) => candidate.id === layout.focused)
         ?? findPane(nextRoot, () => true)!;
@@ -316,7 +385,7 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
         return layout;
       }
       const active = source.id === target.id ? target.active : action.view;
-      const inserted = replacePane(root, target.id, { ...target, tabs, active })!;
+      const inserted = replaceNode(root, target.id, { ...target, tabs, active })!;
       const nextRoot = source.id === target.id ? inserted : removeFromTree(inserted, source, action.view);
       return { ...layout, root: nextRoot, focused: target.id };
     }
@@ -324,21 +393,15 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       const source = paneById(action.from);
       const target = paneById(action.target);
       if (!source?.tabs.includes(action.view) || !target) return layout;
-      const samePane = source.id === target.id;
-      const remaining = samePane ? closePaneTabs(source, action.view) : target;
-      if (!remaining) return layout;
-
-      const detached = createPane(layout.nextPaneId, action.view);
+      if (source.id === target.id && source.tabs.length === 1) return layout;
       const { axis, leading } = splitDirection(action.edge);
-      const branched = replacePane(root, target.id, {
-        kind: "split",
-        id: `split-${layout.nextPaneId}`,
-        axis,
-        ratio: 0.5,
-        first: leading ? detached : remaining,
-        second: leading ? remaining : detached,
-      })!;
-      const nextRoot = samePane ? branched : removeFromTree(branched, source, action.view);
+      const movingPane = source.tabs.length === 1;
+      const group = movingPane ? parentGroup(root, target.id) : undefined;
+      const reorder = group?.axis === axis && group.children.some(child => child.node.id === source.id);
+      const remaining = reorder ? root : removeFromTree(root, source, action.view)!;
+      const detached = movingPane ? source : createPane(layout.nextPaneId, action.view);
+      const destination = source.id === target.id ? findPane(remaining, pane => pane.id === target.id)! : target;
+      const nextRoot = insertBeside(remaining, destination, detached, axis, leading, `split-${layout.nextPaneId}`);
       return { ...layout, root: nextRoot, focused: detached.id, nextPaneId: layout.nextPaneId + 1 };
     }
   }

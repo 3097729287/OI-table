@@ -163,9 +163,9 @@
   pointer-events: none;
 }
 
-.workbench[data-sidebar-resizing="true"] :is(.pane-toolbar, .workbench-panel, .workbench-pane-separator),
+.workbench[data-sidebar-resizing="true"] :is(.workbench-pane, .workbench-pane-separator),
 .workbench-panes:has(> .workbench-pane-separator[data-resizing="true"])
-  :is(.pane-toolbar, .workbench-panel, .workbench-pane-separator) {
+  :is(.workbench-pane, .workbench-pane-separator) {
   transition: none;
 }
 
@@ -178,12 +178,24 @@
   object-fit: contain;
 }
 
-:is(.pane-toolbar, .workbench-panel, .workbench-dock-preview) {
+:is(.workbench-pane, .workbench-dock-preview) {
   position: absolute;
   inset-inline-start: var(--pane-x);
+  inset-block-start: var(--pane-y);
   inline-size: var(--pane-width);
+  block-size: var(--pane-height);
   transition: inset-inline-start var(--workspace-motion), inset-block-start var(--workspace-motion),
     inline-size var(--workspace-motion), block-size var(--workspace-motion);
+}
+
+.workbench-pane {
+  display: grid;
+  grid-template: min(var(--pane-tabs-height), 100%) minmax(0, 1fr) / minmax(0, 1fr);
+  overflow: clip;
+}
+
+.workbench-panel-host {
+  display: contents;
 }
 
 .pane-toolbar {
@@ -194,8 +206,6 @@
   flex-direction: column;
   z-index: 1;
   min-inline-size: 0;
-  inset-block-start: var(--pane-y);
-  block-size: min(var(--pane-tabs-height), var(--pane-height));
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
   background: var(--tab-strip-background);
 }
@@ -347,16 +357,13 @@
 
 .workbench-dock-preview {
   z-index: 2;
-  inset-block-start: var(--pane-y);
-  block-size: var(--pane-height);
   border: 1px solid var(--workbench-accent);
   background: color-mix(in srgb, var(--workbench-accent) 18%, transparent);
   pointer-events: none;
 }
 
 .workbench-panel {
-  inset-block-start: calc(var(--pane-y) + min(var(--pane-tabs-height), var(--pane-height)));
-  block-size: max(0px, calc(var(--pane-height) - var(--pane-tabs-height)));
+  grid-row: 2;
   min-inline-size: 0;
   min-block-size: 0;
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
