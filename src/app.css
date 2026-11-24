@@ -3,6 +3,10 @@
   --window-background: light-dark(#fff, #161b24);
   --navigation-background: light-dark(#eceff2, #1b2028);
   --sidebar-background: light-dark(#f7f8f9, #252b35);
+  --navigation-hover: light-dark(#e8ebef, #2a313c);
+  --navigation-selected: light-dark(#e2e9ed, #303d48);
+  --accent-color: light-dark(#235a78, #93c8e4);
+  --sidebar-row-height: 26px;
   --text-color: light-dark(#1b2534, #edf2f8);
   --muted-color: light-dark(#526070, #aab8c9);
   --error-color: light-dark(#a1241c, #ff9a90);

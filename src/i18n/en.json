@@ -49,13 +49,16 @@
   "logMaxSizeMib": "Max. size per file (MiB)",
   "logRetention": "Set 1–100 MiB per file. Keeps the current log and one backup.",
   "appearance": "Appearance",
+  "runAndDebug": "Run & debug",
+  "dataAndDiagnostics": "Data & diagnostics",
+  "theme": "Theme",
   "themeSystem": "Follow system",
   "themeLight": "Light",
   "themeDark": "Dark",
   "windowConfigurationFailed": "Could not apply the window settings.",
   "windowPageUnavailable": "This window page is unavailable.",
   "settingsLoading": "Loading settings…",
-  "settingsOpenFailed": "Could not open Settings. Try again.",
+  "settingsGroupEmpty": "No settings yet.",
   "settingsLoadFailed": "Could not load settings.",
   "settingsSaveFailed": "Could not save settings."
 }

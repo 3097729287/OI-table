@@ -7,6 +7,7 @@ export const workspaceSections = {
   archive: { title: messages.archive, icon: "archive" },
   favorites: { title: messages.favorites, icon: "favorites" },
   submissions: { title: messages.submissionHistory, icon: "submissions" },
+  settings: { title: messages.settings, icon: "settings" },
 } satisfies Record<string, { title: string; icon: IconName }>;
 
 export type WorkspaceSection = keyof typeof workspaceSections;
