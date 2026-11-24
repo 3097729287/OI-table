@@ -3,13 +3,14 @@ import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
 
 export const workspaceView = {
+  id: "submissions",
   title: "submissionHistory",
   icon: "submissions",
   section: "submissions",
   sidebarTitle: "allSubmissions",
   variants: [
-    { id: "local", title: "localTestHistory" },
-    { id: "online", title: "onlineSubmissionHistory" },
+    { params: { filter: "local" }, title: "localTestHistory" },
+    { params: { filter: "online" }, title: "onlineSubmissionHistory" },
   ],
   order: 50,
 } satisfies WorkspaceViewOptions;

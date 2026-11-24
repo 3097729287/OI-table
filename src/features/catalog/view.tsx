@@ -3,6 +3,7 @@ import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions } from "../../workspace/views";
 
 export const workspaceView = {
+  id: "catalog",
   title: "catalog",
   icon: "problems",
   section: "catalog",

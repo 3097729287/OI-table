@@ -4,6 +4,7 @@ import { Scrollbar } from "../../../shared/ui/Scrollbar";
 import type { WorkspaceViewOptions } from "../../../workspace/views";
 
 export const workspaceView = {
+  id: "catalog/scratch-pad",
   title: "editor",
   icon: "scratchPad",
   section: "catalog",
@@ -19,7 +20,7 @@ export default function EditorView() {
     <section className="workspace workbench-page editor-view">
       <h1>{messages.editor}</h1>
       <div className="editor-view__input scrollbar-host">
-        <textarea ref={editor} id={id} className="scrollbar-viewport" data-selectable
+        <textarea ref={editor} id={id} data-selectable
           aria-label={messages.scratchPad} placeholder={messages.scratchPad} spellCheck={false} />
         <Scrollbar viewport={editor} controls={id} orientation="vertical" label={messages.scrollVertically} />
       </div>

@@ -2,13 +2,14 @@ import { useContext, useState } from "react";
 import { useMessages } from "../i18n";
 import { Icon } from "../shared/Icon";
 import { ScrollArea } from "../shared/ui/ScrollArea";
+import type { WorkspaceTarget } from "./layout";
 import { WorkspaceSidebar } from "./sidebar";
 import { WorkspaceMenu } from "./WorkspaceMenu";
 import { workspaceSections, type WorkspaceSection } from "./views";
 
 const railIconSize = 24;
 
-export function WorkspaceNavigator({ onOpen }: { onOpen: (view: string) => void }) {
+export function WorkspaceNavigator({ onOpen }: { onOpen: (target: WorkspaceTarget) => void }) {
   const messages = useMessages();
   const sidebar = useContext(WorkspaceSidebar);
   const [section, setSection] = useState<WorkspaceSection>("catalog");

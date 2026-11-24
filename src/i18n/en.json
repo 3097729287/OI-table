@@ -35,6 +35,8 @@
   "collapseSidebar": "Collapse sidebar",
   "expandSidebar": "Expand sidebar",
   "resizeSidebar": "Resize sidebar",
+  "resizePaneWidth": "Resize side-by-side panes",
+  "resizePaneHeight": "Resize stacked panes",
   "editorPane": "Editor pane {number}",
   "scrollEditorTabs": "Scroll tabs in {pane}",
   "scrollVertically": "Scroll vertically",

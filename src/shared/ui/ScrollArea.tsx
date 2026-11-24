@@ -17,7 +17,7 @@ export function ScrollArea({
   const viewport = viewportRef ?? defaultViewport;
   const id = useId();
   return createElement(as, { ...props, className: className ? `scroll-area ${className}` : "scroll-area" },
-    <div id={id} ref={viewport} className="scroll-area__viewport scrollbar-viewport">{children}</div>,
+    <div id={id} ref={viewport} className="scroll-area__viewport">{children}</div>,
     orientation !== "horizontal" && <Scrollbar viewport={viewport} controls={id} orientation="vertical"
       label={messages.scrollVertically} focusable={focusScrollbar} />,
     orientation !== "vertical" && <Scrollbar viewport={viewport} controls={id} orientation="horizontal"

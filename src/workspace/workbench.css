@@ -49,6 +49,7 @@
 
 .workbench-sidebar-resizer {
   justify-self: end;
+  z-index: 1;
   inline-size: 8px;
   cursor: ew-resize;
   touch-action: none;
@@ -125,11 +126,47 @@
 
 .workbench-panes {
   --pane-tabs-height: 38px;
+  --pane-separator-hit-size: 8px;
   grid-column: 3;
   position: relative;
   min-block-size: 0;
   min-inline-size: 0;
   overflow: hidden;
+}
+
+.workbench-pane-separator {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+  transition: left var(--workspace-motion), top var(--workspace-motion),
+    width var(--workspace-motion), height var(--workspace-motion);
+}
+
+.workbench-pane-separator[aria-orientation="vertical"] {
+  width: var(--pane-separator-hit-size);
+  transform: translateX(-50%);
+  cursor: ew-resize;
+}
+
+.workbench-pane-separator[aria-orientation="horizontal"] {
+  height: var(--pane-separator-hit-size);
+  transform: translateY(-50%);
+  cursor: ns-resize;
+}
+
+.workbench-pane-separator:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--workbench-accent);
+}
+
+.workbench-pane-separator[aria-disabled="true"],
+.workbench-panes[data-tab-dragging="true"] > .workbench-pane-separator {
+  pointer-events: none;
+}
+
+.workbench[data-sidebar-resizing="true"] :is(.workbench-pane, .workbench-pane-separator),
+.workbench-panes:has(> .workbench-pane-separator[data-resizing="true"])
+  :is(.workbench-pane, .workbench-pane-separator) {
+  transition: none;
 }
 
 .workbench-empty-image {
@@ -141,24 +178,41 @@
   object-fit: contain;
 }
 
-:is(.pane-toolbar, .workbench-panel, .workbench-dock-preview) {
+:is(.workbench-pane, .workbench-dock-preview) {
   position: absolute;
   inset-inline-start: var(--pane-x);
+  inset-block-start: var(--pane-y);
   inline-size: var(--pane-width);
+  block-size: var(--pane-height);
   transition: inset-inline-start var(--workspace-motion), inset-block-start var(--workspace-motion),
     inline-size var(--workspace-motion), block-size var(--workspace-motion);
 }
 
+.workbench-pane {
+  display: grid;
+  grid-template: min(var(--pane-tabs-height), 100%) minmax(0, 1fr) / minmax(0, 1fr);
+  overflow: clip;
+}
+
+.workbench-panel-host {
+  display: contents;
+}
+
 .pane-toolbar {
   --tab-strip-background: var(--navigation-background);
+  --selected-tab-color: var(--muted-color);
+  --selected-tab-indicator: var(--muted-color);
   display: flex;
   flex-direction: column;
   z-index: 1;
   min-inline-size: 0;
-  inset-block-start: var(--pane-y);
-  block-size: min(var(--pane-tabs-height), var(--pane-height));
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
   background: var(--tab-strip-background);
+}
+
+.pane-toolbar[data-focused="true"] {
+  --selected-tab-color: var(--workbench-accent);
+  --selected-tab-indicator: var(--workbench-accent);
 }
 
 .pane-tabs {
@@ -253,20 +307,31 @@
 
 .workbench-tab[data-selected="true"] {
   background: var(--window-background);
-  color: var(--text-color);
+  color: var(--selected-tab-color);
+  transition-property: color, opacity;
+}
+
+.workbench-tab::after {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 2px;
+  background: var(--selected-tab-indicator);
+  content: "";
+  pointer-events: none;
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  transition: transform var(--workspace-motion);
 }
 
 .workbench-tab[data-selected="true"]::after {
-  position: absolute;
-  inset: auto 0 0;
-  block-size: 2px;
-  background: var(--workbench-border);
-  content: "";
-  pointer-events: none;
+  transform: scaleY(1);
 }
 
-.pane-toolbar[data-focused="true"] .workbench-tab[data-selected="true"]::after {
-  background: var(--workbench-accent);
+@starting-style {
+  .workbench-tab[data-selected="true"]::after {
+    transform: scaleY(0);
+  }
 }
 
 .workbench-tab .workbench-tab__close:hover {
@@ -292,16 +357,13 @@
 
 .workbench-dock-preview {
   z-index: 2;
-  inset-block-start: var(--pane-y);
-  block-size: var(--pane-height);
   border: 1px solid var(--workbench-accent);
   background: color-mix(in srgb, var(--workbench-accent) 18%, transparent);
   pointer-events: none;
 }
 
 .workbench-panel {
-  inset-block-start: calc(var(--pane-y) + min(var(--pane-tabs-height), var(--pane-height)));
-  block-size: max(0px, calc(var(--pane-height) - var(--pane-tabs-height)));
+  grid-row: 2;
   min-inline-size: 0;
   min-block-size: 0;
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
