@@ -133,7 +133,6 @@
   z-index: 10;
   max-inline-size: calc(100vw - 8px);
   max-block-size: 240px;
-  overflow: auto;
   padding: 4px;
   border: 1px solid var(--control-border);
   border-radius: 5px;

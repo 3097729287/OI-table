@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { useSettings } from "../shared/settings";
 import { getMessages, LocaleContext, useLocale } from "../i18n";
 import { StatusMessage } from "../shared/StatusMessage";
+import { ScrollArea } from "../shared/ui/ScrollArea";
 import { WorkspaceSidebar } from "../workspace/sidebar";
 import { applyMainWindowOptions, currentWindow, isMainWindow } from "./routes";
 import { TitleBar } from "./TitleBar";
@@ -49,7 +50,7 @@ export function WindowShell() {
             message: messages.windowConfigurationFailed,
           } : undefined}
         />
-        <div className="window-content">
+        <ScrollArea className="window-content">
           {Page ? (
             <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true) }}>
               <Page />
@@ -59,7 +60,7 @@ export function WindowShell() {
               <StatusMessage state="error">{messages.windowPageUnavailable}</StatusMessage>
             </main>
           )}
-        </div>
+        </ScrollArea>
       </div>
     </LocaleContext>
   );

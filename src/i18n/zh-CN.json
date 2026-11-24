@@ -37,6 +37,8 @@
   "resizeSidebar": "调整侧栏宽度",
   "editorPane": "编辑区域 {number}",
   "scrollEditorTabs": "滚动{pane}的标签页",
+  "scrollVertically": "纵向滚动",
+  "scrollHorizontally": "横向滚动",
   "closeView": "关闭{title}",
   "tabActions": "标签页操作",
   "closeTab": "关闭当前",

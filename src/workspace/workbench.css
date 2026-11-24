@@ -5,6 +5,7 @@
   --workspace-motion: 180ms cubic-bezier(0.2, 0.75, 0.25, 1);
   display: grid;
   grid-template-columns: var(--workspace-rail-width) var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   block-size: 100%;
   min-block-size: 0;
   transition: grid-template-columns var(--workspace-motion);
@@ -40,9 +41,9 @@
 }
 
 .workbench-sidebar {
+  --scrollbar-end-inset: 8px;
   min-inline-size: 0;
   min-block-size: 0;
-  overflow: auto;
   background: var(--sidebar-background);
 }
 
@@ -150,8 +151,6 @@
 
 .pane-toolbar {
   --tab-strip-background: var(--navigation-background);
-  --tab-scrollbar-line: 2px;
-  --tab-scrollbar-hit-extension: 3px;
   display: flex;
   flex-direction: column;
   z-index: 1;
@@ -168,11 +167,6 @@
   container-type: inline-size;
   min-block-size: 0;
   overflow: auto hidden;
-  scrollbar-width: none;
-}
-
-.pane-tabs::-webkit-scrollbar {
-  display: none;
 }
 
 .pane-tab-row {
@@ -184,70 +178,12 @@
   overflow: clip;
 }
 
-.pane-tab-scrollbar {
-  --tab-thumb-color: color-mix(in srgb, var(--muted-color) 44%, transparent);
-  position: absolute;
-  inset-inline: 0;
-  inset-block-start: calc(100% - var(--tab-scrollbar-hit-extension));
-  block-size: calc(var(--tab-scrollbar-line) + 2 * var(--tab-scrollbar-hit-extension));
-  color: var(--muted-color);
-  opacity: 0;
-  touch-action: none;
-  transition: opacity var(--workspace-motion);
+.pane-toolbar .pane-tab-scrollbar[data-orientation="horizontal"] {
+  inset-block: calc(100% - var(--scrollbar-hit-padding)) auto;
 }
 
-.pane-tab-scrollbar[data-overflow="false"] {
-  visibility: hidden;
-}
-
-.workbench-panes[data-tab-dragging="true"] .pane-tab-scrollbar {
+.workbench-panes[data-tab-dragging="true"] .scrollbar.pane-tab-scrollbar {
   pointer-events: none;
-}
-
-.pane-toolbar:hover .pane-tab-scrollbar,
-.pane-toolbar:has(:focus-visible) .pane-tab-scrollbar,
-.pane-tab-scrollbar[data-dragging="true"] {
-  opacity: 1;
-}
-
-.pane-tab-scrollbar__thumb {
-  position: absolute;
-  inset: 0 auto 0 0;
-}
-
-.pane-tab-scrollbar__thumb::after {
-  position: absolute;
-  inset: var(--tab-scrollbar-hit-extension) 0 auto;
-  block-size: var(--tab-scrollbar-line);
-  background: var(--tab-thumb-color);
-  content: "";
-  transition: background-color var(--workspace-motion);
-}
-
-.pane-tab-scrollbar__thumb:hover {
-  --tab-thumb-color: color-mix(in srgb, var(--muted-color) 64%, transparent);
-}
-
-.pane-tab-scrollbar[data-dragging="true"] .pane-tab-scrollbar__thumb {
-  --tab-thumb-color: color-mix(in srgb, var(--muted-color) 84%, transparent);
-}
-
-.pane-tab-scrollbar:focus-visible {
-  box-shadow: none;
-  --tab-thumb-color: var(--text-color);
-}
-
-@media (hover: none), (forced-colors: active) {
-  .pane-tab-scrollbar {
-    opacity: 1;
-  }
-}
-
-@media (forced-colors: active) {
-  .pane-tab-scrollbar__thumb::after {
-    forced-color-adjust: none;
-    background: ButtonText;
-  }
 }
 
 .workbench-tab {
@@ -368,7 +304,6 @@
   block-size: max(0px, calc(var(--pane-height) - var(--pane-tabs-height)));
   min-inline-size: 0;
   min-block-size: 0;
-  overflow: auto;
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
   border-block-end: var(--pane-block-divider-width) solid var(--workbench-border);
   background: var(--window-background);
@@ -391,18 +326,26 @@
   font-size: var(--ui-font-size-heading);
 }
 
+.editor-view__input {
+  --scrollbar-bottom-inset: 16px;
+  block-size: 10rem;
+  min-block-size: 10rem;
+  margin-block-start: var(--space-md);
+  overflow: hidden;
+  resize: vertical;
+}
+
 .editor-view textarea {
   display: block;
   inline-size: 100%;
-  min-block-size: 10rem;
-  margin-block-start: var(--space-md);
+  block-size: 100%;
   padding: var(--space-sm);
   border: 1px solid var(--workbench-border);
   border-radius: 4px;
   background: var(--window-background);
   color: inherit;
   font: 13px/1.6 Consolas, monospace;
-  resize: vertical;
+  resize: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

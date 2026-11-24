@@ -37,6 +37,8 @@
   "resizeSidebar": "Resize sidebar",
   "editorPane": "Editor pane {number}",
   "scrollEditorTabs": "Scroll tabs in {pane}",
+  "scrollVertically": "Scroll vertically",
+  "scrollHorizontally": "Scroll horizontally",
   "closeView": "Close {title}",
   "tabActions": "Tab actions",
   "closeTab": "Close current",

@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { useMessages } from "../i18n";
 import { Icon } from "../shared/Icon";
+import { ScrollArea } from "../shared/ui/ScrollArea";
 import { WorkspaceSidebar } from "./sidebar";
 import { WorkspaceMenu } from "./WorkspaceMenu";
 import { workspaceSections, type WorkspaceSection } from "./views";
@@ -14,7 +15,7 @@ export function WorkspaceNavigator({ onOpen }: { onOpen: (view: string) => void 
 
   return (
     <>
-      <aside className="workspace-rail">
+      <ScrollArea as="aside" className="workspace-rail" orientation="vertical">
         <nav aria-label={messages.workspaceCategories}>
           {Object.entries(workspaceSections).map(([id, item]) => (
             <button key={id} type="button" title={messages[item.title]} aria-label={messages[item.title]}
@@ -27,10 +28,10 @@ export function WorkspaceNavigator({ onOpen }: { onOpen: (view: string) => void 
             </button>
           ))}
         </nav>
-      </aside>
-      <aside id="workspace-sidebar" className="workbench-sidebar" hidden={!sidebar.visible}>
+      </ScrollArea>
+      <ScrollArea as="aside" id="workspace-sidebar" className="workbench-sidebar" hidden={!sidebar.visible}>
         <WorkspaceMenu section={section} onOpen={onOpen} />
-      </aside>
+      </ScrollArea>
     </>
   );
 }

@@ -2,10 +2,11 @@ import { useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, typ
 import { useMessages, type MessageKey } from "../i18n";
 import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
+import { ScrollArea } from "../shared/ui/ScrollArea";
+import { Scrollbar } from "../shared/ui/Scrollbar";
 import emptyWorkbenchImage from "./assets/oi-table-product.svg?no-inline";
 import { closePaneTabs, collectPaneFrames, initialLayout, previewBounds, workspaceReducer, type LayoutAction, type PaneBounds, type PaneFrame, type PaneId, type TabCloseScope } from "./layout";
 import { WorkspaceSidebar } from "./sidebar";
-import { TabScrollbar } from "./TabScrollbar";
 import { useSidebarResize } from "./useSidebarResize";
 import { useTabDrag } from "./useTabDrag";
 import { workspaceViews } from "./views";
@@ -176,10 +177,10 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
   }
 
   return (
-    <div className="pane-toolbar" data-tablist-pane={pane} data-focused={focused} style={position(bounds)}
+    <div className="pane-toolbar scrollbar-host" data-tablist-pane={pane} data-focused={focused} style={position(bounds)}
       onPointerDown={() => dispatch({ type: "focus", pane })}
       onFocusCapture={() => dispatch({ type: "focus", pane })}>
-      <div ref={list} id={listId} className="pane-tabs" role="tablist" data-tab-scrollport
+      <div ref={list} id={listId} className="pane-tabs scrollbar-viewport" role="tablist" data-tab-scrollport
         data-drop-end={destination?.anchor === null} aria-label={label}>
         <div ref={row} className="pane-tab-row" role="presentation">
           {group.tabs.map((id, index) => {
@@ -229,7 +230,8 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
           })}
         </div>
       </div>
-      <TabScrollbar viewport={list} content={row} controls={listId}
+      <Scrollbar viewport={list} content={row} controls={listId} className="pane-tab-scrollbar"
+        orientation="horizontal" wheelOnParent
         label={messages.scrollEditorTabs.replace("{pane}", label)} />
     </div>
   );
@@ -311,13 +313,13 @@ export function Workbench() {
             if (!frame) return null;
             const { pane, bounds } = frame;
             return (
-              <section key={id} id={`workbench-panel-${id}`} className="workbench-panel" style={position(bounds)}
+              <ScrollArea as="section" key={id} id={`workbench-panel-${id}`} className="workbench-panel" style={position(bounds)}
                 data-drop-pane={pane.id} data-drop-target={contentDropPane === pane.id}
                 role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                 hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                 onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
                 <Page title={messages[title]} />
-              </section>
+              </ScrollArea>
             );
           })}
           {splitTarget && splitFrame && (

@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { ComponentProps, KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../Icon";
+import { ScrollArea } from "./ScrollArea";
 import "./fields.css";
 
 type SelectOption<Value extends string> = {
@@ -23,7 +24,7 @@ const popupGap = 4;
 const popupMinWidth = 140;
 const popupHeightLimit = 240;
 
-function positionPopup(trigger: HTMLButtonElement, popup: HTMLDivElement) {
+function positionPopup(trigger: HTMLButtonElement, popup: HTMLDivElement, viewport: HTMLDivElement) {
   const anchor = trigger.getBoundingClientRect();
   const width = Math.min(Math.max(anchor.width, popupMinWidth), Math.max(0, window.innerWidth - 2 * popupGap));
   const left = Math.max(popupGap, Math.min(anchor.left, window.innerWidth - width - popupGap));
@@ -32,7 +33,7 @@ function positionPopup(trigger: HTMLButtonElement, popup: HTMLDivElement) {
 
   const below = Math.max(0, window.innerHeight - anchor.bottom - 2 * popupGap);
   const above = Math.max(0, anchor.top - 2 * popupGap);
-  const naturalHeight = Math.min(popupHeightLimit, popup.scrollHeight + popup.offsetHeight - popup.clientHeight);
+  const naturalHeight = Math.min(popupHeightLimit, viewport.scrollHeight + popup.offsetHeight - viewport.clientHeight);
   const opensAbove = naturalHeight > below && above > below;
   popup.style.maxHeight = `${Math.min(popupHeightLimit, opensAbove ? above : below)}px`;
   popup.style.top = `${opensAbove ? anchor.top - popupGap - popup.offsetHeight : anchor.bottom + popupGap}px`;
@@ -52,6 +53,7 @@ export function Select<Value extends string>({
   const popupId = `${generatedId}-listbox`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const showPopup = isOpen && !disabled;
@@ -65,8 +67,9 @@ export function Select<Value extends string>({
   useLayoutEffect(() => {
     const trigger = triggerRef.current;
     const popup = popupRef.current;
-    if (!showPopup || !trigger || !popup) return;
-    positionPopup(trigger, popup);
+    const viewport = viewportRef.current;
+    if (!showPopup || !trigger || !popup || !viewport) return;
+    positionPopup(trigger, popup, viewport);
   }, [showPopup, options]);
 
   useLayoutEffect(() => {
@@ -95,17 +98,17 @@ export function Select<Value extends string>({
   }, [showPopup]);
 
   useLayoutEffect(() => {
-    const popup = popupRef.current;
-    const item = popup?.children.item(activeIndex);
-    if (!popup || !(item instanceof HTMLElement)) return;
+    const viewport = viewportRef.current;
+    const item = document.getElementById(`${popupId}-${activeIndex}`);
+    if (!viewport || !item) return;
 
     const itemBounds = item.getBoundingClientRect();
-    const popupBounds = popup.getBoundingClientRect();
-    const top = popupBounds.top + popup.clientTop;
-    const bottom = top + popup.clientHeight;
-    if (itemBounds.top < top) popup.scrollTop += itemBounds.top - top;
-    else if (itemBounds.bottom > bottom) popup.scrollTop += itemBounds.bottom - bottom;
-  }, [showPopup, activeIndex, options]);
+    const viewportBounds = viewport.getBoundingClientRect();
+    const top = viewportBounds.top + viewport.clientTop;
+    const bottom = top + viewport.clientHeight;
+    if (itemBounds.top < top) viewport.scrollTop += itemBounds.top - top;
+    else if (itemBounds.bottom > bottom) viewport.scrollTop += itemBounds.bottom - bottom;
+  }, [showPopup, activeIndex, options, popupId]);
 
   function findEnabledIndex(from: number, step: 1 | -1) {
     for (let index = from + step; index >= 0 && index < options.length; index += step) {
@@ -198,13 +201,16 @@ export function Select<Value extends string>({
         </span>
       </button>
       {showPopup && createPortal(
-        <div
+        <ScrollArea
           ref={popupRef}
+          viewportRef={viewportRef}
           id={popupId}
           role="listbox"
           aria-label={accessibleProps["aria-label"]}
           aria-labelledby={accessibleProps["aria-labelledby"] ?? (accessibleProps["aria-label"] ? undefined : triggerId)}
           className="ui-select-popup"
+          orientation="vertical"
+          focusScrollbar={false}
           onMouseDown={(event) => event.preventDefault()}
         >
           {options.map((option, index) => (
@@ -222,7 +228,7 @@ export function Select<Value extends string>({
               {option.label}
             </div>
           ))}
-        </div>,
+        </ScrollArea>,
         document.body,
       )}
     </>

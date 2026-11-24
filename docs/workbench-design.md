@@ -66,6 +66,7 @@
 | 侧栏选中与悬停 | 二级侧栏使用 `:root` 的 `--accent-color`、`--navigation-selected` 和 `--navigation-hover`。 | 工作台通过 `--workbench-accent` 引用同一强调色，分屏预览混入 18% 强调色。导航轨当前分类使用自己的显式色值。 |
 | 表单控件与工作台边界 | [基础样式](../src/app.css) 的 `--control-border` 和[工作台样式](../src/workspace/workbench.css) 的 `--workbench-border`。 | [公共表单控件](../src/shared/ui/Fields.tsx)统一绘制外框、下拉面板和数字步进按钮。控件边界默认取正文色的 21%，工作台边界默认取 15%。 |
 | 表单控件尺寸 | [基础样式](../src/app.css) 的 `--control-width` 和 `--control-height`。 | 输入框和下拉按钮默认宽 160px、高 36px，编辑时维持原尺寸。 |
+| 滚动条 | [共用滚动样式](../src/shared/ui/scrollbar.css) 的 `--scrollbar-line` 和 `--scrollbar-hit-padding`。 | 2px 滑块，上下或左右各加 3px 操作区域，浮在内容边缘。普通滚动区域复用 [ScrollArea](../src/shared/ui/ScrollArea.tsx)，标签栏和文本域通过同一滚动条接入原有滚动容器。 |
 
 将侧栏与工作区的蓝色强调改为青绿色时，可在 [基础样式](../src/app.css) 的 `:root` 调整这两个共享变量。
 
