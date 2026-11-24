@@ -4,11 +4,6 @@
   block-size: 100vh;
 }
 
-.window-content {
-  min-inline-size: 0;
-  overflow: auto;
-}
-
 .title-bar {
   position: relative;
   z-index: 1;
@@ -16,7 +11,7 @@
   block-size: 32px;
   color: var(--title-bar-color);
   background: var(--navigation-background);
-  font-size: 12px;
+  font-size: var(--ui-font-size-caption);
   line-height: 1.25;
 }
 

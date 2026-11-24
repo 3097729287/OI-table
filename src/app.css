@@ -1,9 +1,28 @@
 :root {
   color-scheme: light dark;
+  --font-system: "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-yahei: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --font-serif: "SimSun", "Songti SC", "Noto Serif CJK SC", serif;
+  --font-monospace: Consolas, monospace;
+  --ui-font-family: var(--font-system);
+  --ui-font-size: 1rem;
+  --editor-font-family: var(--font-monospace);
+  --editor-font-size: 13px;
+  --ui-font-size-caption: calc(var(--ui-font-size) * 0.75);
+  --ui-font-size-small: calc(var(--ui-font-size) * 0.8125);
+  --ui-font-size-control: calc(var(--ui-font-size) * 0.875);
+  --ui-font-size-heading: calc(var(--ui-font-size) * 1.25);
   --window-background: light-dark(#fff, #161b24);
   --navigation-background: light-dark(#eceff2, #1b2028);
   --sidebar-background: light-dark(#f7f8f9, #252b35);
+  --navigation-hover: light-dark(#e8ebef, #2a313c);
+  --navigation-selected: light-dark(#e2e9ed, #303d48);
+  --accent-color: light-dark(#235a78, #93c8e4);
+  --sidebar-row-height: 26px;
   --text-color: light-dark(#1b2534, #edf2f8);
+  --control-border: color-mix(in srgb, var(--text-color) 21%, transparent);
+  --control-width: 160px;
+  --control-height: 36px;
   --muted-color: light-dark(#526070, #aab8c9);
   --error-color: light-dark(#a1241c, #ff9a90);
   --title-bar-color: var(--text-color);
@@ -54,7 +73,8 @@
 body {
   background: var(--window-background);
   color: var(--text-color);
-  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-family: var(--ui-font-family);
+  font-size: var(--ui-font-size);
 }
 
 .workspace {
@@ -62,5 +82,5 @@ body {
 }
 
 .workspace h1 {
-  font-size: 24px;
+  font-size: calc(var(--ui-font-size) * 1.5);
 }

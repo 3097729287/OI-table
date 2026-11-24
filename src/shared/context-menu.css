@@ -4,7 +4,6 @@
   min-inline-size: min(220px, calc(100vw - 8px));
   max-inline-size: calc(100vw - 8px);
   max-block-size: calc(100vh - 8px);
-  overflow: auto;
   padding: 4px;
   border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
   border-radius: 6px;
@@ -25,7 +24,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--ui-font-size-small);
   text-align: start;
 }
 
@@ -54,7 +53,7 @@
 
 .context-menu__shortcut {
   color: var(--muted-color);
-  font-size: 12px;
+  font-size: var(--ui-font-size-caption);
   white-space: nowrap;
 }
 

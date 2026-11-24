@@ -1,82 +1,151 @@
 use std::io;
 
-use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use tauri::{App, AppHandle, Emitter, Manager, State};
 
 use crate::{logging, storage::Storage};
 
 const SETTINGS_FILE: &str = "settings.json";
 const SETTINGS_CHANGED: &str = "oi-table:settings-changed";
+const THEME_KEY: &str = "theme";
+const LOG_MAX_SIZE_KEY: &str = "logMaxSizeMib";
+const FONT_PRESETS: &[&str] = &["system", "yahei", "serif", "monospace"];
 pub const DEFAULT_LOG_MAX_SIZE_MIB: u32 = 5;
-const LOG_SIZE_RANGE: std::ops::RangeInclusive<u32> = 1..=100;
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Theme {
-    #[default]
-    System,
-    Light,
-    Dark,
+type Settings = Map<String, Value>;
+
+enum Rule {
+    Choice {
+        default: &'static str,
+        alternatives: &'static [&'static [&'static str]],
+    },
+    Integer {
+        default: u32,
+        min: u64,
+        max: u64,
+    },
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default, rename_all = "camelCase")]
-pub struct Settings {
-    theme: Theme,
-    log_max_size_mib: u32,
-}
+const RULES: &[(&str, Rule)] = &[
+    (
+        THEME_KEY,
+        Rule::Choice {
+            default: "system",
+            alternatives: &[&["light", "dark"]],
+        },
+    ),
+    (
+        "uiLanguage",
+        Rule::Choice {
+            default: "system",
+            alternatives: &[&["zh-CN", "en"]],
+        },
+    ),
+    (
+        "uiFont",
+        Rule::Choice {
+            default: "system",
+            alternatives: &[FONT_PRESETS],
+        },
+    ),
+    (
+        "uiFontSize",
+        Rule::Integer {
+            default: 16,
+            min: 12,
+            max: 20,
+        },
+    ),
+    (
+        "editorFont",
+        Rule::Choice {
+            default: "monospace",
+            alternatives: &[FONT_PRESETS, &["interface"]],
+        },
+    ),
+    (
+        "editorFontSize",
+        Rule::Integer {
+            default: 13,
+            min: 8,
+            max: 40,
+        },
+    ),
+    (
+        "editorFontSizeMode",
+        Rule::Choice {
+            default: "custom",
+            alternatives: &[&["interface"]],
+        },
+    ),
+    (
+        LOG_MAX_SIZE_KEY,
+        Rule::Integer {
+            default: DEFAULT_LOG_MAX_SIZE_MIB,
+            min: 1,
+            max: 100,
+        },
+    ),
+];
 
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            theme: Theme::default(),
-            log_max_size_mib: DEFAULT_LOG_MAX_SIZE_MIB,
+fn normalize(mut settings: Settings) -> Settings {
+    for (key, rule) in RULES {
+        let current = settings.get(*key);
+        let fallback = match rule {
+            Rule::Choice {
+                default,
+                alternatives,
+            } => {
+                let valid = current.and_then(Value::as_str).is_some_and(|value| {
+                    value == *default || alternatives.iter().any(|options| options.contains(&value))
+                });
+                (!valid).then(|| Value::from(*default))
+            }
+            Rule::Integer { default, min, max } => {
+                let valid = current
+                    .and_then(Value::as_u64)
+                    .is_some_and(|value| (*min..=*max).contains(&value));
+                (!valid).then(|| Value::from(*default))
+            }
+        };
+        if let Some(fallback) = fallback {
+            settings.insert((*key).to_owned(), fallback);
         }
     }
+    settings
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct SettingsChanges {
-    theme: Option<Theme>,
-    log_max_size_mib: Option<u32>,
-}
-
-fn load_settings(storage: &Storage) -> io::Result<Option<Settings>> {
-    let mut saved: Option<Settings> = storage.read(SETTINGS_FILE)?;
-    if let Some(settings) = saved.as_mut() {
-        if !LOG_SIZE_RANGE.contains(&settings.log_max_size_mib) {
-            settings.log_max_size_mib = DEFAULT_LOG_MAX_SIZE_MIB;
-        }
-    }
-    Ok(saved)
+fn log_max_size(settings: &Settings) -> u32 {
+    settings
+        .get(LOG_MAX_SIZE_KEY)
+        .and_then(Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok())
+        .unwrap_or(DEFAULT_LOG_MAX_SIZE_MIB)
 }
 
 pub fn startup_log_limit(app: &App) -> io::Result<u32> {
     let storage = app.state::<Storage>();
-    Ok(load_settings(&storage)?
-        .unwrap_or_default()
-        .log_max_size_mib)
+    Ok(log_max_size(&read_settings(&storage, None, || {})?))
 }
 
 fn read_settings(
     storage: &Storage,
-    legacy_theme: Option<Theme>,
+    legacy_theme: Option<String>,
     notify: impl FnOnce(),
 ) -> io::Result<Settings> {
     let Some(theme) = legacy_theme else {
-        return Ok(load_settings(storage)?.unwrap_or_default());
+        return Ok(normalize(storage.read(SETTINGS_FILE)?.unwrap_or_default()));
     };
 
     storage.with_write_lock(|| {
-        if let Some(saved) = load_settings(storage)? {
-            return Ok(saved);
+        if let Some(saved) = storage.read(SETTINGS_FILE)? {
+            return Ok(normalize(saved));
         }
 
-        let settings = Settings {
-            theme,
-            ..Settings::default()
-        };
+        let settings = normalize(Settings::from_iter([(
+            THEME_KEY.to_owned(),
+            Value::from(theme),
+        )]));
         storage.write(SETTINGS_FILE, &settings)?;
         notify();
         Ok(settings)
@@ -85,28 +154,16 @@ fn read_settings(
 
 fn save_settings(
     storage: &Storage,
-    changes: SettingsChanges,
-    notify: impl FnOnce(),
+    changes: Settings,
+    notify: impl FnOnce(Option<u32>),
 ) -> io::Result<()> {
-    if changes
-        .log_max_size_mib
-        .is_some_and(|size| !LOG_SIZE_RANGE.contains(&size))
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "Log limit must be 1–100 MiB",
-        ));
-    }
+    let log_limit_changed = changes.contains_key(LOG_MAX_SIZE_KEY);
     storage.with_write_lock(|| {
-        let mut settings = load_settings(storage)?.unwrap_or_default();
-        if let Some(theme) = changes.theme {
-            settings.theme = theme;
-        }
-        if let Some(size) = changes.log_max_size_mib {
-            settings.log_max_size_mib = size;
-        }
+        let mut settings = storage.read::<Settings>(SETTINGS_FILE)?.unwrap_or_default();
+        settings.extend(changes);
+        let settings = normalize(settings);
         storage.write(SETTINGS_FILE, &settings)?;
-        notify();
+        notify(log_limit_changed.then(|| log_max_size(&settings)));
         Ok(())
     })
 }
@@ -121,7 +178,7 @@ fn notify_settings_changed(app: &AppHandle) {
 pub async fn get_settings(
     app: AppHandle,
     storage: State<'_, Storage>,
-    legacy_theme: Option<Theme>,
+    legacy_theme: Option<String>,
 ) -> Result<Settings, String> {
     read_settings(&storage, legacy_theme, || notify_settings_changed(&app)).map_err(|error| {
         log::warn!("Could not read settings ({:?})", error.kind());
@@ -133,10 +190,9 @@ pub async fn get_settings(
 pub async fn update_settings(
     app: AppHandle,
     storage: State<'_, Storage>,
-    changes: SettingsChanges,
+    changes: Settings,
 ) -> Result<(), String> {
-    let log_limit = changes.log_max_size_mib;
-    save_settings(&storage, changes, || {
+    save_settings(&storage, changes, |log_limit| {
         if let Some(size) = log_limit {
             if let Err(error) = logging::set_max_size_mib(size) {
                 log::warn!("Could not apply the log size limit ({:?})", error.kind());
@@ -154,64 +210,108 @@ pub async fn update_settings(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
-    fn defaults_migration_and_later_saves_share_one_settings_file() -> io::Result<()> {
+    fn defaults_migration_and_partial_updates_share_one_settings_file() -> io::Result<()> {
         let directory = tempfile::tempdir()?;
         let storage = Storage::new(directory.path().to_owned());
         assert_eq!(
-            read_settings(&storage, None, || unreachable!())?.theme,
-            Theme::System
+            read_settings(&storage, None, || unreachable!())?[THEME_KEY],
+            "system"
         );
         assert_eq!(
-            read_settings(&storage, Some(Theme::Dark), || {})?.theme,
-            Theme::Dark
+            read_settings(&storage, Some("dark".into()), || {})?[THEME_KEY],
+            "dark"
         );
 
         save_settings(
             &storage,
-            SettingsChanges {
-                theme: Some(Theme::Light),
-                log_max_size_mib: None,
-            },
-            || {},
+            serde_json::from_value(json!({
+                "uiLanguage": "zh-CN",
+                "uiFont": "monospace",
+                "editorFont": "monospace",
+                "editorPrefs": { "wordWrap": true, "extra": null },
+            }))?,
+            |log_limit| assert_eq!(log_limit, None),
         )?;
+        save_settings(
+            &storage,
+            serde_json::from_value(json!({ "theme": "light", "uiFontSize": 18 }))?,
+            |log_limit| assert_eq!(log_limit, None),
+        )?;
+
         let reopened = Storage::new(directory.path().to_owned());
+        let settings = read_settings(&reopened, Some("dark".into()), || unreachable!())?;
+        assert_eq!(settings[THEME_KEY], "light");
+        assert_eq!(settings["uiLanguage"], "zh-CN");
+        assert_eq!(settings["uiFont"], "monospace");
+        assert_eq!(settings["editorFont"], "monospace");
+        assert_eq!(settings["uiFontSize"], 18);
         assert_eq!(
-            read_settings(&reopened, Some(Theme::Dark), || unreachable!())?.theme,
-            Theme::Light
+            settings["editorPrefs"],
+            json!({ "wordWrap": true, "extra": null })
         );
         Ok(())
     }
 
     #[test]
-    fn old_settings_use_default_log_limit_and_invalid_changes_leave_the_file_unchanged(
-    ) -> io::Result<()> {
+    fn invalid_and_missing_values_use_the_rules_defaults() -> io::Result<()> {
         let directory = tempfile::tempdir()?;
         let storage = Storage::new(directory.path().to_owned());
-        storage.write(SETTINGS_FILE, &serde_json::json!({ "theme": "dark" }))?;
-        assert_eq!(load_settings(&storage)?.unwrap().log_max_size_mib, 5);
+        storage.write(
+            SETTINGS_FILE,
+            &json!({ "theme": "dark", "uiLanguage": false, "uiFontSize": 17.5, "logMaxSizeMib": -1 }),
+        )?;
+        let loaded = read_settings(&storage, None, || unreachable!())?;
+        assert_eq!(loaded[THEME_KEY], "dark");
+        assert_eq!(loaded["uiLanguage"], "system");
+        assert_eq!(loaded["uiFont"], "system");
+        assert_eq!(loaded["uiFontSize"], 16);
+        assert_eq!(loaded["editorFont"], "monospace");
+        assert_eq!(loaded["editorFontSize"], 13);
+        assert_eq!(loaded["editorFontSizeMode"], "custom");
+        assert_eq!(log_max_size(&loaded), DEFAULT_LOG_MAX_SIZE_MIB);
 
         save_settings(
             &storage,
-            SettingsChanges {
-                theme: None,
-                log_max_size_mib: Some(12),
-            },
-            || {},
+            serde_json::from_value(json!({
+                "uiLanguage": "en",
+                "uiFont": "yahei",
+                "uiFontSize": 20,
+                "editorFont": "interface",
+                "editorFontSize": 40,
+                "editorFontSizeMode": "interface",
+                "logMaxSizeMib": 12,
+            }))?,
+            |log_limit| assert_eq!(log_limit, Some(12)),
         )?;
-        let invalid = save_settings(
+        let followed = read_settings(&storage, None, || unreachable!())?;
+        assert_eq!(followed["editorFont"], "interface");
+        assert_eq!(followed["editorFontSize"], 40);
+        assert_eq!(followed["editorFontSizeMode"], "interface");
+
+        save_settings(
             &storage,
-            SettingsChanges {
-                theme: None,
-                log_max_size_mib: Some(0),
-            },
-            || unreachable!(),
-        );
-        assert_eq!(invalid.unwrap_err().kind(), io::ErrorKind::InvalidInput);
-        let saved = load_settings(&storage)?.unwrap();
-        assert_eq!(saved.theme, Theme::Dark);
-        assert_eq!(saved.log_max_size_mib, 12);
+            serde_json::from_value(json!({
+                "uiFontSize": 21,
+                "editorFont": "invalid-preset",
+                "editorFontSize": 41,
+                "editorFontSizeMode": false,
+                "logMaxSizeMib": "12",
+            }))?,
+            |log_limit| assert_eq!(log_limit, Some(DEFAULT_LOG_MAX_SIZE_MIB)),
+        )?;
+
+        let saved = storage.read::<Settings>(SETTINGS_FILE)?.unwrap();
+        assert_eq!(saved[THEME_KEY], "dark");
+        assert_eq!(saved["uiLanguage"], "en");
+        assert_eq!(saved["uiFont"], "yahei");
+        assert_eq!(saved["uiFontSize"], 16);
+        assert_eq!(saved["editorFont"], "monospace");
+        assert_eq!(saved["editorFontSize"], 13);
+        assert_eq!(saved["editorFontSizeMode"], "custom");
+        assert_eq!(saved[LOG_MAX_SIZE_KEY], DEFAULT_LOG_MAX_SIZE_MIB);
         Ok(())
     }
 }

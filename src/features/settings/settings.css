@@ -1,0 +1,41 @@
+.settings-view {
+  max-inline-size: 720px;
+  padding-inline: min(var(--space-lg), 4%);
+  overflow-wrap: anywhere;
+}
+
+.settings-view h1 {
+  margin-block-end: var(--space-md);
+  font-size: var(--ui-font-size-heading);
+  font-weight: 600;
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.settings-row + .settings-row {
+  margin-block-start: var(--space-md);
+}
+
+.log-settings h2 {
+  font-size: var(--ui-font-size);
+}
+
+.log-settings .settings-row,
+.settings-hint {
+  margin-block-start: var(--space-sm);
+}
+
+.settings-hint {
+  color: var(--muted-color);
+  font-size: var(--ui-font-size-small);
+}
+
+.settings-view .status-message {
+  margin-block-start: var(--space-md);
+}

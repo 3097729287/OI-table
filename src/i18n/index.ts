@@ -1,3 +1,4 @@
+import { createContext, useContext, useSyncExternalStore } from "react";
 import en from "./en.json";
 import zhCN from "./zh-CN.json";
 
@@ -7,6 +8,9 @@ const catalogs = {
 } satisfies Record<string, typeof en>;
 
 type Locale = keyof typeof catalogs;
+export type MessageKey = keyof typeof en;
+export const uiLanguages = ["system", "zh-CN", "en"] as const;
+export type UiLanguage = (typeof uiLanguages)[number];
 
 export function resolveLocale(preferences: readonly string[]): Locale {
   for (const language of preferences) {
@@ -17,5 +21,26 @@ export function resolveLocale(preferences: readonly string[]): Locale {
   return "en";
 }
 
-export const locale = resolveLocale(globalThis.navigator?.languages ?? []);
-export const messages = catalogs[locale];
+function subscribeSystemLocale(notify: () => void) {
+  window.addEventListener("languagechange", notify);
+  return () => window.removeEventListener("languagechange", notify);
+}
+
+function getSystemLocale() {
+  return resolveLocale(navigator.languages);
+}
+
+export function useLocale(preference: UiLanguage = "system") {
+  const systemLocale = useSyncExternalStore(subscribeSystemLocale, getSystemLocale);
+  return preference === "system" ? systemLocale : preference;
+}
+
+export const LocaleContext = createContext<Locale>("en");
+
+export function getMessages(locale: Locale) {
+  return catalogs[locale];
+}
+
+export function useMessages() {
+  return getMessages(useContext(LocaleContext));
+}

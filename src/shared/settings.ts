@@ -1,6 +1,8 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
+import type { UiLanguage } from "../i18n";
+import type { FontPreset } from "./fonts";
 
 const legacyThemeKey = "oi-table.theme";
 const settingsChanged = "oi-table:settings-changed";
@@ -10,6 +12,12 @@ export type Theme = (typeof themes)[number];
 
 export interface AppSettings {
   theme: Theme;
+  uiLanguage: UiLanguage;
+  uiFont: FontPreset;
+  uiFontSize: number;
+  editorFont: FontPreset | "interface";
+  editorFontSizeMode: "custom" | "interface";
+  editorFontSize: number;
   logMaxSizeMib: number;
 }
 
@@ -52,7 +60,19 @@ async function refreshSettings(legacyTheme?: Theme): Promise<boolean> {
 
 async function initializeSettings() {
   if (!isTauri()) {
-    publish({ settings: { theme: readLegacyTheme() ?? "system", logMaxSizeMib: 5 }, loadFailed: false });
+    publish({
+      settings: {
+        theme: "system",
+        uiLanguage: "system",
+        uiFont: "system",
+        uiFontSize: 16,
+        editorFont: "monospace",
+        editorFontSizeMode: "custom",
+        editorFontSize: 13,
+        logMaxSizeMib: 5,
+      },
+      loadFailed: false,
+    });
     return;
   }
 
@@ -84,11 +104,9 @@ export function useSettings() {
 }
 
 export async function updateSettings(changes: Partial<AppSettings>) {
+  if (!isTauri()) throw new Error("Settings can only be saved by the desktop app");
+
   await (initialization ??= initializeSettings());
-  if (isTauri()) {
-    await invoke("update_settings", { changes });
-    await refreshSettings();
-  } else if (snapshot.settings) {
-    publish({ settings: { ...snapshot.settings, ...changes }, loadFailed: false });
-  }
+  await invoke("update_settings", { changes });
+  await refreshSettings();
 }

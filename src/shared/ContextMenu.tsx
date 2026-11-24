@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { ScrollArea } from "./ui/ScrollArea";
 import "./context-menu.css";
 
 export interface ContextMenuItem<Extra = unknown> {
@@ -85,8 +86,8 @@ export function ContextMenu<Extra>({ x, y, label, items, onDismiss }: ContextMen
   }
 
   return createPortal(
-    <div ref={menu} className="context-menu" role="menu" aria-label={label} tabIndex={-1}
-      onKeyDown={handleKeyDown}>
+    <ScrollArea ref={menu} className="context-menu" role="menu" aria-label={label} tabIndex={-1}
+      orientation="vertical" focusScrollbar={false} onKeyDown={handleKeyDown}>
       {items.map((item) => {
         const { id, label, enabled, shortcut, onSelect } = item;
         const available = typeof enabled === "function" ? enabled() : enabled !== false;
@@ -102,7 +103,7 @@ export function ContextMenu<Extra>({ x, y, label, items, onDismiss }: ContextMen
           </button>
         );
       })}
-    </div>,
+    </ScrollArea>,
     document.body,
   );
 }

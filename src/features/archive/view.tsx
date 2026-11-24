@@ -1,20 +1,21 @@
-import { messages } from "../../i18n";
+import { useMessages } from "../../i18n";
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
 
 export const workspaceView = {
-  title: messages.archive,
+  title: "archive",
   icon: "archive",
   section: "archive",
-  sidebarTitle: messages.allArchives,
+  sidebarTitle: "allArchives",
   variants: [
-    { id: "contests", title: messages.contestArchives },
-    { id: "personal", title: messages.personalArchives },
+    { id: "contests", title: "contestArchives" },
+    { id: "personal", title: "personalArchives" },
   ],
   order: 30,
 } satisfies WorkspaceViewOptions;
 
 export default function ArchiveView({ title }: WorkspaceViewProps) {
+  const messages = useMessages();
   return (
     <section className="workspace workbench-page">
       <h1>{title}</h1>
