@@ -15,9 +15,10 @@ export function workspaceTabId(target: WorkspaceTarget, singleton = false): stri
 }
 
 export type PaneId = `pane-${number}`;
+export type SplitId = `split-${number}`;
+export type SplitAxis = "horizontal" | "vertical";
 export type SplitEdge = "left" | "right" | "top" | "bottom";
 export type TabCloseScope = "current" | "left" | "right" | "others" | "all";
-type SplitAxis = "horizontal" | "vertical";
 
 export interface TabDestination {
   pane: PaneId;
@@ -34,7 +35,9 @@ export interface Pane {
 
 type PaneNode = Pane | {
   kind: "split";
+  id: SplitId;
   axis: SplitAxis;
+  ratio: number;
   first: PaneNode;
   second: PaneNode;
 };
@@ -46,16 +49,29 @@ export interface Layout {
   readonly targets: ReadonlyMap<string, WorkspaceTarget>;
 }
 
-export interface PaneBounds {
-  x: number;
-  y: number;
+export interface PaneSize {
   width: number;
   height: number;
+}
+
+export interface PaneBounds extends PaneSize {
+  x: number;
+  y: number;
 }
 
 export interface PaneFrame {
   pane: Pane;
   bounds: PaneBounds;
+}
+
+export interface SplitFrame {
+  id: SplitId;
+  axis: SplitAxis;
+  bounds: PaneBounds;
+  ratio: number;
+  minRatio: number;
+  maxRatio: number;
+  primaryPane: PaneId;
 }
 
 export type LayoutAction =
@@ -64,7 +80,10 @@ export type LayoutAction =
   | { type: "focus"; pane: PaneId }
   | { type: "close"; pane: PaneId; view: string; scope?: TabCloseScope }
   | { type: "place"; from: PaneId; view: string; destination: TabDestination }
-  | { type: "split"; from: PaneId; target: PaneId; view: string; edge: SplitEdge };
+  | { type: "split"; from: PaneId; target: PaneId; view: string; edge: SplitEdge }
+  | { type: "resize"; split: SplitId; ratio: number };
+
+const minimumPaneSize: PaneSize = { width: 128, height: 112 };
 
 export const initialLayout: Layout = {
   root: null,
@@ -87,6 +106,14 @@ function replacePane(node: PaneNode, id: PaneId, replacement: PaneNode | null): 
   const first = replacePane(node.first, id, replacement);
   const second = replacePane(node.second, id, replacement);
   if (!first || !second) return first ?? second;
+  return first === node.first && second === node.second ? node : { ...node, first, second };
+}
+
+function resizeSplit(node: PaneNode, id: SplitId, ratio: number): PaneNode {
+  if (node.kind === "pane") return node;
+  if (node.id === id) return node.ratio === ratio ? node : { ...node, ratio };
+  const first = resizeSplit(node.first, id, ratio);
+  const second = resizeSplit(node.second, id, ratio);
   return first === node.first && second === node.second ? node : { ...node, first, second };
 }
 
@@ -126,33 +153,79 @@ function splitDirection(edge: SplitEdge) {
   };
 }
 
-function splitBounds(bounds: PaneBounds, axis: SplitAxis): [PaneBounds, PaneBounds] {
+function splitBounds(bounds: PaneBounds, axis: SplitAxis, ratio: number): [PaneBounds, PaneBounds] {
   if (axis === "horizontal") {
-    const width = bounds.width / 2;
-    return [{ ...bounds, width }, { ...bounds, x: bounds.x + width, width }];
+    const width = bounds.width * ratio;
+    return [{ ...bounds, width }, { ...bounds, x: bounds.x + width, width: bounds.width - width }];
   }
-  const height = bounds.height / 2;
-  return [{ ...bounds, height }, { ...bounds, y: bounds.y + height, height }];
+  const height = bounds.height * ratio;
+  return [{ ...bounds, height }, { ...bounds, y: bounds.y + height, height: bounds.height - height }];
 }
 
-export function previewBounds(bounds: PaneBounds, edge: SplitEdge): PaneBounds {
-  const { axis, leading } = splitDirection(edge);
-  return splitBounds(bounds, axis)[leading ? 0 : 1];
+function measureMinimums(node: PaneNode, minimums: Map<PaneNode, PaneSize>): PaneSize {
+  if (node.kind === "pane") return minimumPaneSize;
+  const first = measureMinimums(node.first, minimums);
+  const second = measureMinimums(node.second, minimums);
+  const size = node.axis === "horizontal"
+    ? { width: first.width + second.width, height: Math.max(first.height, second.height) }
+    : { width: Math.max(first.width, second.width), height: first.height + second.height };
+  minimums.set(node, size);
+  return size;
 }
 
-export function collectPaneFrames(root: PaneNode | null): PaneFrame[] {
-  const frames: PaneFrame[] = [];
+export function collectWorkspaceFrames(root: PaneNode | null, size: PaneSize): {
+  panes: PaneFrame[];
+  splits: SplitFrame[];
+} {
+  const panes: PaneFrame[] = [];
+  const splits: SplitFrame[] = [];
+  const minimums = new Map<PaneNode, PaneSize>();
+
   function visit(node: PaneNode, bounds: PaneBounds) {
     if (node.kind === "pane") {
-      frames.push({ pane: node, bounds });
+      panes.push({ pane: node, bounds });
       return;
     }
-    const [first, second] = splitBounds(bounds, node.axis);
+    const dimension = node.axis === "horizontal" ? "width" : "height";
+    const firstMin = (minimums.get(node.first) ?? minimumPaneSize)[dimension];
+    const secondMin = (minimums.get(node.second) ?? minimumPaneSize)[dimension];
+    const span = bounds[dimension];
+    const totalMin = firstMin + secondMin;
+    // When both minima cannot fit, divide the available space in proportion to them.
+    const minRatio = span > totalMin ? firstMin / span : firstMin / totalMin;
+    const maxRatio = span > totalMin ? 1 - secondMin / span : minRatio;
+    const ratio = Math.min(maxRatio, Math.max(minRatio, node.ratio));
+    splits.push({
+      id: node.id,
+      axis: node.axis,
+      bounds,
+      ratio,
+      minRatio,
+      maxRatio,
+      primaryPane: findPane(node.first, () => true)!.id,
+    });
+    const [first, second] = splitBounds(bounds, node.axis, ratio);
     visit(node.first, first);
     visit(node.second, second);
   }
-  if (root) visit(root, { x: 0, y: 0, width: 100, height: 100 });
-  return frames;
+
+  if (root) {
+    measureMinimums(root, minimums);
+    visit(root, { x: 0, y: 0, ...size });
+  }
+  return { panes, splits };
+}
+
+export function previewBounds(
+  layout: Layout, action: Extract<LayoutAction, { type: "split" }>, size: PaneSize,
+): PaneBounds | undefined {
+  const next = workspaceReducer(layout, action);
+  if (next === layout) return;
+
+  const { panes } = collectWorkspaceFrames(next.root, size);
+  const fits = panes.every(({ bounds }) => bounds.width >= minimumPaneSize.width - 1e-6 &&
+    bounds.height >= minimumPaneSize.height - 1e-6);
+  if (fits) return panes.find(({ pane }) => pane.id === next.focused)?.bounds;
 }
 
 function sameTarget(current: WorkspaceTarget | undefined, next: WorkspaceTarget): boolean {
@@ -209,6 +282,12 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
     case "focus":
       if (layout.focused === action.pane || !paneById(action.pane)) return layout;
       return { ...layout, focused: action.pane };
+    case "resize": {
+      if (!Number.isFinite(action.ratio)) return layout;
+      const ratio = Math.min(1, Math.max(0, action.ratio));
+      const nextRoot = resizeSplit(root, action.split, ratio);
+      return nextRoot === root ? layout : { ...layout, root: nextRoot };
+    }
     case "close": {
       const pane = paneById(action.pane);
       if (!pane) return layout;
@@ -253,7 +332,9 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       const { axis, leading } = splitDirection(action.edge);
       const branched = replacePane(root, target.id, {
         kind: "split",
+        id: `split-${layout.nextPaneId}`,
         axis,
+        ratio: 0.5,
         first: leading ? detached : remaining,
         second: leading ? remaining : detached,
       })!;

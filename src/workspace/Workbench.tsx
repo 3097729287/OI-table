@@ -1,4 +1,4 @@
-import { useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
+import { useCallback, useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
 import { useMessages, type MessageKey } from "../i18n";
 import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
@@ -6,10 +6,11 @@ import { ScrollArea } from "../shared/ui/ScrollArea";
 import { Scrollbar } from "../shared/ui/Scrollbar";
 import emptyWorkbenchImage from "./assets/oi-table-product.svg?no-inline";
 import {
-  closePaneTabs, collectPaneFrames, initialLayout, previewBounds, workspaceReducer, workspaceTabId,
-  type LayoutAction, type PaneBounds, type PaneFrame, type PaneId, type TabCloseScope,
+  closePaneTabs, collectWorkspaceFrames, initialLayout, previewBounds, workspaceReducer, workspaceTabId,
+  type LayoutAction, type PaneBounds, type PaneFrame, type PaneId, type PaneSize, type TabCloseScope,
   type WorkspaceTarget,
 } from "./layout";
+import { PaneSeparator } from "./PaneSeparator";
 import { WorkspaceSidebar } from "./sidebar";
 import { useSidebarResize } from "./useSidebarResize";
 import { useTabDrag } from "./useTabDrag";
@@ -33,14 +34,14 @@ interface TabMenuAnchor {
   y: number;
 }
 
-function position(bounds: PaneBounds) {
+function position(bounds: PaneBounds, size: PaneSize) {
   return {
-    "--pane-x": `${bounds.x}%`,
-    "--pane-y": `${bounds.y}%`,
-    "--pane-width": `${bounds.width}%`,
-    "--pane-height": `${bounds.height}%`,
-    "--pane-inline-divider-width": bounds.x + bounds.width < 100 ? "1px" : "0px",
-    "--pane-block-divider-width": bounds.y + bounds.height < 100 ? "1px" : "0px",
+    "--pane-x": `${bounds.x}px`,
+    "--pane-y": `${bounds.y}px`,
+    "--pane-width": `${bounds.width}px`,
+    "--pane-height": `${bounds.height}px`,
+    "--pane-inline-divider-width": bounds.x + bounds.width < size.width - 0.5 ? "1px" : "0px",
+    "--pane-block-divider-width": bounds.y + bounds.height < size.height - 0.5 ? "1px" : "0px",
   } as CSSProperties;
 }
 
@@ -70,8 +71,9 @@ function tabDetails(view: WorkspaceView, target: WorkspaceTarget, messages: Retu
   return { title: messages[variant?.title ?? view.title], icon: variant?.icon ?? view.icon };
 }
 
-function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTabMenu }: {
+function PaneToolbar({ frame, size, focused, number, targets, dispatch, drag, onOpenTabMenu }: {
   frame: PaneFrame;
+  size: PaneSize;
   focused: boolean;
   number: number;
   targets: ReadonlyMap<string, WorkspaceTarget>;
@@ -188,7 +190,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
   }
 
   return (
-    <div className="pane-toolbar scrollbar-host" data-tablist-pane={pane} data-focused={focused} style={position(bounds)}
+    <div className="pane-toolbar scrollbar-host" data-tablist-pane={pane} data-focused={focused} style={position(bounds, size)}
       onPointerDown={() => dispatch({ type: "focus", pane })}
       onFocusCapture={() => dispatch({ type: "focus", pane })}>
       <div ref={list} id={listId} className="pane-tabs" role="tablist" data-tab-scrollport
@@ -253,16 +255,49 @@ export function Workbench() {
   const messages = useMessages();
   const [layout, dispatch] = useReducer(workspaceReducer, initialLayout);
   const [tabMenu, setTabMenu] = useState<TabMenuAnchor | null>(null);
-  const frames = useMemo(() => collectPaneFrames(layout.root), [layout.root]);
+  const canvas = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<PaneSize>({ width: 0, height: 0 });
+  const hasPanes = layout.root !== null;
+  const movedTabToFocus = useRef<string>(undefined);
+
+  useLayoutEffect(() => {
+    const element = canvas.current;
+    if (!element) return;
+
+    function measure({ width, height }: PaneSize) {
+      setSize((current) => current.width === width && current.height === height ? current : { width, height });
+    }
+
+    measure(element.getBoundingClientRect());
+    const observer = new ResizeObserver(([entry]) => measure(entry.contentRect));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [hasPanes]);
+
+  useLayoutEffect(() => {
+    const view = movedTabToFocus.current;
+    if (!view) return;
+    movedTabToFocus.current = undefined;
+    tabLabel(view)?.focus({ preventScroll: true });
+  }, [layout.root]);
+
+  function dispatchDrag(action: LayoutAction) {
+    if ((action.type === "split" || (action.type === "place" && action.from !== action.destination.pane)) &&
+      document.activeElement === tabLabel(action.view)) movedTabToFocus.current = action.view;
+    dispatch(action);
+  }
+
+  const { panes: frames, splits } = useMemo(() => collectWorkspaceFrames(layout.root, size), [layout.root, size]);
   const frameByPane = useMemo(() => new Map(frames.map((frame) => [frame.pane.id, frame])), [frames]);
   const frameByView = useMemo(() => new Map(frames.flatMap((frame) =>
     frame.pane.tabs.map((id) => [id, frame] as const))), [frames]);
-  const drag = useTabDrag(dispatch, frameByPane);
+  const previewSplit = useCallback((action: Extract<LayoutAction, { type: "split" }>) =>
+    previewBounds(layout, action, size), [layout, size]);
+  const drag = useTabDrag(dispatchDrag, frameByPane, previewSplit);
   const contentDropPane = drag.destination?.type === "place" && drag.destination.region === "content"
     ? drag.destination.placement.pane
     : undefined;
-  const splitTarget = drag.destination?.type === "split" ? drag.destination : undefined;
-  const splitFrame = splitTarget ? frameByPane.get(splitTarget.pane) : undefined;
+  const splitPreview = drag.destination?.type === "split" ? drag.destination.bounds : undefined;
   const sidebar = useContext(WorkspaceSidebar);
   const sidebarResize = useSidebarResize(sidebar.visible);
   const tabMenuPane = tabMenu ? frameByPane.get(tabMenu.pane)?.pane : undefined;
@@ -314,13 +349,13 @@ export function Workbench() {
           onLostPointerCapture={sidebarResize.stop} onKeyDown={sidebarResize.handleKeyDown} />
       )}
       {layout.root ? (
-        <div className="workbench-panes"
+        <div ref={canvas} className="workbench-panes"
           data-tab-dragging={drag.draggedView !== undefined}
           onPointerDownCapture={drag.onPointerDownCapture} onClickCapture={drag.onClickCapture}
           onPointerMove={drag.track} onPointerUp={drag.finish} onPointerCancel={drag.cancel}
           onLostPointerCapture={drag.cancel}>
           {frames.map((frame, index) => (
-            <PaneToolbar key={frame.pane.id} frame={frame} number={index + 1}
+            <PaneToolbar key={frame.pane.id} frame={frame} size={size} number={index + 1}
               focused={layout.focused === frame.pane.id} targets={layout.targets} dispatch={dispatch} drag={drag}
               onOpenTabMenu={setTabMenu} />
           ))}
@@ -332,7 +367,7 @@ export function Workbench() {
             const { pane, bounds } = frame;
             const { Page } = view;
             return (
-              <ScrollArea as="section" key={id} id={`workbench-panel-${id}`} className="workbench-panel" style={position(bounds)}
+              <ScrollArea as="section" key={id} id={`workbench-panel-${id}`} className="workbench-panel" style={position(bounds, size)}
                 data-drop-pane={pane.id} data-drop-target={contentDropPane === pane.id}
                 role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                 hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
@@ -341,8 +376,12 @@ export function Workbench() {
               </ScrollArea>
             );
           })}
-          {splitTarget && splitFrame && (
-            <div className="workbench-dock-preview" style={position(previewBounds(splitFrame.bounds, splitTarget.edge))}
+          {splits.map((split) => (
+            <PaneSeparator key={split.id} frame={split} controls={`workbench-tabs-${split.primaryPane}`}
+              onResize={(ratio) => dispatch({ type: "resize", split: split.id, ratio })} />
+          ))}
+          {splitPreview && (
+            <div className="workbench-dock-preview" style={position(splitPreview, size)}
               aria-hidden="true" />
           )}
         </div>

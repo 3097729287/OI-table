@@ -1,9 +1,12 @@
 import { useLayoutEffect, useRef, useState, type Dispatch, type MouseEvent, type PointerEvent } from "react";
-import type { LayoutAction, PaneFrame, PaneId, SplitEdge, TabDestination } from "./layout";
+import type { LayoutAction, PaneBounds, PaneFrame, PaneId, SplitEdge, TabDestination } from "./layout";
+
+type SplitAction = Extract<LayoutAction, { type: "split" }>;
+type PreviewSplit = (action: SplitAction) => PaneBounds | undefined;
 
 type DragDestination =
   | { type: "place"; placement: TabDestination; region: "tabs" | "content" }
-  | { type: "split"; pane: PaneId; edge: SplitEdge };
+  | { type: "split"; pane: PaneId; edge: SplitEdge; bounds: PaneBounds };
 
 interface DragPoint {
   clientX: number;
@@ -22,6 +25,7 @@ interface DragSession {
   origin: DragPoint;
   point: DragPoint;
   dragging: boolean;
+  container?: HTMLElement;
 }
 
 function hitAt(container: HTMLElement, { clientX, clientY }: DragPoint): DropHit | null {
@@ -53,18 +57,24 @@ function edgeScrollAt(hit: DropHit | null, { clientX, clientY }: DragPoint) {
   return { viewport, direction, speed: 160 + 560 * (1 - distance / edgeWidth) };
 }
 
-function nearestEdge(bounds: DOMRect, x: number, y: number): SplitEdge | undefined {
-  const horizontal = (x - bounds.left) / bounds.width;
-  const vertical = (y - bounds.top) / bounds.height;
+function splitAt(
+  rect: DOMRect,
+  { clientX, clientY }: DragPoint,
+  action: Omit<SplitAction, "edge">,
+  previewSplit: PreviewSplit,
+): Extract<DragDestination, { type: "split" }> | undefined {
+  const horizontal = (clientX - rect.left) / rect.width;
+  const vertical = (clientY - rect.top) / rect.height;
   const distances = { left: horizontal, right: 1 - horizontal, top: vertical, bottom: 1 - vertical };
-  let closest: SplitEdge | undefined;
+  let closest: Extract<DragDestination, { type: "split" }> | undefined;
   let threshold = 0.24;
   for (const edge of ["left", "right", "top", "bottom"] as const) {
-    const horizontalSplit = edge === "left" || edge === "right";
-    if (horizontalSplit ? bounds.width < 256 : bounds.height < 180) continue;
     if (distances[edge] < threshold) {
-      threshold = distances[edge];
-      closest = edge;
+      const bounds = previewSplit({ ...action, edge });
+      if (bounds) {
+        threshold = distances[edge];
+        closest = { type: "split", pane: action.target, edge, bounds };
+      }
     }
   }
   return closest;
@@ -72,9 +82,10 @@ function nearestEdge(bounds: DOMRect, x: number, y: number): SplitEdge | undefin
 
 function destinationAt(
   hit: DropHit | null,
-  { clientX, clientY }: DragPoint,
+  point: DragPoint,
   drag: DragSession,
   frames: Map<PaneId, PaneFrame>,
+  previewSplit: PreviewSplit,
 ): DragDestination | null {
   if (!hit) return null;
 
@@ -91,14 +102,16 @@ function destinationAt(
       placement: {
         pane,
         anchor: tab?.dataset.tabView ?? null,
-        after: bounds ? clientX >= bounds.left + bounds.width / 2 : false,
+        after: bounds ? point.clientX >= bounds.left + bounds.width / 2 : false,
       },
     };
   }
 
   if (pane !== drag.from || frame.pane.tabs.length > 1) {
-    const edge = nearestEdge(region.getBoundingClientRect(), clientX, clientY);
-    if (edge) return { type: "split", pane, edge };
+    const split = splitAt(region.getBoundingClientRect(), point, {
+      type: "split", from: drag.from, target: pane, view: drag.view,
+    }, previewSplit);
+    if (split) return split;
   }
   return pane !== drag.from
     ? { type: "place", region: "content", placement: { pane, anchor: null, after: false } }
@@ -107,25 +120,29 @@ function destinationAt(
 
 function sameDestination(a: DragDestination | null, b: DragDestination | null) {
   if (!a || !b) return a === b;
-  if (a.type === "split" && b.type === "split") return a.pane === b.pane && a.edge === b.edge;
+  if (a.type === "split" && b.type === "split") {
+    return a.pane === b.pane && a.edge === b.edge && a.bounds.x === b.bounds.x && a.bounds.y === b.bounds.y &&
+      a.bounds.width === b.bounds.width && a.bounds.height === b.bounds.height;
+  }
   if (a.type !== "place" || b.type !== "place") return false;
   return a.region === b.region && a.placement.pane === b.placement.pane &&
     a.placement.anchor === b.placement.anchor && a.placement.after === b.placement.after;
 }
 
-export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId, PaneFrame>) {
+export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId, PaneFrame>, previewSplit: PreviewSplit) {
   const session = useRef<DragSession | null>(null);
   const scrollFrame = useRef<number | null>(null);
-  const currentFrames = useRef(frames);
+  const geometry = useRef({ frames, previewSplit });
   const suppressClick = useRef(false);
   const [draggedView, setDraggedView] = useState<string>();
   const [destination, setDestination] = useState<DragDestination | null>(null);
 
   useLayoutEffect(() => {
-    currentFrames.current = frames;
+    geometry.current = { frames, previewSplit };
     const drag = session.current;
     if (drag && !frames.get(drag.from)?.pane.tabs.includes(drag.view)) clear();
-  }, [frames]);
+    else if (drag?.dragging && drag.container) updateDestination(hitAt(drag.container, drag.point), drag);
+  }, [frames, previewSplit, draggedView]);
 
   useLayoutEffect(() => {
     function handleBlur() {
@@ -146,7 +163,8 @@ export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId,
   }
 
   function updateDestination(hit: DropHit | null, drag: DragSession) {
-    const next = destinationAt(hit, drag.point, drag, currentFrames.current);
+    const { frames, previewSplit } = geometry.current;
+    const next = destinationAt(hit, drag.point, drag, frames, previewSplit);
     setDestination((previous) => sameDestination(previous, next) ? previous : next);
   }
 
@@ -200,6 +218,7 @@ export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId,
     }
 
     drag.point = point;
+    drag.container = event.currentTarget;
     const hit = hitAt(event.currentTarget, point);
     updateDestination(hit, drag);
     if (edgeScrollAt(hit, point)) scheduleScroll(event.currentTarget);
@@ -220,7 +239,8 @@ export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId,
     if (!drag.dragging) return;
 
     suppressClick.current = true;
-    const target = destinationAt(hitAt(event.currentTarget, event), event, drag, frames);
+    const { frames, previewSplit } = geometry.current;
+    const target = destinationAt(hitAt(event.currentTarget, event), event, drag, frames, previewSplit);
     if (target?.type === "split") {
       dispatch({ type: "split", from: drag.from, target: target.pane, view: drag.view, edge: target.edge });
     } else if (target?.type === "place") {

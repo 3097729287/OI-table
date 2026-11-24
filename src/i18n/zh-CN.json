@@ -35,6 +35,8 @@
   "collapseSidebar": "收起侧栏",
   "expandSidebar": "展开侧栏",
   "resizeSidebar": "调整侧栏宽度",
+  "resizePaneWidth": "调整左右窗格宽度",
+  "resizePaneHeight": "调整上下窗格高度",
   "editorPane": "编辑区域 {number}",
   "scrollEditorTabs": "滚动{pane}的标签页",
   "scrollVertically": "纵向滚动",
