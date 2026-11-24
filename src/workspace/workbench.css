@@ -49,6 +49,7 @@
 
 .workbench-sidebar-resizer {
   justify-self: end;
+  z-index: 1;
   inline-size: 8px;
   cursor: ew-resize;
   touch-action: none;
@@ -162,6 +163,7 @@
   pointer-events: none;
 }
 
+.workbench[data-sidebar-resizing="true"] :is(.pane-toolbar, .workbench-panel, .workbench-pane-separator),
 .workbench-panes:has(> .workbench-pane-separator[data-resizing="true"])
   :is(.pane-toolbar, .workbench-panel, .workbench-pane-separator) {
   transition: none;
