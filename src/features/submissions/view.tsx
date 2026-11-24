@@ -1,20 +1,21 @@
-import { messages } from "../../i18n";
+import { useMessages } from "../../i18n";
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
 
 export const workspaceView = {
-  title: messages.submissionHistory,
+  title: "submissionHistory",
   icon: "submissions",
   section: "submissions",
-  sidebarTitle: messages.allSubmissions,
+  sidebarTitle: "allSubmissions",
   variants: [
-    { id: "local", title: messages.localTestHistory },
-    { id: "online", title: messages.onlineSubmissionHistory },
+    { id: "local", title: "localTestHistory" },
+    { id: "online", title: "onlineSubmissionHistory" },
   ],
   order: 50,
 } satisfies WorkspaceViewOptions;
 
 export default function SubmissionsView({ title }: WorkspaceViewProps) {
+  const messages = useMessages();
   return (
     <section className="workspace workbench-page">
       <h1>{title}</h1>

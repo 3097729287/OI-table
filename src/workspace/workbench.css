@@ -89,7 +89,7 @@
   padding-inline: calc(var(--space-sm) + var(--menu-indent)) var(--space-sm);
   text-align: start;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--ui-font-size-small);
   transition: background-color var(--workspace-motion), color var(--workspace-motion);
 }
 
@@ -271,7 +271,7 @@
   min-inline-size: 0;
   padding-block: 6px;
   padding-inline: 12px calc(var(--tab-close-width) + var(--tab-close-inset) + 4px);
-  font-size: 12px;
+  font-size: var(--ui-font-size-caption);
   touch-action: none;
 }
 
@@ -388,7 +388,7 @@
 }
 
 .workbench-page h1 {
-  font-size: 20px;
+  font-size: var(--ui-font-size-heading);
 }
 
 .editor-view textarea {

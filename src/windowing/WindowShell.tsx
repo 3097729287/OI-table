@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useSettings } from "../shared/settings";
-import { messages } from "../i18n";
+import { getMessages, LocaleContext, useLocale } from "../i18n";
 import { StatusMessage } from "../shared/StatusMessage";
 import { WorkspaceSidebar } from "../workspace/sidebar";
 import { applyMainWindowOptions, currentWindow, isMainWindow } from "./routes";
@@ -8,14 +8,24 @@ import { TitleBar } from "./TitleBar";
 import "./window-shell.css";
 
 export function WindowShell() {
-  const theme = useSettings().settings?.theme;
+  const { settings } = useSettings();
+  const locale = useLocale(settings?.uiLanguage);
+  const messages = getMessages(locale);
   const [configurationFailed, setConfigurationFailed] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const Page = currentWindow?.Page;
 
   useLayoutEffect(() => {
-    if (theme) document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  useLayoutEffect(() => {
+    if (!settings) return;
+    const root = document.documentElement;
+    root.dataset.theme = settings.theme;
+    root.dataset.uiFont = settings.uiFont;
+    root.style.setProperty("--ui-font-size", `${settings.uiFontSize}px`);
+  }, [settings]);
 
   useEffect(() => {
     let active = true;
@@ -26,29 +36,31 @@ export function WindowShell() {
   }, []);
 
   return (
-    <div className="window-shell">
-      <TitleBar
-        title={currentWindow?.title ?? "OI-table"}
-        sidebar={isMainWindow ? {
-          visible: sidebarVisible,
-          toggle: () => setSidebarVisible((visible) => !visible),
-        } : undefined}
-        feedback={configurationFailed ? {
-          state: "error",
-          message: messages.windowConfigurationFailed,
-        } : undefined}
-      />
-      <div className="window-content">
-        {Page ? (
-          <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true) }}>
-            <Page />
-          </WorkspaceSidebar.Provider>
-        ) : (
-          <main className="workspace">
-            <StatusMessage state="error">{messages.windowPageUnavailable}</StatusMessage>
-          </main>
-        )}
+    <LocaleContext value={locale}>
+      <div className="window-shell">
+        <TitleBar
+          title={currentWindow?.title ?? "OI-table"}
+          sidebar={isMainWindow ? {
+            visible: sidebarVisible,
+            toggle: () => setSidebarVisible((visible) => !visible),
+          } : undefined}
+          feedback={configurationFailed ? {
+            state: "error",
+            message: messages.windowConfigurationFailed,
+          } : undefined}
+        />
+        <div className="window-content">
+          {Page ? (
+            <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true) }}>
+              <Page />
+            </WorkspaceSidebar.Provider>
+          ) : (
+            <main className="workspace">
+              <StatusMessage state="error">{messages.windowPageUnavailable}</StatusMessage>
+            </main>
+          )}
+        </div>
       </div>
-    </div>
+    </LocaleContext>
   );
 }

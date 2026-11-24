@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { messages } from "../i18n";
+import { useMessages } from "../i18n";
 import { Icon } from "../shared/Icon";
 import { WorkspaceSidebar } from "./sidebar";
 import { WorkspaceMenu } from "./WorkspaceMenu";
@@ -8,6 +8,7 @@ import { workspaceSections, type WorkspaceSection } from "./views";
 const railIconSize = 24;
 
 export function WorkspaceNavigator({ onOpen }: { onOpen: (view: string) => void }) {
+  const messages = useMessages();
   const sidebar = useContext(WorkspaceSidebar);
   const [section, setSection] = useState<WorkspaceSection>("catalog");
 
@@ -16,7 +17,7 @@ export function WorkspaceNavigator({ onOpen }: { onOpen: (view: string) => void 
       <aside className="workspace-rail">
         <nav aria-label={messages.workspaceCategories}>
           {Object.entries(workspaceSections).map(([id, item]) => (
-            <button key={id} type="button" title={item.title} aria-label={item.title}
+            <button key={id} type="button" title={messages[item.title]} aria-label={messages[item.title]}
               aria-controls="workspace-sidebar" aria-pressed={sidebar.visible && section === id}
               onClick={() => {
                 setSection(id as WorkspaceSection);

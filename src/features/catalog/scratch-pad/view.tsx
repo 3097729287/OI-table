@@ -1,15 +1,16 @@
-import { messages } from "../../../i18n";
+import { useMessages } from "../../../i18n";
 import type { WorkspaceViewOptions } from "../../../workspace/views";
 
 export const workspaceView = {
-  title: messages.editor,
+  title: "editor",
   icon: "scratchPad",
   section: "catalog",
-  sidebarTitle: messages.scratchPad,
+  sidebarTitle: "scratchPad",
   order: 20,
 } satisfies WorkspaceViewOptions;
 
 export default function EditorView() {
+  const messages = useMessages();
   return (
     <section className="workspace workbench-page editor-view">
       <h1>{messages.editor}</h1>

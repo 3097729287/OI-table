@@ -25,7 +25,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--ui-font-size-small);
   text-align: start;
 }
 
@@ -54,7 +54,7 @@
 
 .context-menu__shortcut {
   color: var(--muted-color);
-  font-size: 12px;
+  font-size: var(--ui-font-size-caption);
   white-space: nowrap;
 }
 

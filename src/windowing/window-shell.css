@@ -16,7 +16,7 @@
   block-size: 32px;
   color: var(--title-bar-color);
   background: var(--navigation-background);
-  font-size: 12px;
+  font-size: var(--ui-font-size-caption);
   line-height: 1.25;
 }
 

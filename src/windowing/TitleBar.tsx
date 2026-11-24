@@ -1,7 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
-import { messages } from "../i18n";
+import { useMessages } from "../i18n";
 import { Icon } from "../shared/Icon";
 import { StatusMessage } from "../shared/StatusMessage";
 
@@ -14,6 +14,7 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ title, sidebar, feedback }: TitleBarProps) {
+  const messages = useMessages();
   const [maximized, setMaximized] = useState(false);
   const [actionState, setActionState] = useState<"idle" | "loading" | "error">("idle");
   const [windowStateFailed, setWindowStateFailed] = useState(false);

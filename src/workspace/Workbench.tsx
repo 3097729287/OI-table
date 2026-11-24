@@ -1,5 +1,5 @@
 import { useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
-import { messages } from "../i18n";
+import { useMessages, type MessageKey } from "../i18n";
 import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
 import emptyWorkbenchImage from "./assets/oi-table-product.svg?no-inline";
@@ -13,12 +13,12 @@ import { WorkspaceNavigator } from "./WorkspaceNavigator";
 import "./workbench.css";
 
 const viewsById = new Map(workspaceViews.map((view) => [view.id, view]));
-const tabCloseActions: ReadonlyArray<{ scope: TabCloseScope; label: string }> = [
-  { scope: "current", label: messages.closeTab },
-  { scope: "right", label: messages.closeTabsToRight },
-  { scope: "left", label: messages.closeTabsToLeft },
-  { scope: "others", label: messages.closeOtherTabs },
-  { scope: "all", label: messages.closeAllTabs },
+const tabCloseActions: ReadonlyArray<{ scope: TabCloseScope; label: MessageKey }> = [
+  { scope: "current", label: "closeTab" },
+  { scope: "right", label: "closeTabsToRight" },
+  { scope: "left", label: "closeTabsToLeft" },
+  { scope: "others", label: "closeOtherTabs" },
+  { scope: "all", label: "closeAllTabs" },
 ];
 
 interface TabMenuAnchor {
@@ -67,6 +67,7 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
   drag: ReturnType<typeof useTabDrag>;
   onOpenTabMenu: (anchor: TabMenuAnchor) => void;
 }) {
+  const messages = useMessages();
   const { pane: group, bounds } = frame;
   const pane = group.id;
   const list = useRef<HTMLDivElement>(null);
@@ -115,7 +116,7 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
       strip.removeEventListener("scroll", onScroll);
       observer.disconnect();
     };
-  }, [group.active]);
+  }, [group.active, messages]);
 
   useLayoutEffect(() => {
     const next = new Map<string, number>();
@@ -184,6 +185,8 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
           {group.tabs.map((id, index) => {
             const view = viewsById.get(id);
             if (!view) return null;
+            const title = messages[view.title];
+            const closeLabel = messages.closeView.replace("{title}", title);
             const selected = group.active === id;
             const dropEdge = destination?.anchor === id && drag.draggedView !== id
               ? destination.after ? "after" : "before"
@@ -205,18 +208,17 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
                   closeTab(id);
                 }}>
                 <button type="button" className="workbench-tab__label" role="tab" id={`workbench-tab-${id}`}
-                  title={view.title} aria-label={view.title}
+                  title={title} aria-label={title}
                   aria-haspopup="menu"
                   aria-controls={`workbench-panel-${id}`} aria-selected={selected} tabIndex={selected ? 0 : -1}
                   onClick={() => dispatch({ type: "select", pane, view: id })}
                   onPointerDown={(event) => drag.start(event, pane, id)}
                   onKeyDown={(event) => handleTabKey(event, index)}>
                   <Icon name={view.icon} size={14} />
-                  <span className="workbench-tab__title">{view.title}</span>
+                  <span className="workbench-tab__title">{title}</span>
                 </button>
                 <button type="button" className="workbench-tab__close"
-                  title={messages.closeView.replace("{title}", view.title)}
-                  aria-label={messages.closeView.replace("{title}", view.title)}
+                  title={closeLabel} aria-label={closeLabel}
                   tabIndex={selected ? 0 : -1}
                   onMouseDown={(event) => {
                     if (event.button === 0) event.preventDefault();
@@ -234,6 +236,7 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
 }
 
 export function Workbench() {
+  const messages = useMessages();
   const [layout, dispatch] = useReducer(workspaceReducer, initialLayout);
   const [tabMenu, setTabMenu] = useState<TabMenuAnchor | null>(null);
   const frames = useMemo(() => collectPaneFrames(layout.root), [layout.root]);
@@ -313,7 +316,7 @@ export function Workbench() {
                 role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                 hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                 onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
-                <Page title={title} />
+                <Page title={messages[title]} />
               </section>
             );
           })}
@@ -330,7 +333,7 @@ export function Workbench() {
           label={messages.tabActions} onDismiss={dismissTabMenu}
           items={tabCloseActions.map(({ scope, label }) => ({
             id: scope,
-            label,
+            label: messages[label],
             enabled: closePaneTabs(tabMenuPane, tabMenu.view, scope) !== tabMenuPane,
             onSelect: () => closeFromTabMenu(scope),
           }))} />

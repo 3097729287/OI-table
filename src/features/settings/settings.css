@@ -6,7 +6,7 @@
 
 .settings-view h1 {
   margin-block-end: var(--space-md);
-  font-size: 20px;
+  font-size: var(--ui-font-size-heading);
   font-weight: 600;
 }
 
@@ -18,8 +18,12 @@
   gap: var(--space-md);
 }
 
+.settings-row + .settings-row {
+  margin-block-start: var(--space-md);
+}
+
 .log-settings h2 {
-  font-size: 16px;
+  font-size: var(--ui-font-size);
 }
 
 .log-settings .settings-row,
@@ -29,7 +33,7 @@
 
 .settings-hint {
   color: var(--muted-color);
-  font-size: 13px;
+  font-size: var(--ui-font-size-small);
 }
 
 .settings-view .status-message {

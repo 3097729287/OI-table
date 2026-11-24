@@ -1,8 +1,7 @@
-import { messages } from "../../../i18n";
 import type { WorkspaceViewOptions } from "../../../workspace/views";
 
 export const workspaceView = {
-  title: messages.editor,
+  title: "editor",
   icon: "editor",
   section: "settings",
   order: 70,

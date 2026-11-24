@@ -1,18 +1,19 @@
 import { useState, type CSSProperties } from "react";
+import { useMessages, type MessageKey } from "../i18n";
 import { Icon, type IconName } from "../shared/Icon";
 import { workspaceSections, workspaceViews, type WorkspaceSection } from "./views";
 
 interface MenuGroup {
   kind: "group";
   id: string;
-  title: string;
+  title: MessageKey;
   children: MenuItem[];
 }
 
 type MenuItem = MenuGroup | {
   kind: "view";
   id: string;
-  title: string;
+  title: MessageKey;
   icon: IconName;
 };
 
@@ -46,6 +47,7 @@ interface WorkspaceMenuProps {
 }
 
 export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
+  const messages = useMessages();
   const [expandedGroups, setExpandedGroups] = useState<Partial<Record<string, boolean>>>({});
   const [selectedView, setSelectedView] = useState<string>();
 
@@ -53,18 +55,19 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
     return (
       <ul className="workbench-sidebar__items" style={{ "--menu-indent": `${depth * 12}px` } as CSSProperties}>
         {items.map((item) => {
+          const title = messages[item.title];
           if (item.kind === "group") {
             const defaultExpanded = depth === 0;
             const expanded = expandedGroups[item.id] ?? defaultExpanded;
             return (
               <li key={`group:${item.id}`}>
-                <button type="button" aria-expanded={expanded} title={item.title}
+                <button type="button" aria-expanded={expanded} title={title}
                   onClick={() => setExpandedGroups((groups) => ({
                     ...groups,
                     [item.id]: !(groups[item.id] ?? defaultExpanded),
                   }))}>
                   <Icon name="chevronRight" size={15} />
-                  <span className="workbench-sidebar__label">{item.title}</span>
+                  <span className="workbench-sidebar__label">{title}</span>
                 </button>
                 {expanded && renderItems(item.children, depth + 1)}
               </li>
@@ -73,13 +76,13 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
 
           return (
             <li key={item.id}>
-              <button type="button" aria-current={selectedView === item.id || undefined} title={item.title}
+              <button type="button" aria-current={selectedView === item.id || undefined} title={title}
                 onClick={() => {
                   setSelectedView(item.id);
                   onOpen(item.id);
                 }}>
                 <Icon name={item.icon} size={15} />
-                <span className="workbench-sidebar__label">{item.title}</span>
+                <span className="workbench-sidebar__label">{title}</span>
               </button>
             </li>
           );
@@ -88,5 +91,5 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
     );
   }
 
-  return <nav aria-label={workspaceSections[section].title}>{renderItems(buildMenu(section))}</nav>;
+  return <nav aria-label={messages[workspaceSections[section].title]}>{renderItems(buildMenu(section))}</nav>;
 }

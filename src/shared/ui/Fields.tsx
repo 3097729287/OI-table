@@ -1,5 +1,5 @@
 import { useRef, type ComponentProps, type ReactNode, type Ref } from "react";
-import { messages } from "../../i18n";
+import { useMessages } from "../../i18n";
 import { Icon } from "../Icon";
 import "./fields.css";
 
@@ -22,6 +22,7 @@ export function Input(props: InputProps) {
 }
 
 export function NumberInput(props: Omit<InputProps, "type">) {
+  const messages = useMessages();
   const field = useRef<HTMLSpanElement>(null);
 
   function stepValue(direction: -1 | 1) {

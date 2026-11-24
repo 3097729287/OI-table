@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { messages } from "../../i18n";
+import { useMessages } from "../../i18n";
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewProps } from "../../workspace/views";
 import type { useSettingsForm } from "./useSettingsForm";
@@ -11,6 +11,7 @@ interface SettingsPageProps extends WorkspaceViewProps {
 }
 
 export function SettingsPage({ title, children, form }: SettingsPageProps) {
+  const messages = useMessages();
   return (
     <section className="workspace workbench-page settings-view">
       <h1>{title}</h1>
@@ -25,6 +26,7 @@ export function SettingsPage({ title, children, form }: SettingsPageProps) {
 }
 
 export function EmptySettingsPage({ title }: WorkspaceViewProps) {
+  const messages = useMessages();
   return (
     <SettingsPage title={title}>
       <StatusMessage state="empty">{messages.settingsGroupEmpty}</StatusMessage>

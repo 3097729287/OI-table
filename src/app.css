@@ -1,5 +1,11 @@
 :root {
   color-scheme: light dark;
+  --ui-font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  --ui-font-size: 1rem;
+  --ui-font-size-caption: calc(var(--ui-font-size) * 0.75);
+  --ui-font-size-small: calc(var(--ui-font-size) * 0.8125);
+  --ui-font-size-control: calc(var(--ui-font-size) * 0.875);
+  --ui-font-size-heading: calc(var(--ui-font-size) * 1.25);
   --window-background: light-dark(#fff, #161b24);
   --navigation-background: light-dark(#eceff2, #1b2028);
   --sidebar-background: light-dark(#f7f8f9, #252b35);
@@ -28,6 +34,14 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+}
+
+:root[data-ui-font="yahei"] {
+  --ui-font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+}
+
+:root[data-ui-font="serif"] {
+  --ui-font-family: "SimSun", "Songti SC", "Noto Serif CJK SC", serif;
 }
 
 .workspace .status-message {
@@ -61,7 +75,8 @@
 body {
   background: var(--window-background);
   color: var(--text-color);
-  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-family: var(--ui-font-family);
+  font-size: var(--ui-font-size);
 }
 
 .workspace {
@@ -69,5 +84,5 @@ body {
 }
 
 .workspace h1 {
-  font-size: 24px;
+  font-size: calc(var(--ui-font-size) * 1.5);
 }

@@ -1,32 +1,32 @@
 import type { ComponentType } from "react";
-import { messages } from "../i18n";
+import type { MessageKey } from "../i18n";
 import type { IconName } from "../shared/Icon";
 
 export const workspaceSections = {
-  catalog: { title: messages.catalog, icon: "catalog" },
-  archive: { title: messages.archive, icon: "archive" },
-  favorites: { title: messages.favorites, icon: "favorites" },
-  submissions: { title: messages.submissionHistory, icon: "submissions" },
-  settings: { title: messages.settings, icon: "settings" },
-} satisfies Record<string, { title: string; icon: IconName }>;
+  catalog: { title: "catalog", icon: "catalog" },
+  archive: { title: "archive", icon: "archive" },
+  favorites: { title: "favorites", icon: "favorites" },
+  submissions: { title: "submissionHistory", icon: "submissions" },
+  settings: { title: "settings", icon: "settings" },
+} satisfies Record<string, { title: MessageKey; icon: IconName }>;
 
 export type WorkspaceSection = keyof typeof workspaceSections;
 
 interface SidebarGroup {
   id: string;
-  title: string;
+  title: MessageKey;
 }
 
 interface WorkspaceViewVariant {
   id: string;
-  title: string;
+  title: MessageKey;
 }
 
 export interface WorkspaceViewOptions {
-  title: string;
+  title: MessageKey;
   icon: IconName;
   section: WorkspaceSection;
-  sidebarTitle?: string;
+  sidebarTitle?: MessageKey;
   sidebarGroups?: readonly SidebarGroup[];
   variants?: readonly WorkspaceViewVariant[];
   order: number;
