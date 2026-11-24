@@ -3,11 +3,17 @@
   --scrollbar-hit-padding: 3px;
   --scrollbar-hit-size: calc(var(--scrollbar-line) + 2 * var(--scrollbar-hit-padding));
   --scrollbar-thumb-color: color-mix(in srgb, var(--muted-color) 44%, transparent);
-  scrollbar-color: var(--scrollbar-thumb-color) transparent;
 }
 
 :where(*) {
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+}
+
+@supports not (scrollbar-width: none) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 :where(.scroll-area) {
@@ -28,14 +34,6 @@
 
 .scroll-area__viewport {
   overflow: auto;
-}
-
-.scrollbar-viewport {
-  scrollbar-width: none;
-}
-
-.scrollbar-viewport::-webkit-scrollbar {
-  display: none;
 }
 
 .scrollbar {

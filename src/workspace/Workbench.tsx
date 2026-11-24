@@ -191,7 +191,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
     <div className="pane-toolbar scrollbar-host" data-tablist-pane={pane} data-focused={focused} style={position(bounds)}
       onPointerDown={() => dispatch({ type: "focus", pane })}
       onFocusCapture={() => dispatch({ type: "focus", pane })}>
-      <div ref={list} id={listId} className="pane-tabs scrollbar-viewport" role="tablist" data-tab-scrollport
+      <div ref={list} id={listId} className="pane-tabs" role="tablist" data-tab-scrollport
         data-drop-end={destination?.anchor === null} aria-label={label}>
         <div ref={row} className="pane-tab-row" role="presentation">
           {group.tabs.map((id, index) => {
