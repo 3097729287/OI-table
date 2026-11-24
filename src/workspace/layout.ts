@@ -1,3 +1,19 @@
+export type WorkspaceParams = Readonly<Record<string, string>>;
+
+export interface WorkspaceTarget {
+  id: string;
+  params: WorkspaceParams;
+}
+
+export function workspaceTabId(target: WorkspaceTarget, singleton = false): string {
+  if (singleton) return target.id;
+
+  const params = new URLSearchParams(target.params);
+  params.sort();
+  const query = params.toString();
+  return query ? `${target.id}?${query}` : target.id;
+}
+
 export type PaneId = `pane-${number}`;
 export type SplitEdge = "left" | "right" | "top" | "bottom";
 export type TabCloseScope = "current" | "left" | "right" | "others" | "all";
@@ -27,6 +43,7 @@ export interface Layout {
   root: PaneNode | null;
   focused: PaneId | null;
   nextPaneId: number;
+  readonly targets: ReadonlyMap<string, WorkspaceTarget>;
 }
 
 export interface PaneBounds {
@@ -42,7 +59,7 @@ export interface PaneFrame {
 }
 
 export type LayoutAction =
-  | { type: "open"; view: string }
+  | { type: "open"; view: string; target: WorkspaceTarget }
   | { type: "select"; pane: PaneId; view: string }
   | { type: "focus"; pane: PaneId }
   | { type: "close"; pane: PaneId; view: string; scope?: TabCloseScope }
@@ -53,6 +70,7 @@ export const initialLayout: Layout = {
   root: null,
   focused: null,
   nextPaneId: 0,
+  targets: new Map(),
 };
 
 function createPane(nextPaneId: number, view: string): Pane {
@@ -137,12 +155,25 @@ export function collectPaneFrames(root: PaneNode | null): PaneFrame[] {
   return frames;
 }
 
+function sameTarget(current: WorkspaceTarget | undefined, next: WorkspaceTarget): boolean {
+  if (!current || current.id !== next.id) return false;
+
+  const params = Object.entries(next.params);
+  return Object.keys(current.params).length === params.length
+    && params.every(([key, value]) => current.params[key] === value);
+}
+
 export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
   const { root } = layout;
   if (!root) {
     if (action.type !== "open") return layout;
     const pane = createPane(layout.nextPaneId, action.view);
-    return { root: pane, focused: pane.id, nextPaneId: layout.nextPaneId + 1 };
+    return {
+      root: pane,
+      focused: pane.id,
+      nextPaneId: layout.nextPaneId + 1,
+      targets: new Map([[action.view, action.target]]),
+    };
   }
 
   const paneById = (id: PaneId | null) => findPane(root, (pane) => pane.id === id);
@@ -152,13 +183,21 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       const existing = findPane(root, (pane) => pane.tabs.includes(action.view));
       const pane = existing ?? paneById(layout.focused);
       if (!pane) return layout;
+      const targets = sameTarget(layout.targets.get(action.view), action.target)
+        ? layout.targets
+        : new Map(layout.targets).set(action.view, action.target);
+      if (pane.active === action.view) {
+        if (layout.focused === pane.id && targets === layout.targets) return layout;
+        return { ...layout, focused: pane.id, targets };
+      }
+
       let tabs = pane.tabs;
       if (!existing) {
         tabs = [...tabs];
         tabs.splice(tabs.indexOf(pane.active) + 1, 0, action.view);
       }
       const nextRoot = replacePane(root, pane.id, { ...pane, tabs, active: action.view });
-      return { ...layout, root: nextRoot, focused: pane.id };
+      return { ...layout, root: nextRoot, focused: pane.id, targets };
     }
     case "select": {
       const pane = paneById(action.pane);
@@ -175,11 +214,15 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       if (!pane) return layout;
       const remaining = closePaneTabs(pane, action.view, action.scope);
       if (remaining === pane) return layout;
+      const targets = new Map(layout.targets);
+      for (const tab of pane.tabs) {
+        if (!remaining?.tabs.includes(tab)) targets.delete(tab);
+      }
       const nextRoot = replacePane(root, pane.id, remaining);
-      if (!nextRoot) return { ...layout, root: null, focused: null };
+      if (!nextRoot) return { ...layout, root: null, focused: null, targets };
       const focused = findPane(nextRoot, (candidate) => candidate.id === layout.focused)
         ?? findPane(nextRoot, () => true)!;
-      return { ...layout, root: nextRoot, focused: focused.id };
+      return { ...layout, root: nextRoot, focused: focused.id, targets };
     }
     case "place": {
       const { pane, anchor, after } = action.destination;
@@ -215,7 +258,7 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
         second: leading ? remaining : detached,
       })!;
       const nextRoot = samePane ? branched : removeFromTree(branched, source, action.view);
-      return { root: nextRoot, focused: detached.id, nextPaneId: layout.nextPaneId + 1 };
+      return { ...layout, root: nextRoot, focused: detached.id, nextPaneId: layout.nextPaneId + 1 };
     }
   }
 }

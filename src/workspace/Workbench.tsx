@@ -5,11 +5,15 @@ import { Icon } from "../shared/Icon";
 import { ScrollArea } from "../shared/ui/ScrollArea";
 import { Scrollbar } from "../shared/ui/Scrollbar";
 import emptyWorkbenchImage from "./assets/oi-table-product.svg?no-inline";
-import { closePaneTabs, collectPaneFrames, initialLayout, previewBounds, workspaceReducer, type LayoutAction, type PaneBounds, type PaneFrame, type PaneId, type TabCloseScope } from "./layout";
+import {
+  closePaneTabs, collectPaneFrames, initialLayout, previewBounds, workspaceReducer, workspaceTabId,
+  type LayoutAction, type PaneBounds, type PaneFrame, type PaneId, type TabCloseScope,
+  type WorkspaceTarget,
+} from "./layout";
 import { WorkspaceSidebar } from "./sidebar";
 import { useSidebarResize } from "./useSidebarResize";
 import { useTabDrag } from "./useTabDrag";
-import { workspaceViews } from "./views";
+import { workspaceViews, type WorkspaceView } from "./views";
 import { WorkspaceNavigator } from "./WorkspaceNavigator";
 import "./workbench.css";
 
@@ -60,10 +64,17 @@ function revealTab(view: string) {
   if (tab && strip) revealTabInStrip(strip, tab);
 }
 
-function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: {
+function tabDetails(view: WorkspaceView, target: WorkspaceTarget, messages: ReturnType<typeof useMessages>) {
+  const variant = view.singleton ? undefined : view.variants?.find(({ params }) =>
+    workspaceTabId({ id: view.id, params }) === workspaceTabId(target));
+  return { title: messages[variant?.title ?? view.title], icon: variant?.icon ?? view.icon };
+}
+
+function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTabMenu }: {
   frame: PaneFrame;
   focused: boolean;
   number: number;
+  targets: ReadonlyMap<string, WorkspaceTarget>;
   dispatch: Dispatch<LayoutAction>;
   drag: ReturnType<typeof useTabDrag>;
   onOpenTabMenu: (anchor: TabMenuAnchor) => void;
@@ -184,9 +195,10 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
         data-drop-end={destination?.anchor === null} aria-label={label}>
         <div ref={row} className="pane-tab-row" role="presentation">
           {group.tabs.map((id, index) => {
-            const view = viewsById.get(id);
-            if (!view) return null;
-            const title = messages[view.title];
+            const target = targets.get(id);
+            const view = target && viewsById.get(target.id);
+            if (!target || !view) return null;
+            const { title, icon } = tabDetails(view, target, messages);
             const closeLabel = messages.closeView.replace("{title}", title);
             const selected = group.active === id;
             const dropEdge = destination?.anchor === id && drag.draggedView !== id
@@ -215,7 +227,7 @@ function PaneToolbar({ frame, focused, number, dispatch, drag, onOpenTabMenu }: 
                   onClick={() => dispatch({ type: "select", pane, view: id })}
                   onPointerDown={(event) => drag.start(event, pane, id)}
                   onKeyDown={(event) => handleTabKey(event, index)}>
-                  <Icon name={view.icon} size={14} />
+                  <Icon name={icon} size={14} />
                   <span className="workbench-tab__title">{title}</span>
                 </button>
                 <button type="button" className="workbench-tab__close"
@@ -255,6 +267,14 @@ export function Workbench() {
   const sidebarResize = useSidebarResize(sidebar.visible);
   const tabMenuPane = tabMenu ? frameByPane.get(tabMenu.pane)?.pane : undefined;
 
+  function openTarget(target: WorkspaceTarget) {
+    const view = viewsById.get(target.id);
+    if (!view) return;
+    const id = workspaceTabId(target, view.singleton);
+    revealTab(id);
+    dispatch({ type: "open", view: id, target });
+  }
+
   function dismissTabMenu(restoreFocus: boolean) {
     if (restoreFocus && tabMenu) tabLabel(tabMenu.view)?.focus({ preventScroll: true });
     setTabMenu(null);
@@ -283,10 +303,7 @@ export function Workbench() {
     <main ref={sidebarResize.workbench} className="workbench"
       data-sidebar-resizing={sidebarResize.resizing}
       style={{ "--sidebar-width": `${sidebar.visible ? sidebarResize.width : 0}px` } as CSSProperties}>
-      <WorkspaceNavigator onOpen={(view) => {
-        revealTab(view);
-        dispatch({ type: "open", view });
-      }} />
+      <WorkspaceNavigator onOpen={openTarget} />
       {sidebar.visible && (
         <div className="workbench-sidebar-resizer" role="separator" tabIndex={0}
           aria-orientation="vertical" aria-controls="workspace-sidebar" aria-label={messages.resizeSidebar}
@@ -304,21 +321,23 @@ export function Workbench() {
           onLostPointerCapture={drag.cancel}>
           {frames.map((frame, index) => (
             <PaneToolbar key={frame.pane.id} frame={frame} number={index + 1}
-              focused={layout.focused === frame.pane.id} dispatch={dispatch} drag={drag}
+              focused={layout.focused === frame.pane.id} targets={layout.targets} dispatch={dispatch} drag={drag}
               onOpenTabMenu={setTabMenu} />
           ))}
           {/* Keep panels keyed by view when their pane changes so drafts and scroll state survive. */}
-          {workspaceViews.map(({ id, title, Page }) => {
+          {Array.from(layout.targets, ([id, target]) => {
             const frame = frameByView.get(id);
-            if (!frame) return null;
+            const view = viewsById.get(target.id);
+            if (!frame || !view) return null;
             const { pane, bounds } = frame;
+            const { Page } = view;
             return (
               <ScrollArea as="section" key={id} id={`workbench-panel-${id}`} className="workbench-panel" style={position(bounds)}
                 data-drop-pane={pane.id} data-drop-target={contentDropPane === pane.id}
                 role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                 hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                 onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
-                <Page title={messages[title]} />
+                <Page {...target} title={tabDetails(view, target, messages).title} open={openTarget} />
               </ScrollArea>
             );
           })}

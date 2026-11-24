@@ -3,13 +3,14 @@ import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
 
 export const workspaceView = {
+  id: "archive",
   title: "archive",
   icon: "archive",
   section: "archive",
   sidebarTitle: "allArchives",
   variants: [
-    { id: "contests", title: "contestArchives" },
-    { id: "personal", title: "personalArchives" },
+    { params: { filter: "contests" }, title: "contestArchives" },
+    { params: { filter: "personal" }, title: "personalArchives" },
   ],
   order: 30,
 } satisfies WorkspaceViewOptions;

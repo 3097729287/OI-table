@@ -4,6 +4,7 @@ import { Scrollbar } from "../../../shared/ui/Scrollbar";
 import type { WorkspaceViewOptions } from "../../../workspace/views";
 
 export const workspaceView = {
+  id: "catalog/scratch-pad",
   title: "editor",
   icon: "scratchPad",
   section: "catalog",

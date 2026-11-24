@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { useMessages } from "../../i18n";
 import { StatusMessage } from "../../shared/StatusMessage";
-import type { WorkspaceViewProps } from "../../workspace/views";
 import type { useSettingsForm } from "./useSettingsForm";
 import "./settings.css";
 
-interface SettingsPageProps extends WorkspaceViewProps {
+interface SettingsPageProps {
+  title: string;
   children: ReactNode;
-  form?: Pick<ReturnType<typeof useSettingsForm>, "settings" | "loadFailed" | "saveFailed">;
+  form: Pick<ReturnType<typeof useSettingsForm>, "settings" | "loadFailed" | "saveFailed">;
 }
 
 export function SettingsPage({ title, children, form }: SettingsPageProps) {
@@ -16,20 +16,11 @@ export function SettingsPage({ title, children, form }: SettingsPageProps) {
     <section className="workspace workbench-page settings-view">
       <h1>{title}</h1>
       {children}
-      {form && !form.settings && !form.loadFailed && (
+      {!form.settings && !form.loadFailed && (
         <StatusMessage state="loading">{messages.settingsLoading}</StatusMessage>
       )}
-      {form?.loadFailed && <StatusMessage state="error">{messages.settingsLoadFailed}</StatusMessage>}
-      {form?.saveFailed && <StatusMessage state="error">{messages.settingsSaveFailed}</StatusMessage>}
+      {form.loadFailed && <StatusMessage state="error">{messages.settingsLoadFailed}</StatusMessage>}
+      {form.saveFailed && <StatusMessage state="error">{messages.settingsSaveFailed}</StatusMessage>}
     </section>
-  );
-}
-
-export function EmptySettingsPage({ title }: WorkspaceViewProps) {
-  const messages = useMessages();
-  return (
-    <SettingsPage title={title}>
-      <StatusMessage state="empty">{messages.settingsGroupEmpty}</StatusMessage>
-    </SettingsPage>
   );
 }

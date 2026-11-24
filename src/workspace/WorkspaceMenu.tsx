@@ -1,7 +1,8 @@
 import { useState, type CSSProperties } from "react";
 import { useMessages, type MessageKey } from "../i18n";
 import { Icon, type IconName } from "../shared/Icon";
-import { workspaceSections, workspaceViews, type WorkspaceSection } from "./views";
+import { workspaceTabId, type WorkspaceTarget } from "./layout";
+import { workspaceEntries, workspaceSections, workspaceViews, type WorkspaceSection } from "./views";
 
 interface MenuGroup {
   kind: "group";
@@ -15,6 +16,7 @@ type MenuItem = MenuGroup | {
   id: string;
   title: MessageKey;
   icon: IconName;
+  target: WorkspaceTarget;
 };
 
 function buildMenu(section: WorkspaceSection) {
@@ -35,7 +37,9 @@ function buildMenu(section: WorkspaceSection) {
       children = entry.children;
     }
 
-    children.push({ kind: "view", id: view.id, title: view.sidebarTitle ?? view.title, icon: view.icon });
+    for (const entry of workspaceEntries(view)) {
+      children.push({ kind: "view", id: workspaceTabId(entry.target), ...entry });
+    }
   }
 
   return items;
@@ -43,13 +47,13 @@ function buildMenu(section: WorkspaceSection) {
 
 interface WorkspaceMenuProps {
   section: WorkspaceSection;
-  onOpen: (view: string) => void;
+  onOpen: (target: WorkspaceTarget) => void;
 }
 
 export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
   const messages = useMessages();
   const [expandedGroups, setExpandedGroups] = useState<Partial<Record<string, boolean>>>({});
-  const [selectedView, setSelectedView] = useState<string>();
+  const [selectedEntry, setSelectedEntry] = useState<string>();
 
   function renderItems(items: readonly MenuItem[], depth = 0) {
     return (
@@ -76,10 +80,10 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
 
           return (
             <li key={item.id}>
-              <button type="button" aria-current={selectedView === item.id || undefined} title={title}
+              <button type="button" aria-current={selectedEntry === item.id || undefined} title={title}
                 onClick={() => {
-                  setSelectedView(item.id);
-                  onOpen(item.id);
+                  setSelectedEntry(item.id);
+                  onOpen(item.target);
                 }}>
                 <Icon name={item.icon} size={15} />
                 <span className="workbench-sidebar__label">{title}</span>

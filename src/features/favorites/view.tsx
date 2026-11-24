@@ -3,14 +3,15 @@ import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
 
 export const workspaceView = {
+  id: "favorites",
   title: "favorites",
   icon: "favorites",
   section: "favorites",
   sidebarTitle: "allFavorites",
   variants: [
-    { id: "to-do", title: "favoriteToDo" },
-    { id: "mistakes", title: "favoriteMistakes" },
-    { id: "review", title: "favoriteReview" },
+    { params: { filter: "to-do" }, title: "favoriteToDo" },
+    { params: { filter: "mistakes" }, title: "favoriteMistakes" },
+    { params: { filter: "review" }, title: "favoriteReview" },
   ],
   order: 40,
 } satisfies WorkspaceViewOptions;
