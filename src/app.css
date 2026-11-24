@@ -8,6 +8,9 @@
   --accent-color: light-dark(#235a78, #93c8e4);
   --sidebar-row-height: 26px;
   --text-color: light-dark(#1b2534, #edf2f8);
+  --control-border: color-mix(in srgb, var(--text-color) 21%, transparent);
+  --control-width: 160px;
+  --control-height: 36px;
   --muted-color: light-dark(#526070, #aab8c9);
   --error-color: light-dark(#a1241c, #ff9a90);
   --title-bar-color: var(--text-color);

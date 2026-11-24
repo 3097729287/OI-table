@@ -1,24 +1,32 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { updateSettings, useSettings, type AppSettings } from "../../shared/settings";
+
+let pendingUpdate = Promise.resolve();
 
 export function useSettingsForm() {
   const { settings, loadFailed } = useSettings();
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const latestUpdate = useRef<Promise<void>>(undefined);
 
-  async function saveChanges(changes: Partial<AppSettings>) {
+  const saveChanges = useCallback(async (changes: Partial<AppSettings>) => {
     setSaving(true);
     setSaveFailed(false);
+
+    const update = pendingUpdate.then(() => updateSettings(changes));
+    pendingUpdate = update.catch(() => {});
+    latestUpdate.current = update;
+
     try {
-      await updateSettings(changes);
+      await update;
       return true;
     } catch {
-      setSaveFailed(true);
+      if (latestUpdate.current === update) setSaveFailed(true);
       return false;
     } finally {
-      setSaving(false);
+      if (latestUpdate.current === update) setSaving(false);
     }
-  }
+  }, []);
 
   return { settings, loadFailed, saving, saveFailed, saveChanges };
 }

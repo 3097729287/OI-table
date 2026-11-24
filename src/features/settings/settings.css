@@ -1,5 +1,4 @@
 .settings-view {
-  --settings-border: color-mix(in srgb, var(--text-color) 21%, transparent);
   max-inline-size: 720px;
   padding-inline: min(var(--space-lg), 4%);
   overflow-wrap: anywhere;
@@ -19,63 +18,18 @@
   gap: var(--space-md);
 }
 
-.settings-row :is(select, input, button) {
-  min-block-size: 36px;
-  max-inline-size: 100%;
-  padding: 6px var(--space-sm);
-  border: 1px solid var(--settings-border);
-  border-radius: 5px;
-  background: var(--window-background);
-  color: var(--text-color);
-  font: inherit;
-  font-size: 14px;
-}
-
-.settings-row select {
-  min-inline-size: min(160px, 100%);
-}
-
-.settings-row button:enabled {
-  cursor: pointer;
-}
-
-.settings-row button:enabled:hover {
-  background: var(--title-bar-hover);
-}
-
-.settings-row :disabled {
-  opacity: 0.55;
-}
-
-.settings-view :is(button, select, input):focus-visible {
-  outline: 1px solid currentColor;
-  outline-offset: -2px;
-  box-shadow: none;
-}
-
 .log-settings h2 {
   font-size: 16px;
 }
 
 .log-settings .settings-row,
-.log-settings p {
+.settings-hint {
   margin-block-start: var(--space-sm);
 }
 
-.log-settings p {
+.settings-hint {
   color: var(--muted-color);
   font-size: 13px;
-}
-
-.settings-actions {
-  display: flex;
-  flex-wrap: wrap;
-  max-inline-size: 100%;
-  gap: var(--space-sm);
-}
-
-.settings-actions input {
-  inline-size: 5.5rem;
 }
 
 .settings-view .status-message {

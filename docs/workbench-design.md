@@ -60,7 +60,8 @@
 | 整个应用的底色与文字 | [基础样式](../src/app.css) 的 `:root`。用 `--window-background` 改内容底色，`--navigation-background` 改导航底色，`--sidebar-background` 改工作台二级侧栏底色。用 `--text-color`、`--muted-color`、`--error-color` 分别改正文、次要信息和错误。 | 设置页与其他工作区页面使用同一内容底色。普通图标继承文字色，菜单边界取正文色的 15%。 |
 | 窗口标题与关闭按钮 | 同一 `:root` 下的 `--title-bar-color` 默认引用正文色。`--title-bar-hover` 控制普通悬停，`--title-bar-close-hover` 与 `--title-bar-close-color` 控制关闭按钮悬停的底色和图标，默认红底白字。 | 普通悬停色还影响标签、上下文菜单项和设置按钮。业务错误文字由独立的 `--error-color` 控制。 |
 | 侧栏选中与悬停 | 二级侧栏使用 `:root` 的 `--accent-color`、`--navigation-selected` 和 `--navigation-hover`。 | 工作台通过 `--workbench-accent` 引用同一强调色，分屏预览混入 18% 强调色。导航轨当前分类使用自己的显式色值。 |
-| 设置表单与工作台边界 | [设置样式](../src/features/settings/settings.css) 的 `--settings-border` 和[工作台样式](../src/workspace/workbench.css) 的 `--workbench-border`。 | 设置表单边界默认取正文色的 21%，工作台边界默认取 15%。 |
+| 表单控件与工作台边界 | [基础样式](../src/app.css) 的 `--control-border` 和[工作台样式](../src/workspace/workbench.css) 的 `--workbench-border`。 | [公共表单控件](../src/shared/ui/Fields.tsx)统一绘制外框、下拉面板和数字步进按钮。控件边界默认取正文色的 21%，工作台边界默认取 15%。 |
+| 表单控件尺寸 | [基础样式](../src/app.css) 的 `--control-width` 和 `--control-height`。 | 输入框和下拉按钮默认宽 160px、高 36px，编辑时维持原尺寸。 |
 
 将侧栏与工作区的蓝色强调改为青绿色时，可在 [基础样式](../src/app.css) 的 `:root` 调整这两个共享变量。
 
