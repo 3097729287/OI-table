@@ -1,7 +1,13 @@
 :root {
   color-scheme: light dark;
-  --ui-font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-system: "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-yahei: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --font-serif: "SimSun", "Songti SC", "Noto Serif CJK SC", serif;
+  --font-monospace: Consolas, monospace;
+  --ui-font-family: var(--font-system);
   --ui-font-size: 1rem;
+  --editor-font-family: var(--font-monospace);
+  --editor-font-size: 13px;
   --ui-font-size-caption: calc(var(--ui-font-size) * 0.75);
   --ui-font-size-small: calc(var(--ui-font-size) * 0.8125);
   --ui-font-size-control: calc(var(--ui-font-size) * 0.875);
@@ -34,14 +40,6 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-}
-
-:root[data-ui-font="yahei"] {
-  --ui-font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
-}
-
-:root[data-ui-font="serif"] {
-  --ui-font-family: "SimSun", "Songti SC", "Noto Serif CJK SC", serif;
 }
 
 .workspace .status-message {

@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type { UiLanguage } from "../i18n";
+import type { FontPreset } from "./fonts";
 
 const legacyThemeKey = "oi-table.theme";
 const settingsChanged = "oi-table:settings-changed";
@@ -9,14 +10,14 @@ const settingsChanged = "oi-table:settings-changed";
 export const themes = ["system", "light", "dark"] as const;
 export type Theme = (typeof themes)[number];
 
-export const uiFonts = ["system", "yahei", "serif"] as const;
-export type UiFont = (typeof uiFonts)[number];
-
 export interface AppSettings {
   theme: Theme;
   uiLanguage: UiLanguage;
-  uiFont: UiFont;
+  uiFont: FontPreset;
   uiFontSize: number;
+  editorFont: FontPreset | "interface";
+  editorFontSizeMode: "custom" | "interface";
+  editorFontSize: number;
   logMaxSizeMib: number;
 }
 
@@ -65,6 +66,9 @@ async function initializeSettings() {
         uiLanguage: "system",
         uiFont: "system",
         uiFontSize: 16,
+        editorFont: "monospace",
+        editorFontSizeMode: "custom",
+        editorFontSize: 13,
         logMaxSizeMib: 5,
       },
       loadFailed: false,

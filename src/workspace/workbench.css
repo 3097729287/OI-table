@@ -344,7 +344,7 @@
   border-radius: 4px;
   background: var(--window-background);
   color: inherit;
-  font: 13px/1.6 Consolas, monospace;
+  font: var(--editor-font-size)/1.6 var(--editor-font-family);
   resize: none;
 }
 

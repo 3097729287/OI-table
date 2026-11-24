@@ -24,8 +24,14 @@ export function WindowShell() {
     if (!settings) return;
     const root = document.documentElement;
     root.dataset.theme = settings.theme;
-    root.dataset.uiFont = settings.uiFont;
+    root.style.setProperty("--ui-font-family", `var(--font-${settings.uiFont})`);
     root.style.setProperty("--ui-font-size", `${settings.uiFontSize}px`);
+    root.style.setProperty("--editor-font-family", settings.editorFont === "interface"
+      ? "var(--ui-font-family)"
+      : `var(--font-${settings.editorFont})`);
+    root.style.setProperty("--editor-font-size", settings.editorFontSizeMode === "interface"
+      ? "var(--ui-font-size)"
+      : `${settings.editorFontSize}px`);
   }, [settings]);
 
   useEffect(() => {

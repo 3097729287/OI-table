@@ -1,5 +1,6 @@
 import { uiLanguages, useMessages, type MessageKey, type UiLanguage } from "../../../i18n";
-import { themes, uiFonts, type Theme, type UiFont } from "../../../shared/settings";
+import { useFontOptions } from "../../../shared/fonts";
+import { themes, type Theme } from "../../../shared/settings";
 import { Select } from "../../../shared/ui/Fields";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../../workspace/views";
 import { NumberSetting } from "../NumberSetting";
@@ -19,12 +20,6 @@ const themeLabels = {
   dark: "themeDark",
 } satisfies Record<Theme, MessageKey>;
 
-const fontLabels = {
-  system: "uiFontSystem",
-  yahei: "uiFontYahei",
-  serif: "uiFontSerif",
-} satisfies Record<UiFont, MessageKey>;
-
 const languageLabels = {
   system: "uiLanguageSystem",
   "zh-CN": "uiLanguageChinese",
@@ -36,7 +31,7 @@ export default function AppearanceView({ title }: WorkspaceViewProps) {
   const form = useSettingsForm();
   const { settings, saving, saveChanges } = form;
   const themeOptions = themes.map((value) => ({ value, label: messages[themeLabels[value]] }));
-  const fontOptions = uiFonts.map((value) => ({ value, label: messages[fontLabels[value]] }));
+  const fontOptions = useFontOptions();
   const languageOptions = uiLanguages.map((value) => ({ value, label: messages[languageLabels[value]] }));
 
   return (

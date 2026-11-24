@@ -9,6 +9,7 @@ const SETTINGS_FILE: &str = "settings.json";
 const SETTINGS_CHANGED: &str = "oi-table:settings-changed";
 const THEME_KEY: &str = "theme";
 const LOG_MAX_SIZE_KEY: &str = "logMaxSizeMib";
+const FONT_PRESETS: &[&str] = &["system", "yahei", "serif", "monospace"];
 pub const DEFAULT_LOG_MAX_SIZE_MIB: u32 = 5;
 
 type Settings = Map<String, Value>;
@@ -16,7 +17,7 @@ type Settings = Map<String, Value>;
 enum Rule {
     Choice {
         default: &'static str,
-        alternatives: &'static [&'static str],
+        alternatives: &'static [&'static [&'static str]],
     },
     Integer {
         default: u32,
@@ -30,21 +31,21 @@ const RULES: &[(&str, Rule)] = &[
         THEME_KEY,
         Rule::Choice {
             default: "system",
-            alternatives: &["light", "dark"],
+            alternatives: &[&["light", "dark"]],
         },
     ),
     (
         "uiLanguage",
         Rule::Choice {
             default: "system",
-            alternatives: &["zh-CN", "en"],
+            alternatives: &[&["zh-CN", "en"]],
         },
     ),
     (
         "uiFont",
         Rule::Choice {
             default: "system",
-            alternatives: &["yahei", "serif"],
+            alternatives: &[FONT_PRESETS],
         },
     ),
     (
@@ -53,6 +54,28 @@ const RULES: &[(&str, Rule)] = &[
             default: 16,
             min: 12,
             max: 20,
+        },
+    ),
+    (
+        "editorFont",
+        Rule::Choice {
+            default: "monospace",
+            alternatives: &[FONT_PRESETS, &["interface"]],
+        },
+    ),
+    (
+        "editorFontSize",
+        Rule::Integer {
+            default: 13,
+            min: 8,
+            max: 40,
+        },
+    ),
+    (
+        "editorFontSizeMode",
+        Rule::Choice {
+            default: "custom",
+            alternatives: &[&["interface"]],
         },
     ),
     (
@@ -73,9 +96,9 @@ fn normalize(mut settings: Settings) -> Settings {
                 default,
                 alternatives,
             } => {
-                let valid = current
-                    .and_then(Value::as_str)
-                    .is_some_and(|value| value == *default || alternatives.contains(&value));
+                let valid = current.and_then(Value::as_str).is_some_and(|value| {
+                    value == *default || alternatives.iter().any(|options| options.contains(&value))
+                });
                 (!valid).then(|| Value::from(*default))
             }
             Rule::Integer { default, min, max } => {
@@ -206,6 +229,8 @@ mod tests {
             &storage,
             serde_json::from_value(json!({
                 "uiLanguage": "zh-CN",
+                "uiFont": "monospace",
+                "editorFont": "monospace",
                 "editorPrefs": { "wordWrap": true, "extra": null },
             }))?,
             |log_limit| assert_eq!(log_limit, None),
@@ -220,6 +245,8 @@ mod tests {
         let settings = read_settings(&reopened, Some("dark".into()), || unreachable!())?;
         assert_eq!(settings[THEME_KEY], "light");
         assert_eq!(settings["uiLanguage"], "zh-CN");
+        assert_eq!(settings["uiFont"], "monospace");
+        assert_eq!(settings["editorFont"], "monospace");
         assert_eq!(settings["uiFontSize"], 18);
         assert_eq!(
             settings["editorPrefs"],
@@ -241,6 +268,9 @@ mod tests {
         assert_eq!(loaded["uiLanguage"], "system");
         assert_eq!(loaded["uiFont"], "system");
         assert_eq!(loaded["uiFontSize"], 16);
+        assert_eq!(loaded["editorFont"], "monospace");
+        assert_eq!(loaded["editorFontSize"], 13);
+        assert_eq!(loaded["editorFontSizeMode"], "custom");
         assert_eq!(log_max_size(&loaded), DEFAULT_LOG_MAX_SIZE_MIB);
 
         save_settings(
@@ -249,14 +279,25 @@ mod tests {
                 "uiLanguage": "en",
                 "uiFont": "yahei",
                 "uiFontSize": 20,
+                "editorFont": "interface",
+                "editorFontSize": 40,
+                "editorFontSizeMode": "interface",
                 "logMaxSizeMib": 12,
             }))?,
             |log_limit| assert_eq!(log_limit, Some(12)),
         )?;
+        let followed = read_settings(&storage, None, || unreachable!())?;
+        assert_eq!(followed["editorFont"], "interface");
+        assert_eq!(followed["editorFontSize"], 40);
+        assert_eq!(followed["editorFontSizeMode"], "interface");
+
         save_settings(
             &storage,
             serde_json::from_value(json!({
                 "uiFontSize": 21,
+                "editorFont": "invalid-preset",
+                "editorFontSize": 41,
+                "editorFontSizeMode": false,
                 "logMaxSizeMib": "12",
             }))?,
             |log_limit| assert_eq!(log_limit, Some(DEFAULT_LOG_MAX_SIZE_MIB)),
@@ -267,6 +308,9 @@ mod tests {
         assert_eq!(saved["uiLanguage"], "en");
         assert_eq!(saved["uiFont"], "yahei");
         assert_eq!(saved["uiFontSize"], 16);
+        assert_eq!(saved["editorFont"], "monospace");
+        assert_eq!(saved["editorFontSize"], 13);
+        assert_eq!(saved["editorFontSizeMode"], "custom");
         assert_eq!(saved[LOG_MAX_SIZE_KEY], DEFAULT_LOG_MAX_SIZE_MIB);
         Ok(())
     }

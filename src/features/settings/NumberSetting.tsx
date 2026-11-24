@@ -5,7 +5,7 @@ import { NumberInput } from "../../shared/ui/Fields";
 
 interface NumberSettingProps {
   id: string;
-  setting: "logMaxSizeMib" | "uiFontSize";
+  setting: "logMaxSizeMib" | "uiFontSize" | "editorFontSize";
   label: string;
   description?: string;
   invalidMessage: string;
