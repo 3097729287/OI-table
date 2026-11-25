@@ -1,5 +1,7 @@
 import { useId, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useMessages } from "../../i18n";
+import { Scrollbar } from "../../shared/ui/Scrollbar";
 import { SplitSeparator } from "../../shared/ui/SplitSeparator";
 import { collectWorkspaceFrames, previewBounds, workspaceReducer,
   type LayoutAction, type Pane, type PaneBounds, type PaneFrame, type PaneId, type PaneSize, type SplitFrame } from "../../workspace/layout";
@@ -20,6 +22,7 @@ interface ProblemWorkspaceProps {
   tabs: readonly ProblemWorkspaceTab[];
   enabled: boolean;
   labels: { tabs: string; resizeWidth: string; resizeHeight: string };
+  actions?: ReactNode;
   activate?: { id: ProblemWorkspaceTabId };
   onSplitChange?(split: boolean): void;
 }
@@ -67,7 +70,29 @@ function WorkspaceSeparator({ frame, labels, controls, onResize }: {
       : { left: bounds.x, top: bounds.y + span * ratio, width: bounds.width }} />;
 }
 
-export function ProblemWorkspace({ tabs, enabled, labels, activate, onSplitChange }: ProblemWorkspaceProps) {
+function WorkspaceTabs({ id, pane, label, dropEnd, children }: {
+  id: string;
+  pane: PaneId;
+  label: string;
+  dropEnd?: boolean;
+  children: ReactNode;
+}) {
+  const viewport = useRef<HTMLDivElement>(null);
+  const messages = useMessages();
+
+  return (
+    <div className="problem-workspace__tabrail scrollbar-host">
+      <div ref={viewport} id={id} className="problem-workspace__tabs" role="tablist"
+        data-problem-tablist={pane} aria-label={label} data-drop-end={dropEnd}>
+        {children}
+      </div>
+      <Scrollbar viewport={viewport} controls={id} orientation="horizontal" wheelOnParent
+        label={messages.scrollEditorTabs.replace("{pane}", () => label)} />
+    </div>
+  );
+}
+
+export function ProblemWorkspace({ tabs, enabled, labels, actions, activate, onSplitChange }: ProblemWorkspaceProps) {
   const id = useId();
   const canvas = useRef<HTMLDivElement>(null);
   const tabToFocus = useRef<string>(undefined);
@@ -186,22 +211,25 @@ export function ProblemWorkspace({ tabs, enabled, labels, activate, onSplitChang
         const target = placed?.action.destination.pane === pane.id ? placed : undefined;
         return (
           <section key={pane.id} className="problem-workspace__pane" style={split ? position(bounds) : undefined}>
-            <div id={stripId(pane.id)} className="problem-workspace__tabs" role="tablist"
-              data-problem-tablist={pane.id} aria-label={frames.length > 1 ? `${labels.tabs} ${index + 1}` : labels.tabs}
-              data-drop-end={target && !target.intoBody && target.action.destination.anchor === null}>
-              {pane.tabs.map((tab, tabIndex) => {
-                const item = tabById.get(tab);
-                if (!item) return null;
-                const selected = tab === pane.active;
-                const destination = target?.action.destination;
-                const edge = destination?.anchor === tab && tab !== drag.dragged
-                  ? destination.after ? "after" : "before" : undefined;
-                return <button key={tab} id={tabId(tab)} className="problem-workspace__tab" type="button" role="tab"
-                  data-problem-tab={tab} data-dragged={drag.dragged === tab} data-drop-edge={edge}
-                  aria-selected={selected} aria-controls={panelId(tab)} tabIndex={selected ? 0 : -1}
-                  title={item.label} onClick={() => select(tab)} onPointerDown={(event) => drag.start(event, pane.id, tab)}
-                  onKeyDown={(event) => moveTab(event, pane, tabIndex)}>{item.label}</button>;
-              })}
+            <div className="problem-workspace__bar">
+              <WorkspaceTabs id={stripId(pane.id)} pane={pane.id}
+                label={frames.length > 1 ? `${labels.tabs} ${index + 1}` : labels.tabs}
+                dropEnd={target && !target.intoBody && target.action.destination.anchor === null}>
+                {pane.tabs.map((tab, tabIndex) => {
+                  const item = tabById.get(tab);
+                  if (!item) return null;
+                  const selected = tab === pane.active;
+                  const destination = target?.action.destination;
+                  const edge = destination?.anchor === tab && tab !== drag.dragged
+                    ? destination.after ? "after" : "before" : undefined;
+                  return <button key={tab} id={tabId(tab)} className="problem-workspace__tab" type="button" role="tab"
+                    data-problem-tab={tab} data-dragged={drag.dragged === tab} data-drop-edge={edge}
+                    aria-selected={selected} aria-controls={panelId(tab)} tabIndex={selected ? 0 : -1}
+                    title={item.label} onClick={() => select(tab)} onPointerDown={(event) => drag.start(event, pane.id, tab)}
+                    onKeyDown={(event) => moveTab(event, pane, tabIndex)}>{item.label}</button>;
+                })}
+              </WorkspaceTabs>
+              {index === 0 && actions && <div className="problem-workspace__actions">{actions}</div>}
             </div>
             <div id={bodyId(pane.id)} className="problem-workspace__body" data-problem-drop-body={pane.id}
               data-drop-target={target?.intoBody}

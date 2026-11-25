@@ -6,79 +6,88 @@
   block-size: 100%;
   min-inline-size: 0;
   min-block-size: 0;
-  border-block-start: 1px solid var(--workbench-border, var(--control-border));
 }
 
 .code-editor__bar,
 .code-editor__status {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px var(--space-sm);
+  gap: var(--space-sm);
   padding-inline: var(--code-editor-padding);
-  background: var(--sidebar-background);
+  background: var(--window-background);
 }
 
 .code-editor__bar {
   justify-content: space-between;
-  min-block-size: calc(var(--code-editor-bar-height, 36px) + 1px);
-  padding-block: 3px;
+  min-block-size: var(--code-editor-toolbar-height, 32px);
+  padding-block: 1px;
   border-block-end: 1px solid var(--workbench-border, var(--control-border));
-}
-
-.code-editor__actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-inline-size: 0;
-  inline-size: 100%;
-}
-
-.code-editor :is(.code-editor__language, .code-editor__check, .code-editor__run) {
-  inline-size: auto;
-  block-size: 29px;
-  padding-block: 0;
 }
 
 .code-editor__run {
   margin-inline-start: auto;
-  background: var(--accent-color);
-  border-color: transparent;
-  color: var(--window-background);
+  color: var(--accent-color);
 }
 
-.code-editor__check:enabled,
-.code-editor__run:enabled,
-.code-editor__problems {
-  cursor: pointer;
-}
-
-.code-editor__check:enabled:hover,
-.code-editor__problems:hover {
-  background: var(--navigation-hover);
-}
-
-.code-editor__run:enabled:hover {
-  background: color-mix(in srgb, var(--accent-color) 88%, var(--window-background));
+.code-editor__run:disabled {
+  opacity: 0.5;
 }
 
 .code-editor__surface {
+  position: relative;
   min-block-size: 0;
   min-inline-size: 0;
 }
 
-.code-editor__surface .cm-scroller,
-.code-editor__surface .cm-tooltip-autocomplete ul,
-.code-editor__surface .cm-panel-lint ul {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--muted-color) 42%, transparent) transparent;
+.code-editor__mount {
+  block-size: 100%;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.code-editor__surface .cm-content:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.code-editor__surface .cm-scroller {
+  scrollbar-width: none;
+}
+
+.code-editor__surface .cm-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.code-editor__scrollbars {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.code-editor__surface:is(:hover, :focus-within) .code-editor__scrollbars > .scrollbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.code-editor__scrollbars:has(> .scrollbar[data-orientation="vertical"][data-overflow="true"])
+  > .scrollbar[data-orientation="horizontal"] {
+  inset-inline-end: var(--scrollbar-hit-size);
+}
+
+.code-editor__popup-scrollbar {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.code-editor__surface:is(:hover, :focus-within) .code-editor__popup-scrollbar > .scrollbar {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .code-editor__status {
-  min-block-size: 26px;
+  min-block-size: 24px;
   padding-block: 2px;
-  border-block-start: 1px solid var(--workbench-border, var(--control-border));
   color: var(--muted-color);
   font-size: var(--ui-font-size-small);
   font-variant-numeric: tabular-nums;
@@ -86,22 +95,70 @@
 }
 
 .code-editor__problems {
-  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 5px;
   border: 0;
   border-radius: 3px;
   background: transparent;
   color: inherit;
   font: inherit;
+  cursor: pointer;
 }
 
-.code-editor__problems[data-has-problems="true"] {
-  color: var(--accent-color);
+.code-editor__problems:hover {
+  background: var(--navigation-hover);
 }
 
-.code-editor__feedback {
-  min-inline-size: 0;
+.code-editor__problem-dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: light-dark(#996511, #e3b766);
 }
 
 .code-editor__position {
   margin-inline-start: auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-editor__save-status {
+  flex: none;
+  white-space: nowrap;
+}
+
+.code-editor__save-retry {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--error-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+.code-editor__save-retry:hover {
+  background: var(--navigation-hover);
+}
+
+.code-editor__draft-load {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--code-editor-padding);
+  font-size: var(--ui-font-size-control);
+}
+
+.code-editor__draft-retry {
+  inline-size: auto;
+  block-size: auto;
+  cursor: pointer;
 }

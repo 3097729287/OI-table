@@ -13,10 +13,11 @@ type SelectOption<Value extends string> = {
 
 type SelectProps<Value extends string> = Pick<
   ComponentProps<"button">,
-  "id" | "disabled" | "className" | "aria-label" | "aria-labelledby" | "aria-describedby" | "aria-invalid"
+  "id" | "disabled" | "className" | "title" | "aria-label" | "aria-labelledby" | "aria-describedby" | "aria-invalid"
 > & {
   value: Value;
   options: readonly SelectOption<Value>[];
+  triggerLabel?: string;
   onValueChange: (value: Value) => void;
 };
 
@@ -44,6 +45,7 @@ export function Select<Value extends string>({
   options,
   onValueChange,
   className,
+  triggerLabel,
   id,
   disabled,
   ...accessibleProps
@@ -195,7 +197,7 @@ export function Select<Value extends string>({
         }}
         onKeyDown={handleKeyDown}
       >
-        <span className="ui-select__label">{options[selectedIndex]?.label}</span>
+        <span className="ui-select__label">{triggerLabel ?? options[selectedIndex]?.label}</span>
         <span className="ui-select__chevron">
           <Icon name="chevronRight" size={14} />
         </span>

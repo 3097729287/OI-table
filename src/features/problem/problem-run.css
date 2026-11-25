@@ -1,40 +1,9 @@
-.problem-run__input {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  block-size: 100%;
-  min-inline-size: 0;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  color: var(--muted-color);
-  font-size: var(--ui-font-size-control);
-}
-
-.problem-run__input textarea {
-  min-block-size: 0;
-  min-inline-size: 0;
-  inline-size: 100%;
-  padding: var(--space-sm);
-  border: 1px solid var(--control-border);
-  border-radius: 4px;
-  background: var(--window-background);
-  color: var(--text-color);
-  font: var(--editor-font-size)/1.5 var(--editor-font-family);
-  resize: none;
-  scrollbar-width: thin;
-}
-
-.problem-run__input textarea:focus-visible {
-  outline: 1px solid var(--accent-color);
-  outline-offset: -1px;
-  box-shadow: none;
-}
-
 .problem-run__results {
   block-size: 100%;
 }
 
 .problem-run__results-body {
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-sm) var(--problem-detail-gutter);
   font-size: var(--ui-font-size-control);
   overflow-wrap: anywhere;
 }

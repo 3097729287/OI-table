@@ -2,16 +2,14 @@ use std::{
     env, fs,
     io::{self, Read, Seek, Write},
     mem,
-    path::Path,
-    process::{Command, ExitStatus, Stdio},
+    path::{Path, PathBuf},
+    process::{Child, Command, ExitStatus, Stdio},
     sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
 
-use serde::Serialize;
-
-use crate::editor_check::{find_cpp, find_python, hidden_command, stop_child, EditorLanguage};
+use serde::{Deserialize, Serialize};
 
 const MAX_SOURCE_BYTES: usize = 256 * 1024;
 const MAX_INPUT_BYTES: usize = 256 * 1024;
@@ -19,6 +17,13 @@ const MAX_OUTPUT_BYTES: usize = 256 * 1024;
 const COMPILE_TIMEOUT: Duration = Duration::from_secs(15);
 const RUN_TIMEOUT: Duration = Duration::from_secs(5);
 static RUNNING: Mutex<()> = Mutex::new(());
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum EditorLanguage {
+    Cpp,
+    Python,
+}
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -101,6 +106,30 @@ fn validate_sizes(source: &str, input: &str) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+fn find_program(name: &str) -> Option<PathBuf> {
+    let paths = env::var_os("PATH")?;
+    let executable = format!("{name}{}", env::consts::EXE_SUFFIX);
+    env::split_paths(&paths)
+        .filter(|directory| directory.is_absolute())
+        .map(|directory| directory.join(&executable))
+        .find(|path| path.is_file())
+}
+
+fn find_cpp() -> Option<(&'static str, PathBuf)> {
+    ["g++", "clang++"]
+        .into_iter()
+        .find_map(|name| find_program(name).map(|path| (name, path)))
+}
+
+fn find_python() -> Option<PathBuf> {
+    let names = if cfg!(windows) {
+        ["python", "python3"]
+    } else {
+        ["python3", "python"]
+    };
+    names.into_iter().find_map(find_program)
 }
 
 fn run_draft(language: EditorLanguage, source: &str, input: &str) -> Result<RunResult> {
@@ -257,6 +286,52 @@ impl Capture {
     }
 }
 
+fn hidden_command(program: &Path) -> Command {
+    #[allow(unused_mut)]
+    let mut command = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+
+        command.process_group(0);
+    }
+    command
+}
+
+fn stop_child(child: &mut Child) {
+    #[cfg(windows)]
+    if let Some(root) = env::var_os("SystemRoot") {
+        let taskkill = PathBuf::from(root).join("System32").join("taskkill.exe");
+        let _ = hidden_command(&taskkill)
+            .args(["/T", "/F", "/PID", &child.id().to_string()])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(unix)]
+    stop_process_group(child.id());
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+#[cfg(unix)]
+fn stop_process_group(process_id: u32) {
+    let _ = Command::new("/bin/kill")
+        .args(["-KILL", "--", &format!("-{process_id}")])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
 fn run_process(
     mut command: Command,
     directory: &Path,
@@ -309,7 +384,7 @@ fn run_process(
     drop(job);
     #[cfg(unix)]
     if matches!(finish, ProcessFinish::Exited(_)) && reading() {
-        crate::editor_check::stop_process_group(child.id());
+        stop_process_group(child.id());
     }
 
     // Do not let an inherited output pipe block returning a completed run.

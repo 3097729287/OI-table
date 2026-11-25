@@ -1,6 +1,8 @@
 .problem-workspace {
-  --problem-tab-height: 36px;
+  --problem-tab-height: var(--problem-detail-toolbar-height, 32px);
   --problem-workspace-border: var(--workbench-border, var(--control-border));
+  --problem-workspace-bar: var(--problem-detail-toolbar-background,
+    color-mix(in srgb, var(--navigation-background) 62%, var(--window-background)));
   position: relative;
   min-inline-size: 0;
   min-block-size: 0;
@@ -19,17 +21,45 @@
   background: var(--window-background);
 }
 
+.problem-workspace__bar {
+  display: flex;
+  min-inline-size: 0;
+  border-block-end: 1px solid var(--problem-workspace-border);
+  background: var(--problem-workspace-bar);
+}
+
+.problem-workspace__tabrail {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
 .problem-workspace__tabs {
   display: flex;
   align-items: stretch;
-  min-inline-size: 0;
-  min-block-size: calc(var(--problem-tab-height) + 1px);
-  padding-inline: var(--space-sm);
-  border-block-end: 1px solid var(--problem-workspace-border);
+  min-block-size: var(--problem-tab-height);
   overflow: auto hidden;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--muted-color) 42%, transparent) transparent;
-  background: var(--sidebar-background);
+}
+
+.problem-workspace__tabrail > .scrollbar[data-orientation="horizontal"] {
+  inset-block: calc(100% - var(--scrollbar-hit-padding)) auto;
+}
+
+.problem-workspace[data-problem-tab-dragging="true"] .problem-workspace__tabrail > .scrollbar {
+  pointer-events: none;
+}
+
+.problem-workspace__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  max-inline-size: calc(100% - var(--problem-tab-height));
+  padding-inline: 3px var(--space-sm);
+  overflow: auto hidden;
+  scrollbar-width: none;
+}
+
+.problem-workspace__actions > * {
+  flex: none;
 }
 
 .problem-workspace__tab {
@@ -37,14 +67,15 @@
   flex: none;
   min-block-size: var(--problem-tab-height);
   max-inline-size: 100%;
-  padding: 5px var(--space-sm);
+  padding: 4px var(--space-sm);
   border: 0;
-  border-block: 2px solid transparent;
   background: transparent;
   color: var(--muted-color);
   overflow: hidden;
   font: inherit;
   font-size: var(--ui-font-size-control);
+  font-weight: 500;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: grab;
@@ -57,9 +88,31 @@
 }
 
 .problem-workspace__tab[aria-selected="true"] {
-  border-block-end-color: var(--accent-color);
-  color: var(--accent-color);
-  font-weight: 600;
+  background: var(--window-background);
+  color: var(--text-color);
+}
+
+.problem-workspace__tab::before {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 2px;
+  background: var(--workbench-accent, var(--accent-color));
+  content: "";
+  pointer-events: none;
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  transition: transform var(--workspace-motion);
+}
+
+.problem-workspace__tab[aria-selected="true"]::before {
+  transform: scaleY(1);
+}
+
+@starting-style {
+  .problem-workspace__tab[aria-selected="true"]::before {
+    transform: scaleY(0);
+  }
 }
 
 .problem-workspace__tab:focus-visible,
@@ -123,8 +176,7 @@
 }
 
 .problem-workspace__panel {
-  overflow: auto;
-  scrollbar-width: thin;
+  overflow: clip;
 }
 
 .problem-workspace__panel[hidden] {
@@ -176,6 +228,6 @@
   position: absolute;
   z-index: 3;
   border: 1px solid var(--accent-color);
-  background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  background: color-mix(in srgb, var(--accent-color) 14%, transparent);
   pointer-events: none;
 }

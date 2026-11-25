@@ -14,6 +14,7 @@ import scratchPad from "./icons/scratch-pad.svg?no-inline";
 import settings from "./icons/settings.svg?no-inline";
 import sidebarHidden from "./icons/sidebar-hidden.svg?no-inline";
 import sidebarVisible from "./icons/sidebar-visible.svg?no-inline";
+import splitColumns from "./icons/split-columns.svg?no-inline";
 import submissions from "./icons/submissions.svg?no-inline";
 import "./icons/icon.css";
 
@@ -34,6 +35,7 @@ const sources = {
   settings,
   sidebarHidden,
   sidebarVisible,
+  splitColumns,
   submissions,
 };
 

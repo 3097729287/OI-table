@@ -50,7 +50,7 @@ export function syntaxDiagnostics(state: EditorState, syntaxError: string): Diag
   const tree = ensureSyntaxTree(state, length);
   if (!tree) return [];
 
-  // Lezer sees macro calls before expansion. The native check can diagnose these C++ sources.
+  // Lezer sees macro calls before expansion. The compiler reports errors in these sources during a run.
   if (cppLanguage.isActiveAt(state, 0)) {
     for (const match of state.doc.toString().matchAll(cppFunctionMacro)) {
       const directive = tree.resolveInner(match.index + match[0].indexOf("#"), 1);

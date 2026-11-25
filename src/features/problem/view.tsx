@@ -43,8 +43,7 @@ export default function ProblemView({ params, title }: WorkspaceViewProps) {
   if (problem) return <ProblemDetail key={problem.id} problem={problem} title={title} />;
 
   return (
-    <section className="workspace workbench-page problem-preview">
-      <h1 data-selectable>{title}</h1>
+    <section className="workspace workbench-page problem-preview" aria-label={title}>
       {(!problemId || problem === null) && (
         <>
           <StatusMessage state="error">{messages.problemLoadError}</StatusMessage>

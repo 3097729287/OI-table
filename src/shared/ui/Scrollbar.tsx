@@ -16,6 +16,7 @@ interface ScrollbarProps {
 
 const scrollStep = 32;
 const minThumbSize = 24;
+const viewportBindings = new WeakMap<HTMLElement, number>();
 
 export function Scrollbar({
   viewport, content, controls, label, orientation, className, focusable = true, wheelOnParent,
@@ -30,6 +31,9 @@ export function Scrollbar({
     const element = viewport.current;
     const bar = track.current;
     if (!element || !bar) return;
+
+    viewportBindings.set(element, (viewportBindings.get(element) ?? 0) + 1);
+    element.setAttribute("data-custom-scroll-viewport", "");
 
     function measure() {
       if (!element || !bar) return;
@@ -78,6 +82,12 @@ export function Scrollbar({
       element.removeEventListener("scroll", measure);
       element.removeEventListener("input", measure);
       wheelRegion?.removeEventListener("wheel", scrollWithWheel);
+      const remaining = (viewportBindings.get(element) ?? 1) - 1;
+      if (remaining > 0) viewportBindings.set(element, remaining);
+      else {
+        viewportBindings.delete(element);
+        element.removeAttribute("data-custom-scroll-viewport");
+      }
     };
   }, [viewport, content, horizontal, wheelOnParent]);
 

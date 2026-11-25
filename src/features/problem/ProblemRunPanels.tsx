@@ -1,4 +1,3 @@
-import { useId } from "react";
 import { useMessages } from "../../i18n";
 import { StatusMessage } from "../../shared/StatusMessage";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
@@ -20,19 +19,6 @@ const errorMessages: Record<string, keyof ReturnType<typeof useMessages>> = {
   source_too_large: "problemEditorSourceTooLarge",
   input_too_large: "problemRunInputTooLarge",
 };
-
-export function ProblemTestInput({ value, onChange }: { value: string; onChange(value: string): void }) {
-  const messages = useMessages();
-  const id = useId();
-  return (
-    <div className="problem-run__input">
-      <label htmlFor={id}>{messages.problemRunStdin}</label>
-      <textarea id={id} value={value} onChange={(event) => onChange(event.currentTarget.value)}
-        aria-label={messages.problemRunStdin} placeholder={messages.problemRunInputPlaceholder}
-        spellCheck={false} autoCapitalize="off" wrap="off" data-selectable />
-    </div>
-  );
-}
 
 export function ProblemRunResults({ run }: { run?: LocalRun }) {
   const messages = useMessages();

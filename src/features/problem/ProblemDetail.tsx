@@ -1,6 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { lazy, Suspense, useContext, useRef, useState } from "react";
 import { LocaleContext, useMessages } from "../../i18n";
+import { Icon } from "../../shared/Icon";
 import { localizedLibraryText, type LibraryProblemDetail, type LocalizedProblemText } from "../../shared/problemLibrary";
 import { useSettings } from "../../shared/settings";
 import { StatusMessage } from "../../shared/StatusMessage";
@@ -8,12 +9,13 @@ import { ScrollArea } from "../../shared/ui/ScrollArea";
 import { Select } from "../../shared/ui/Select";
 import type { CodeLanguage } from "../../shared/ui/codeLanguages";
 import { runEditorCode, type LocalRun } from "./localRun";
-import { ProblemRunResults, ProblemTestInput } from "./ProblemRunPanels";
+import { ProblemRunResults } from "./ProblemRunPanels";
 import { ProblemSubmissions } from "./ProblemSubmissions";
 import { ProblemWorkspace, type ProblemWorkspaceTab, type ProblemWorkspaceTabId } from "./ProblemWorkspace";
 
 const MarkdownViewer = lazy(() => import("../../shared/ui/MarkdownViewer"));
 const CodeEditor = lazy(() => import("../../shared/ui/CodeEditor"));
+const PlainTextEditor = lazy(() => import("../../shared/ui/PlainTextEditor"));
 
 type ContentLocale = "zh-CN" | "en";
 type LanguagePreference = ContentLocale | "interface";
@@ -65,29 +67,41 @@ function Solutions({ solutions, locale }: {
   const body = readTranslation(selected.body, locale);
   return (
     <div className="problem-detail__solution">
-      {solutions.length > 1 && (
-        <Select aria-label={messages.problemChooseSolution} className="problem-detail__solution-select"
+      {solutions.length > 1 ? (
+        <Select aria-label={messages.problemChooseSolution} className="ui-select--quiet problem-detail__solution-select"
           value={selected.id} onValueChange={setSolutionId}
           options={solutions.map(({ id, title, body }) => ({
             value: id, label: localizedLibraryText(title, readTranslation(body, locale).locale) || id,
           }))} />
-      )}
-      <h2 lang={body.locale} data-selectable>{localizedLibraryText(selected.title, body.locale) || selected.id}</h2>
+      ) : <h2 lang={body.locale} data-selectable>{localizedLibraryText(selected.title, body.locale) || selected.id}</h2>}
       <ContentMarkdown content={body} preferred={locale} empty={messages.problemSolutionEmpty} />
     </div>
   );
 }
 
-function ProblemStatement({ problem, locale }: {
+function hasOpeningTitle(source: string, title: string) {
+  const [first, second = ""] = source.replace(/^(?:[ \t]*\r?\n)+/, "").split(/\r?\n/, 2);
+  const atx = /^ {0,3}#{1,6}[ \t]+(.+)$/.exec(first)?.[1];
+  if (atx !== undefined) return atx.replace(/[ \t]+#+[ \t]*$/, "").trim() === title.trim();
+  return /^ {0,3}\S/.test(first) && /^ {0,3}(?:=+|-+)[ \t]*$/.test(second) && first.trim() === title.trim();
+}
+
+function ProblemStatement({ problem, locale, fallbackTitle }: {
   problem: LibraryProblemDetail;
   locale: ContentLocale;
+  fallbackTitle: string;
 }) {
   const messages = useMessages();
   const statement = readTranslation(problem.statement, locale);
+  const heading = readTranslation(problem.title, statement.locale);
+  const title = heading.value || fallbackTitle;
 
   return (
     <ScrollArea className="problem-detail__read-scroll" orientation="vertical">
       <div className="problem-detail__article">
+        {!hasOpeningTitle(statement.value, title) && (
+          <h1 className="problem-detail__title" lang={heading.locale} data-selectable>{title}</h1>
+        )}
         {(problem.rating !== null || problem.tags.length > 0) && (
           <div className="problem-detail__metadata">
             {problem.rating !== null && (
@@ -117,10 +131,19 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const [run, setRun] = useState<LocalRun>();
   const [activate, setActivate] = useState<{ id: ProblemWorkspaceTabId }>();
   const busy = useRef(false);
+  const layoutButton = useRef<HTMLButtonElement>(null);
   const doubleColumn = layoutOverride ?? settings?.problemDoubleColumn ?? false;
   const locale = language === "interface" ? interfaceLocale : language;
-  const statement = readTranslation(problem.statement, locale);
-  const heading = readTranslation(problem.title, statement.locale);
+
+  function toggleLayout(button: HTMLButtonElement) {
+    const hadFocus = button.ownerDocument.activeElement === button;
+    setLayoutOverride(!doubleColumn);
+    if (hadFocus) requestAnimationFrame(() => {
+      if (!button.isConnected && button.ownerDocument.activeElement === button.ownerDocument.body) {
+        layoutButton.current?.focus({ preventScroll: true });
+      }
+    });
+  }
 
   async function runDraft(codeLanguage: CodeLanguage, source: string) {
     if (busy.current) return;
@@ -135,7 +158,10 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   }
 
   const tabs: ProblemWorkspaceTab[] = [
-    { id: "statement", label: messages.problemStatement, content: <ProblemStatement problem={problem} locale={locale} /> },
+    {
+      id: "statement", label: messages.problemStatement,
+      content: <ProblemStatement problem={problem} locale={locale} fallbackTitle={title} />,
+    },
     {
       id: "solutions", label: messages.problemSolutions,
       content: <ScrollArea className="problem-detail__read-scroll" orientation="vertical">
@@ -150,31 +176,37 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
       id: "code", label: messages.problemCodeTab, lazy: true,
       content: <div className="problem-detail__editor">
         <Suspense fallback={<StatusMessage state="loading">{messages.problemEditorLoading}</StatusMessage>}>
-          <CodeEditor onRun={isTauri() ? runDraft : undefined} running={run?.state === "running"} />
+          <CodeEditor problemId={problem.id} onRun={isTauri() ? runDraft : undefined} running={run?.state === "running"} />
         </Suspense>
       </div>,
     },
-    { id: "input", label: messages.problemRunTestInput, content: <ProblemTestInput value={input} onChange={setInput} /> },
+    {
+      id: "input", label: messages.problemRunTestInput, lazy: true,
+      content: <Suspense fallback={<StatusMessage state="loading">{messages.problemEditorLoading}</StatusMessage>}>
+        <PlainTextEditor label={messages.problemRunStdin} value={input} onChange={setInput} />
+      </Suspense>,
+    },
     { id: "output", label: messages.problemRunResults, content: <ProblemRunResults run={run} /> },
   ];
 
   return (
     <section className="workbench-page problem-detail" data-split={split}>
-      <header className="problem-detail__header">
-        <h1 lang={heading.locale} data-selectable>{heading.value || title}</h1>
-        <div className="problem-detail__controls">
-          <Select className="problem-detail__language" aria-label={messages.problemContentLanguage}
-            value={language} onValueChange={setLanguage} options={[
-              { value: "interface", label: messages.followInterface },
-              { value: "zh-CN", label: languageNames["zh-CN"] },
-              { value: "en", label: languageNames.en },
-            ]} />
-          <button type="button" className="ui-field problem-detail__layout" aria-pressed={doubleColumn}
-            onClick={() => setLayoutOverride(!doubleColumn)}>{messages.problemTwoColumns}</button>
-        </div>
-      </header>
       <ProblemWorkspace tabs={tabs} enabled={doubleColumn} activate={activate} onSplitChange={setSplit}
-        labels={{ tabs: messages.problemWorkspaceArea, resizeWidth: messages.problemResizeColumns, resizeHeight: messages.resizePaneHeight }} />
+        labels={{ tabs: messages.problemWorkspaceArea, resizeWidth: messages.problemResizeColumns, resizeHeight: messages.resizePaneHeight }}
+        actions={(
+          <div className="problem-detail__controls">
+            <Select className="ui-select--quiet problem-detail__language" aria-label={messages.problemContentLanguage}
+              title={messages.problemContentLanguage} triggerLabel={locale === "zh-CN" ? "简中" : "EN"}
+              value={language} onValueChange={setLanguage} options={[
+                { value: "interface", label: messages.followInterface },
+                { value: "zh-CN", label: languageNames["zh-CN"] },
+                { value: "en", label: languageNames.en },
+              ]} />
+            <button ref={layoutButton} type="button" className="ui-icon-button" aria-pressed={doubleColumn}
+              aria-label={messages.problemTwoColumns} title={messages.problemTwoColumns}
+              onClick={(event) => toggleLayout(event.currentTarget)}><Icon name="splitColumns" /></button>
+          </div>
+        )} />
     </section>
   );
 }

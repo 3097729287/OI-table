@@ -1,45 +1,40 @@
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentOnInput, indentUnit } from "@codemirror/language";
 import {
-  diagnosticCount, forceLinting, lintGutter, linter, lintKeymap, openLintPanel, setDiagnostics, setDiagnosticsEffect,
-  type Diagnostic,
+  diagnosticCount, forceLinting, linter, lintKeymap, openLintPanel,
 } from "@codemirror/lint";
-import { Compartment, EditorState, type Text } from "@codemirror/state";
-import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, placeholder } from "@codemirror/view";
-import { isTauri } from "@tauri-apps/api/core";
-import { useLayoutEffect, useRef, useState } from "react";
+import { Compartment, EditorState } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMessages } from "../../i18n";
-import { checkEditorCode } from "./codeCheck";
+import { Icon } from "../Icon";
+import { StatusMessage } from "../StatusMessage";
 import { codeLanguageExtensions, codeLanguageNames, syntaxDiagnostics, type CodeLanguage } from "./codeLanguages";
-import { codeEditorTheme } from "./codeEditorTheme";
+import { codeSyntaxHighlighting } from "./codeEditorTheme";
+import { CodeEditorSurface, codeEditorContent, codeEditorSurfaceExtensions } from "./CodeEditorSurface";
+import { flushProblemDraft, loadProblemDraft, problemDraftSaveStatus, queueProblemDraft, subscribeToProblemDraft } from "./problemDrafts";
 import { Select } from "./Select";
-import "./code-editor.css";
 
 const defaultLanguage: CodeLanguage = "cpp";
 const languages = (["cpp", "python"] as const).map((value) => ({ value, label: codeLanguageNames[value] }));
 const editorExtensions = [
-  lineNumbers(), highlightActiveLine(), highlightActiveLineGutter(), drawSelection(), history(), indentOnInput(), indentUnit.of("    "),
-  bracketMatching(), closeBrackets(), autocompletion(), lintGutter(), codeEditorTheme,
+  codeEditorSurfaceExtensions, indentOnInput(), indentUnit.of("    "),
+  bracketMatching(), closeBrackets(), autocompletion(), codeSyntaxHighlighting,
   keymap.of([...closeBracketsKeymap, ...completionKeymap, ...historyKeymap, ...defaultKeymap, ...lintKeymap, indentWithTab]),
 ];
 
 type Messages = ReturnType<typeof useMessages>;
-type CheckFeedback = { tool: string } | { error: string };
-type CheckedDraft = { doc: Text; diagnostics: Diagnostic[] };
 type SavedDraft = { state: EditorState; scroll: ReturnType<EditorView["scrollSnapshot"]> };
 
 function editorLocalization(messages: Messages) {
   return [
-    EditorView.contentAttributes.of({
-      "aria-label": messages.problemCodeDraft, spellcheck: "false", autocapitalize: "off", autocomplete: "off",
-    }),
+    codeEditorContent(messages.problemCodeDraft),
     EditorState.phrases.of({
       Diagnostics: messages.problemEditorDiagnosticList,
       "No diagnostics": messages.problemEditorNoDiagnostics,
       "close": messages.close,
     }),
-    placeholder(messages.problemCodeDraftPlaceholder),
   ];
 }
 
@@ -49,51 +44,43 @@ function editorMetrics(state: EditorState) {
   return { line: line.number, column: position - line.from + 1, problems: diagnosticCount(state), length: state.doc.length };
 }
 
-function checkError(error: unknown) {
-  return error && typeof error === "object" && "code" in error && typeof error.code === "string" ? error.code : "check_failed";
-}
-
 interface CodeEditorProps {
+  problemId: string;
   onRun?: (language: CodeLanguage, source: string) => void;
   running?: boolean;
 }
 
-export default function CodeEditor({ onRun, running = false }: CodeEditorProps) {
+export default function CodeEditor({ problemId, onRun, running = false }: CodeEditorProps) {
   const messages = useMessages();
   const texts = useRef(messages);
   const container = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
-  const activeLanguage = useRef<CodeLanguage>(defaultLanguage);
   const drafts = useRef(new Map<CodeLanguage, SavedDraft>());
-  const checks = useRef(new Map<CodeLanguage, CheckedDraft>());
+  const sources = useRef({ cpp: "", python: "" });
   const [localization] = useState(() => new Compartment());
   const [language, setLanguage] = useState<CodeLanguage>(defaultLanguage);
   const [metrics, setMetrics] = useState({ line: 1, column: 1, problems: 0, length: 0 });
-  const [checking, setChecking] = useState(false);
-  const [feedback, setFeedback] = useState<CheckFeedback>();
+  const [mountedEditor, setMountedEditor] = useState<EditorView>();
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "failed">("loading");
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const subscribe = useCallback((listener: () => void) => subscribeToProblemDraft(problemId, listener), [problemId]);
+  const saveStatus = useSyncExternalStore(subscribe, () => problemDraftSaveStatus(problemId));
+  const problemsLabel = messages.problemEditorProblems.replace("{count}", String(metrics.problems));
 
   function createDraft(codeLanguage: CodeLanguage) {
-    return EditorState.create({ extensions: [
+    return EditorState.create({ doc: sources.current[codeLanguage], extensions: [
       editorExtensions,
       codeLanguageExtensions(codeLanguage),
       localization.of(editorLocalization(texts.current)),
-      EditorState.transactionExtender.of((transaction) => {
-        if (transaction.docChanged && checks.current.get(codeLanguage)?.doc === transaction.startState.doc) {
-          return { effects: setDiagnosticsEffect.of([]) };
-        }
-        return null;
-      }),
-      linter((editor) => {
-        const checked = checks.current.get(codeLanguage);
-        return checked?.doc === editor.state.doc
-          ? checked.diagnostics
-          : syntaxDiagnostics(editor.state, texts.current.problemEditorSyntaxError);
-      }, {
+      linter((editor) => syntaxDiagnostics(editor.state, texts.current.problemEditorSyntaxError), {
         delay: 350,
         needsRefresh: (update) => localization.get(update.startState) !== localization.get(update.state),
       }),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) setFeedback(undefined);
+        if (update.docChanged) {
+          sources.current = { ...sources.current, [codeLanguage]: update.state.doc.toString() };
+          queueProblemDraft(problemId, { language: codeLanguage, drafts: sources.current });
+        }
         const next = editorMetrics(update.state);
         setMetrics((previous) => previous.line === next.line && previous.column === next.column &&
           previous.problems === next.problems && previous.length === next.length ? previous : next);
@@ -102,11 +89,29 @@ export default function CodeEditor({ onRun, running = false }: CodeEditorProps) 
   }
 
   useLayoutEffect(() => {
-    if (!container.current) return;
-    const editor = new EditorView({ parent: container.current, state: createDraft(defaultLanguage) });
-    view.current = editor;
-    return () => { view.current = null; editor.destroy(); };
-  }, []);
+    const parent = container.current;
+    if (!parent) return;
+    let active = true;
+    void loadProblemDraft(problemId).then((saved) => {
+      if (!active) return;
+      const selected = saved?.language ?? defaultLanguage;
+      sources.current = saved?.drafts ?? { cpp: "", python: "" };
+      drafts.current.clear();
+      const editor = new EditorView({ parent, state: createDraft(selected) });
+      view.current = editor;
+      setMountedEditor(editor);
+      setLanguage(selected);
+      setMetrics(editorMetrics(editor.state));
+      setLoadState("ready");
+    }).catch(() => { if (active) setLoadState("failed"); });
+
+    return () => {
+      active = false;
+      view.current?.destroy();
+      view.current = null;
+      void flushProblemDraft(problemId);
+    };
+  }, [problemId, loadAttempt]);
 
   useLayoutEffect(() => {
     texts.current = messages;
@@ -121,80 +126,64 @@ export default function CodeEditor({ onRun, running = false }: CodeEditorProps) 
     if (!editor || next === language) return;
     drafts.current.set(language, { state: editor.state, scroll: editor.scrollSnapshot() });
     const saved = drafts.current.get(next);
-    activeLanguage.current = next;
     editor.setState(saved?.state ?? createDraft(next));
     editor.dispatch({ effects: [
       localization.reconfigure(editorLocalization(texts.current)),
       ...(saved ? [saved.scroll] : []),
     ] });
     setLanguage(next);
-    setFeedback(undefined);
     setMetrics(editorMetrics(editor.state));
     forceLinting(editor);
-  }
-
-  async function checkDraft() {
-    const editor = view.current;
-    if (!editor || checking || editor.state.doc.length === 0) return;
-    const { doc } = editor.state;
-    const isCurrent = () => view.current === editor && activeLanguage.current === language && editor.state.doc === doc;
-    setChecking(true);
-    setFeedback(undefined);
-    try {
-      const report = await checkEditorCode(language, doc);
-      if (!isCurrent()) return;
-      checks.current.set(language, { doc, diagnostics: report.diagnostics });
-      editor.dispatch(setDiagnostics(editor.state, report.diagnostics));
-      setFeedback({ tool: report.tool });
-    } catch (error) {
-      if (isCurrent()) setFeedback({ error: checkError(error) });
-    } finally {
-      if (view.current === editor) setChecking(false);
-    }
-  }
-
-  function feedbackText() {
-    if (!feedback) return undefined;
-    if ("tool" in feedback) return messages.problemEditorCheckComplete.replace("{tool}", feedback.tool);
-    switch (feedback.error) {
-      case "tool_unavailable": return messages.problemEditorToolUnavailable;
-      case "check_timeout": return messages.problemEditorCheckTimeout;
-      case "check_busy": return messages.problemEditorCheckBusy;
-      case "source_too_large": return messages.problemEditorSourceTooLarge;
-      default: return messages.problemEditorCheckFailed;
-    }
+    queueProblemDraft(problemId, { language: next, drafts: sources.current });
   }
 
   return (
     <section className="code-editor" aria-label={messages.problemCodeDraft}>
       <header className="code-editor__bar">
-        <div className="code-editor__actions">
-          <Select className="code-editor__language" aria-label={messages.problemEditorLanguage}
-            value={language} options={languages} onValueChange={selectLanguage} />
-          {isTauri() && (
-            <button type="button" className="ui-field code-editor__check" disabled={checking || metrics.length === 0}
-              aria-busy={checking || undefined} onClick={() => void checkDraft()}>{messages.problemEditorCheck}</button>
-          )}
-          {onRun && (
-            <button type="button" className="ui-field code-editor__run" disabled={running || metrics.length === 0}
-              aria-busy={running || undefined} onClick={() => {
-                if (view.current) onRun(activeLanguage.current, view.current.state.doc.toString());
-              }}>{messages.problemRunLocal}</button>
-          )}
-        </div>
+        <Select className="ui-select--quiet" aria-label={messages.problemEditorLanguage} title={messages.problemEditorLanguage}
+          disabled={loadState !== "ready"} value={language} options={languages} onValueChange={selectLanguage} />
+        {onRun && (
+          <button type="button" className="ui-icon-button code-editor__run" disabled={loadState !== "ready" || running || metrics.length === 0}
+            aria-label={messages.problemRunLocal} title={messages.problemRunLocal} aria-busy={running || undefined}
+            onClick={() => { if (view.current) onRun(language, view.current.state.doc.toString()); }}>
+            <Icon name="run" />
+          </button>
+        )}
       </header>
-      <div ref={container} className="code-editor__surface" data-selectable />
+      <CodeEditorSurface mount={container} editor={mountedEditor}>
+        {loadState !== "ready" && (
+          <div className="code-editor__draft-load">
+            {loadState === "loading" ? <StatusMessage state="loading">{messages.problemDraftLoading}</StatusMessage> : (
+              <>
+                <StatusMessage state="error">{messages.problemDraftLoadFailed}</StatusMessage>
+                <button type="button" className="ui-field code-editor__draft-retry" onClick={() => {
+                  setLoadState("loading");
+                  setLoadAttempt((attempt) => attempt + 1);
+                }}>{messages.retry}</button>
+              </>
+            )}
+          </div>
+        )}
+      </CodeEditorSurface>
       <footer className="code-editor__status">
-        <button type="button" className="code-editor__problems" data-has-problems={metrics.problems > 0}
-          onClick={() => { if (view.current) openLintPanel(view.current); }}>
-          {messages.problemEditorProblems.replace("{count}", String(metrics.problems))}
-        </button>
-        {(checking || feedback) && (
-          <span role="status" className="code-editor__feedback">{checking ? messages.problemEditorChecking : feedbackText()}</span>
+        {metrics.problems > 0 && (
+          <button type="button" className="code-editor__problems" aria-label={problemsLabel} title={problemsLabel}
+            onClick={() => { if (view.current) openLintPanel(view.current); }}>
+            <span className="code-editor__problem-dot" aria-hidden="true" />{metrics.problems}
+          </button>
         )}
         <span className="code-editor__position">
           {messages.problemEditorPosition.replace("{line}", String(metrics.line)).replace("{column}", String(metrics.column))}
         </span>
+        {loadState === "ready" && (saveStatus === "failed" ? (
+          <button type="button" className="code-editor__save-status code-editor__save-retry"
+            aria-label={messages.problemDraftSaveRetry} title={messages.problemDraftSaveRetry}
+            onClick={() => void flushProblemDraft(problemId)}>{messages.problemDraftSaveFailed}</button>
+        ) : (
+          <span className="code-editor__save-status" role="status">
+            {saveStatus === "saving" ? messages.problemDraftSaving : messages.problemDraftSaved}
+          </span>
+        ))}
       </footer>
     </section>
   );
