@@ -1,4 +1,5 @@
 mod logging;
+mod problem_library;
 mod settings;
 mod storage;
 mod triggers;
@@ -11,6 +12,8 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
         windowing::focus_main_window(app);
     }));
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_dialog::init());
 
     builder
         .setup(|app| {
@@ -41,6 +44,15 @@ pub fn run() {
             settings::update_settings,
             triggers::get_trigger,
             triggers::increment_trigger,
+            problem_library::pick_problem_library_source,
+            problem_library::import_problem_libraries_from_path,
+            problem_library::list_problem_libraries,
+            problem_library::set_problem_library_enabled,
+            problem_library::uninstall_problem_library,
+            problem_library::list_library_problems,
+            problem_library::get_library_problem,
+            problem_library::list_library_archive_children,
+            problem_library::list_library_tag_groups,
             windowing::open_window,
             windowing::configure_main_window
         ])
