@@ -373,6 +373,7 @@ export function Workbench() {
       )}
       {layout.root ? (
         <div ref={canvas} className="workbench-panes"
+          data-single-pane={layout.root.kind === "pane"}
           data-tab-dragging={drag.draggedView !== undefined}
           onPointerDownCapture={drag.onPointerDownCapture} onClickCapture={drag.onClickCapture}
           onPointerMove={drag.track} onPointerUp={drag.finish} onPointerCancel={drag.cancel}

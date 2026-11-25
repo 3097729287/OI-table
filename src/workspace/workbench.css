@@ -220,6 +220,11 @@
   overflow: clip;
 }
 
+.workbench-panes[data-single-pane="true"] > .workbench-pane {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
 .workbench-panel-host {
   display: contents;
 }
