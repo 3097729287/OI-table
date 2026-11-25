@@ -1,0 +1,144 @@
+.problem-list-view {
+  --control-height: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  block-size: 100%;
+  min-inline-size: 0;
+  padding: var(--space-md) min(var(--space-lg), 4%);
+  font-size: var(--ui-font-size-control);
+}
+
+.problem-list-view__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.problem-list-view__header h1 {
+  min-inline-size: 0;
+  font-size: var(--ui-font-size-heading);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.problem-list-view__search,
+.problem-list-view__pagination,
+.problem-list-view__error-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-inline-size: 0;
+}
+
+.problem-list-view__search {
+  flex: 0 1 21rem;
+}
+
+.problem-list-view__input {
+  flex: 1;
+}
+
+.problem-list-view__pagination {
+  flex-wrap: wrap;
+  justify-content: end;
+  color: var(--muted-color);
+  font-size: var(--ui-font-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.problem-list-view__action {
+  flex: none;
+  inline-size: auto;
+}
+
+.problem-list-view__action:enabled:not([aria-disabled="true"]),
+.problem-list-view__title,
+.problem-list-view__error summary {
+  cursor: pointer;
+}
+
+.problem-list-view__action:enabled:not([aria-disabled="true"]):hover,
+.problem-list-view__table tbody tr:hover {
+  background: var(--navigation-hover);
+}
+
+.problem-list-view .status-message {
+  margin-block-start: 0;
+}
+
+.problem-list-view__error {
+  display: grid;
+  gap: var(--space-sm);
+  overflow-wrap: anywhere;
+}
+
+.problem-list-view__error-actions {
+  flex-wrap: wrap;
+}
+
+.problem-list-view__error details {
+  color: var(--muted-color);
+  font-size: var(--ui-font-size-small);
+}
+
+.problem-list-view__error details p {
+  margin-block-start: 4px;
+}
+
+.problem-list-view__rows {
+  flex: 1;
+  min-block-size: 6rem;
+  --scrollbar-end-inset: 1px;
+}
+
+.problem-list-view__table {
+  inline-size: 100%;
+  border-spacing: 0;
+  text-align: start;
+}
+
+.problem-list-view__table :is(th, td) {
+  padding: 0 var(--space-sm);
+  border-block-end: 1px solid var(--workbench-border);
+  text-align: start;
+}
+
+.problem-list-view__table th {
+  position: sticky;
+  inset-block-start: 0;
+  padding-block: 6px;
+  background: var(--sidebar-background);
+  color: var(--muted-color);
+  font-weight: 600;
+}
+
+.problem-list-view__table td:first-child {
+  padding-inline: 0;
+}
+
+.problem-list-view__table :is(th, td):last-child {
+  inline-size: 1%;
+  padding-inline-end: var(--space-md);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.problem-list-view__title {
+  display: block;
+  inline-size: 100%;
+  padding: 6px var(--space-sm);
+  border: 0;
+  background: transparent;
+  color: var(--accent-color);
+  font: inherit;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.problem-list-view__title:hover {
+  text-decoration: underline;
+}

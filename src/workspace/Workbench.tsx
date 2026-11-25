@@ -1,6 +1,6 @@
 import { useCallback, useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useMessages, type MessageKey } from "../i18n";
+import { LocaleContext, useMessages, type MessageKey } from "../i18n";
 import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
 import { ScrollArea } from "../shared/ui/ScrollArea";
@@ -66,10 +66,13 @@ function revealTab(view: string) {
   if (tab && strip) revealTabInStrip(strip, tab);
 }
 
-function tabDetails(view: WorkspaceView, target: WorkspaceTarget, messages: ReturnType<typeof useMessages>) {
+function tabDetails(view: WorkspaceView, target: WorkspaceTarget, messages: ReturnType<typeof useMessages>,
+  locale: "en" | "zh-CN") {
   const variant = view.singleton ? undefined : view.variants?.find(({ params }) =>
     workspaceTabId({ id: view.id, params }) === workspaceTabId(target));
-  return { title: messages[variant?.title ?? view.title], icon: variant?.icon ?? view.icon };
+  const title = target.label?.[locale] ?? target.label?.en ?? target.label?.["zh-CN"]
+    ?? messages[variant?.title ?? view.title];
+  return { title, icon: variant?.icon ?? view.icon };
 }
 
 // Keep the mounted page and its scrollport together when moving between pane elements.
@@ -100,6 +103,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
   onOpenTabMenu: (anchor: TabMenuAnchor) => void;
 }) {
   const messages = useMessages();
+  const locale = useContext(LocaleContext);
   const { pane: group } = frame;
   const pane = group.id;
   const list = useRef<HTMLDivElement>(null);
@@ -218,8 +222,8 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
             const target = targets.get(id);
             const view = target && viewsById.get(target.id);
             if (!target || !view) return null;
-            const { title, icon } = tabDetails(view, target, messages);
-            const closeLabel = messages.closeView.replace("{title}", title);
+            const { title, icon } = tabDetails(view, target, messages, locale);
+            const closeLabel = messages.closeView.replace("{title}", () => title);
             const selected = group.active === id;
             const dropEdge = destination?.anchor === id && drag.draggedView !== id
               ? destination.after ? "after" : "before"
@@ -271,6 +275,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
 
 export function Workbench() {
   const messages = useMessages();
+  const locale = useContext(LocaleContext);
   const [layout, dispatch] = useReducer(workspaceReducer, initialLayout);
   const [tabMenu, setTabMenu] = useState<TabMenuAnchor | null>(null);
   const canvas = useRef<HTMLDivElement>(null);
@@ -368,6 +373,7 @@ export function Workbench() {
       )}
       {layout.root ? (
         <div ref={canvas} className="workbench-panes"
+          data-single-pane={layout.root.kind === "pane"}
           data-tab-dragging={drag.draggedView !== undefined}
           onPointerDownCapture={drag.onPointerDownCapture} onClickCapture={drag.onClickCapture}
           onPointerMove={drag.track} onPointerUp={drag.finish} onPointerCancel={drag.cancel}
@@ -392,7 +398,7 @@ export function Workbench() {
                   role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                   hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                   onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
-                  <Page {...target} title={tabDetails(view, target, messages).title} open={openTarget} />
+                  <Page {...target} title={tabDetails(view, target, messages, locale).title} open={openTarget} />
                 </ScrollArea>
               </PanePanelHost>
             );

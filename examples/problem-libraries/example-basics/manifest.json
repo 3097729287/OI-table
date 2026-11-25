@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "libraryId": "example-basics",
+  "authorId": "demo",
+  "authorName": { "zhCN": "示例作者", "en": "Example Author" },
+  "name": { "zhCN": "基础算法示例库", "en": "Basic Algorithms Example Library" },
+  "releaseVersion": 1,
+  "complete": true,
+  "archives": [
+    { "id": "algorithms", "name": { "zhCN": "基础算法", "en": "Basic Algorithms" } },
+    { "id": "sequences", "parentId": "algorithms", "name": { "zhCN": "序列", "en": "Sequences" } }
+  ],
+  "tags": [
+    { "id": "prefix-sums", "name": { "zhCN": "前缀和", "en": "Prefix Sums" } },
+    { "id": "scan", "name": { "zhCN": "线性扫描", "en": "Linear Scan" } }
+  ],
+  "problems": [
+    {
+      "sequence": 1,
+      "folder": "range-sums",
+      "rating": 900,
+      "archiveId": "sequences",
+      "title": { "zhCN": "区间求和", "en": "Range Sums" },
+      "tags": ["prefix-sums"],
+      "solutions": [
+        {
+          "id": "prefix-sums",
+          "title": { "zhCN": "前缀和", "en": "Prefix Sums" }
+        }
+      ]
+    },
+    {
+      "sequence": 2,
+      "folder": "parenthesis-depth",
+      "rating": 800,
+      "archiveId": "sequences",
+      "title": { "zhCN": "括号深度", "en": "Parenthesis Depth" },
+      "tags": ["scan"],
+      "solutions": [
+        {
+          "id": "counter",
+          "title": { "zhCN": "维护深度", "en": "Track the Depth" }
+        }
+      ]
+    }
+  ]
+}

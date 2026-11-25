@@ -1,0 +1,31 @@
+{
+  "formatVersion": 1,
+  "libraryId": "example-graphs",
+  "authorId": "demo",
+  "authorName": { "zhCN": "示例作者", "en": "Example Author" },
+  "name": { "zhCN": "图论示例库", "en": "Graph Theory Example Library" },
+  "releaseVersion": 7,
+  "complete": true,
+  "archives": [
+    { "id": "graphs", "name": { "zhCN": "图论", "en": "Graph Theory" } }
+  ],
+  "tags": [
+    { "id": "traversal", "name": { "zhCN": "图遍历", "en": "Graph Traversal" } }
+  ],
+  "problems": [
+    {
+      "sequence": 1,
+      "folder": "connected-components",
+      "rating": 1000,
+      "archiveId": "graphs",
+      "title": { "zhCN": "连通分量", "en": "Connected Components" },
+      "tags": ["traversal"],
+      "solutions": [
+        {
+          "id": "traversal",
+          "title": { "zhCN": "逐个遍历分量", "en": "Traverse Each Component" }
+        }
+      ]
+    }
+  ]
+}
