@@ -11,6 +11,10 @@ export default function EditorSection({ settings, saving, saveChanges }: Setting
   const followInterface = { value: "interface", label: messages.followInterface } as const;
   const fontOptions = [followInterface, ...presets];
   const sizeModeOptions = [followInterface, { value: "custom", label: messages.editorFontSizeCustom }] as const;
+  const problemLayoutOptions = [
+    { value: "single", label: messages.settingsProblemSingleColumn },
+    { value: "double", label: messages.settingsProblemDoubleColumn },
+  ] as const;
 
   return (
     <>
@@ -33,6 +37,14 @@ export default function EditorSection({ settings, saving, saveChanges }: Setting
           invalidMessage={messages.editorFontSizeInvalid} min={8} max={40}
           value={settings.editorFontSize} saveChanges={saveChanges} />
       )}
+      <div className="settings-row">
+        <label id="settings-problem-layout-label" htmlFor="settings-problem-layout">
+          {messages.settingsProblemDefaultLayout}
+        </label>
+        <Select id="settings-problem-layout" aria-labelledby="settings-problem-layout-label"
+          value={settings.problemDoubleColumn ? "double" : "single"} options={problemLayoutOptions} disabled={saving}
+          onValueChange={(layout) => void saveChanges({ problemDoubleColumn: layout === "double" })} />
+      </div>
     </>
   );
 }

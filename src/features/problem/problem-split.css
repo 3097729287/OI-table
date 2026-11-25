@@ -1,0 +1,36 @@
+.problem-split {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: clip;
+}
+
+.problem-split[data-split="true"] {
+  grid-template-columns: var(--problem-split-primary-width) var(--problem-split-separator-width) minmax(0, 1fr);
+}
+
+.problem-split__primary,
+.problem-split__secondary {
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.problem-split__separator {
+  position: relative;
+  color: var(--control-border);
+}
+
+.problem-split__separator::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(50% - 0.5px);
+  inline-size: 1px;
+  background: currentColor;
+  content: "";
+}
+
+.problem-split__separator:is(:hover, :focus-visible):not([aria-disabled="true"]) {
+  color: var(--accent-color);
+}
