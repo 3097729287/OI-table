@@ -1,0 +1,136 @@
+.markdown-viewer {
+  min-inline-size: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.markdown-viewer > * + *,
+.markdown-viewer :is(blockquote, li) > * + * {
+  margin-block-start: var(--space-sm);
+}
+
+.markdown-viewer * + :is(h1, h2, h3, h4, h5, h6) {
+  margin-block-start: var(--space-md);
+}
+
+.markdown-viewer :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.markdown-viewer :is(h1, h2) {
+  font-size: var(--ui-font-size-heading);
+}
+
+.markdown-viewer h3 {
+  font-size: 1.125em;
+}
+
+.markdown-viewer h4 {
+  font-size: 1em;
+}
+
+.markdown-viewer :is(h5, h6) {
+  color: var(--muted-color);
+  font-size: var(--ui-font-size-control);
+}
+
+.markdown-viewer :is(ul, ol) {
+  padding-inline-start: 1.6em;
+}
+
+.markdown-viewer li + li {
+  margin-block-start: 0.2em;
+}
+
+.markdown-viewer li > :is(ul, ol):first-child {
+  margin-block-start: 0.2em;
+}
+
+.markdown-viewer li.task-list-item {
+  list-style: none;
+}
+
+.markdown-viewer blockquote {
+  padding-inline-start: var(--space-sm);
+  border-inline-start: 3px solid var(--control-border);
+  color: var(--muted-color);
+}
+
+.markdown-viewer hr {
+  border: 0;
+  border-block-start: 1px solid var(--control-border);
+}
+
+.markdown-viewer__reference {
+  color: var(--muted-color);
+  text-decoration: underline dotted;
+  text-underline-offset: 0.15em;
+}
+
+.markdown-viewer code {
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+}
+
+.markdown-viewer :not(pre) > code {
+  padding: 0.1em 0.25em;
+  border-radius: 3px;
+  background: var(--sidebar-background);
+}
+
+.markdown-viewer__overflow {
+  max-inline-size: 100%;
+}
+
+.markdown-viewer__overflow:has(pre) {
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  background: var(--sidebar-background);
+}
+
+.markdown-viewer pre {
+  inline-size: max-content;
+  min-inline-size: 100%;
+  padding: var(--space-sm);
+  line-height: 1.5;
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
+.markdown-viewer table {
+  inline-size: max-content;
+  border-collapse: collapse;
+  font-size: var(--ui-font-size-control);
+}
+
+.markdown-viewer :is(th, td) {
+  max-inline-size: 32ch;
+  padding: 4px var(--space-sm);
+  border: 1px solid var(--control-border);
+  vertical-align: top;
+}
+
+.markdown-viewer th {
+  background: var(--sidebar-background);
+  font-weight: 600;
+}
+
+.markdown-viewer th:not([align]) {
+  text-align: start;
+}
+
+.markdown-viewer math {
+  font-size: 1em;
+}
+
+.markdown-viewer .katex:has(> math[display="block"]) {
+  display: block;
+  padding-block: 0.25em;
+}
+
+.markdown-viewer math[display="block"] {
+  inline-size: max-content;
+  margin-inline: auto;
+}

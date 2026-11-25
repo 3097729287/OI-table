@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { lazy, Suspense, useContext, useEffect, useState } from "react";
 import { getMessages, LocaleContext } from "../../i18n";
 import {
   getLibraryProblem, getLibraryRevision, localizedLibraryText, useLibraryRevision, type LibraryProblemDetail,
@@ -6,6 +6,8 @@ import {
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
 import "./problem-preview.css";
+
+const MarkdownViewer = lazy(() => import("../../shared/ui/MarkdownViewer"));
 
 export const workspaceView = {
   id: "problem",
@@ -58,7 +60,11 @@ export default function ProblemView({ params, title }: WorkspaceViewProps) {
       )}
       {problemId && problem === undefined && <StatusMessage state="loading">{messages.problemLoading}</StatusMessage>}
       {problem && (statement?.trim()
-        ? <div className="problem-preview__statement" data-selectable>{statement}</div>
+        ? <div className="problem-preview__statement">
+          <Suspense fallback={<StatusMessage state="loading">{messages.problemLoading}</StatusMessage>}>
+            <MarkdownViewer source={statement} />
+          </Suspense>
+        </div>
         : <StatusMessage state="empty">{messages.problemStatementEmpty}</StatusMessage>)}
     </section>
   );

@@ -1,13 +1,12 @@
 .problem-preview {
   max-inline-size: 90ch;
+  margin-inline: auto;
   padding-inline: min(var(--space-lg), 4%);
   overflow-wrap: anywhere;
 }
 
 .problem-preview__statement {
   margin-block-start: var(--space-md);
-  line-height: 1.6;
-  white-space: pre-wrap;
 }
 
 .problem-preview__retry {
