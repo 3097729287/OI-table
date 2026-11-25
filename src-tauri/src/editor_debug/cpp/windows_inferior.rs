@@ -3,13 +3,14 @@ use std::{
     path::{Path, PathBuf},
     process::Stdio,
     thread,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use super::super::{
-    hidden_command, ActiveDebug, DebugError, DebugPhase, DebugProcess, Result, CANCEL_POLL,
-    DEBUG_TIMEOUT,
+    hidden_command, ActiveDebug, DebugError, DebugPhase, DebugProcess, Result, DEBUG_TIMEOUT,
 };
+
+const READY_POLL: Duration = Duration::from_millis(5);
 
 pub(super) struct Inferior {
     process: DebugProcess,
@@ -49,7 +50,7 @@ impl Inferior {
                 let phase = DebugPhase::ProgramStart;
                 return Err(DebugError::timeout(phase, phase.timeout_message()));
             }
-            thread::sleep(CANCEL_POLL);
+            thread::sleep(READY_POLL);
         }
     }
 

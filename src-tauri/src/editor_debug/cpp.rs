@@ -40,15 +40,18 @@ impl Debugger {
             DebugError::new("tool_unavailable", "Install GDB and add it to PATH.")
         })?;
         let binary = format!("solution{}", std::env::consts::EXE_SUFFIX);
-        compile_cpp(&compiler, root, &binary, active)?;
         let mut command = hidden_command(&gdb);
         command
             .current_dir(root)
             .env("LC_ALL", "C")
             .env_remove("DEBUGINFOD_URLS")
-            .args(["--nx", "--quiet", "--interpreter=mi2", &binary]);
+            .args(["--nx", "--quiet", "--interpreter=mi2"]);
+        // Let GDB start while the compiler produces the executable. Load the
+        // symbols only after a successful compile.
+        let transport = Transport::spawn(command, root);
+        compile_cpp(&compiler, root, &binary, active)?;
         let mut debugger = Self {
-            transport: Transport::spawn(command, root)?,
+            transport: transport?,
             #[cfg(windows)]
             inferior: None,
             token: 0,
@@ -56,20 +59,25 @@ impl Debugger {
             variables: variables::VariableTable::default(),
             globals: None,
         };
-        let deadline = Instant::now() + DEBUG_TIMEOUT;
-        for setup in [
-            "-gdb-set pagination off",
-            "-gdb-set confirm off",
-            "-gdb-set print elements 20",
-            "-gdb-set print repeats 8",
-        ] {
-            debugger.command(setup, deadline, active)?;
-        }
-        // GDB builds without Python still expose native arrays and aggregate fields.
-        debugger.exchange("-enable-pretty-printing", deadline, active)?;
-        debugger.exchange("-gdb-set print characters 1024", deadline, active)?;
         #[cfg(windows)]
-        debugger.attach_owned_inferior(root, &binary, active)?;
+        {
+            // Windows can take time to start a freshly linked executable. The
+            // child waits before running any draft code while GDB loads symbols.
+            let inferior = std::thread::scope(|scope| {
+                let inferior =
+                    scope.spawn(|| windows_inferior::Inferior::start(root, &binary, active));
+                let configured = debugger.configure(&binary, active);
+                let inferior = inferior.join().expect("start C++ debug program");
+                configured?;
+                inferior
+            })?;
+            // Older MinGW GDB can stall when it launches the program itself.
+            let attach = format!("-target-attach {}", inferior.id());
+            debugger.inferior = Some(inferior);
+            debugger.execute(&attach, Instant::now() + DEBUG_TIMEOUT, active)?;
+        }
+        #[cfg(not(windows))]
+        debugger.configure(&binary, active)?;
         let deadline = Instant::now() + DEBUG_TIMEOUT;
         debugger.set_breakpoints(breakpoints, deadline, active)?;
         let at_entry = debugger.breakpoints.values().all(Option::is_none);
@@ -91,19 +99,24 @@ impl Debugger {
         Ok((debugger, location))
     }
 
-    #[cfg(windows)]
-    fn attach_owned_inferior(
-        &mut self,
-        root: &Path,
-        binary: &str,
-        active: &ActiveDebug,
-    ) -> Result<()> {
-        // Older MinGW GDB can stall when it launches the program itself. The
-        // owned child waits at its startup gate while GDB attaches and stops it.
-        let inferior = windows_inferior::Inferior::start(root, binary, active)?;
-        let command = format!("-target-attach {}", inferior.id());
-        self.inferior = Some(inferior);
-        self.execute(&command, Instant::now() + DEBUG_TIMEOUT, active)?;
+    fn configure(&mut self, binary: &str, active: &ActiveDebug) -> Result<()> {
+        let deadline = Instant::now() + DEBUG_TIMEOUT;
+        for setup in [
+            "-gdb-set pagination off",
+            "-gdb-set confirm off",
+            "-gdb-set print elements 20",
+            "-gdb-set print repeats 8",
+        ] {
+            self.command(setup, deadline, active)?;
+        }
+        // GDB builds without Python still expose native arrays and aggregate fields.
+        self.exchange("-enable-pretty-printing", deadline, active)?;
+        self.exchange("-gdb-set print characters 1024", deadline, active)?;
+        self.command(
+            &format!("-file-exec-and-symbols {binary}"),
+            deadline,
+            active,
+        )?;
         Ok(())
     }
 
