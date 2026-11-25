@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { useMessages, type MessageKey } from "../../i18n";
+import { debugTimeoutMessages } from "../../shared/debugDiagnostics";
 import { Icon } from "../../shared/Icon";
 import { isDebugActive, type DebugAction, type LocalDebug, type ProblemDebugLaunch } from "./localDebug";
 import { ProblemDebugVariables } from "./ProblemDebugVariables";
@@ -86,7 +87,7 @@ export function ProblemDebugPanel({ state, launch }: { state?: LocalDebug; launc
   );
 
   const { status, frames, variables, globalsReference, selectedFrame, inspecting, readingVariables, stopping,
-    error, errorDetail } = state;
+    error, errorDetail, errorPhase } = state;
   const paused = status === "paused";
   const active = isDebugActive(state);
   const canLoadVariables = paused && !inspecting && !stopping;
@@ -94,7 +95,7 @@ export function ProblemDebugPanel({ state, launch }: { state?: LocalDebug; launc
   const snapshotPending = status === "starting" || status === "running";
   const variableScope = `${state.sessionId}:${selectedFrame ?? 0}:${frames?.find(({ id }) => id === selectedFrame)?.name ?? ""}`;
   const errorKey = error && Object.hasOwn(errorLabels, error) ? errorLabels[error] : undefined;
-  const errorText = error && messages[errorKey ?? "problemDebugOperationFailed"];
+  const errorText = error && messages[errorPhase ? debugTimeoutMessages[errorPhase] : errorKey ?? "problemDebugOperationFailed"];
 
   return (
     <section className="problem-debug" aria-labelledby={titleId} data-status={status}>

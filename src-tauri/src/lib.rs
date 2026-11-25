@@ -5,6 +5,7 @@ mod editor_run;
 mod logging;
 mod problem_drafts;
 mod problem_library;
+mod run_debug_diagnostics;
 mod settings;
 mod storage;
 mod triggers;
@@ -55,6 +56,7 @@ pub fn run() {
             editor_debug::debug_inspect,
             editor_debug::debug_variables,
             editor_debug::debug_stop,
+            run_debug_diagnostics::check_run_debug_environment,
             problem_drafts::get_problem_draft,
             problem_drafts::save_problem_draft,
             triggers::get_trigger,

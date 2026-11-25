@@ -4,16 +4,20 @@ use crate::editor_run::{find_cpp, find_program};
 
 use super::{
     compile_cpp, hidden_command, ActiveDebug, DebugAction, DebugError, DebugFrame,
-    DebugFrameVariables, DebugLocation, DebugReason, DebugStatus, DebugVariable, Result, Transport,
-    DEBUG_TIMEOUT,
+    DebugFrameVariables, DebugLocation, DebugPhase, DebugReason, DebugStatus, DebugVariable,
+    Result, Transport, DEBUG_TIMEOUT,
 };
 
 mod globals;
 mod mi;
 mod variables;
+#[cfg(windows)]
+mod windows_inferior;
 
 pub(super) struct Debugger {
     transport: Transport,
+    #[cfg(windows)]
+    inferior: Option<windows_inferior::Inferior>,
     token: u32,
     breakpoints: BTreeMap<u32, Option<u32>>,
     variables: variables::VariableTable,
@@ -45,6 +49,8 @@ impl Debugger {
             .args(["--nx", "--quiet", "--interpreter=mi2", &binary]);
         let mut debugger = Self {
             transport: Transport::spawn(command, root)?,
+            #[cfg(windows)]
+            inferior: None,
             token: 0,
             breakpoints: BTreeMap::new(),
             variables: variables::VariableTable::default(),
@@ -62,14 +68,43 @@ impl Debugger {
         // GDB builds without Python still expose native arrays and aggregate fields.
         debugger.exchange("-enable-pretty-printing", deadline, active)?;
         debugger.exchange("-gdb-set print characters 1024", deadline, active)?;
+        #[cfg(windows)]
+        debugger.attach_owned_inferior(root, &binary, active)?;
+        let deadline = Instant::now() + DEBUG_TIMEOUT;
         debugger.set_breakpoints(breakpoints, deadline, active)?;
         let at_entry = debugger.breakpoints.values().all(Option::is_none);
         if at_entry {
             debugger.command("-break-insert -t main", deadline, active)?;
         }
-        let stopped = debugger.execute("-exec-run", deadline, active)?;
-        let location = debugger.location(stopped, at_entry, deadline, active)?;
+        #[cfg(windows)]
+        let launch = {
+            active.check_cancelled()?;
+            if let Some(inferior) = &debugger.inferior {
+                inferior.release()?;
+            }
+            "-exec-continue"
+        };
+        #[cfg(not(windows))]
+        let launch = "-exec-run";
+        let stopped = debugger.execute(launch, Instant::now() + DEBUG_TIMEOUT, active)?;
+        let location = debugger.location(stopped, at_entry, active)?;
         Ok((debugger, location))
+    }
+
+    #[cfg(windows)]
+    fn attach_owned_inferior(
+        &mut self,
+        root: &Path,
+        binary: &str,
+        active: &ActiveDebug,
+    ) -> Result<()> {
+        // Older MinGW GDB can stall when it launches the program itself. The
+        // owned child waits at its startup gate while GDB attaches and stops it.
+        let inferior = windows_inferior::Inferior::start(root, binary, active)?;
+        let command = format!("-target-attach {}", inferior.id());
+        self.inferior = Some(inferior);
+        self.execute(&command, Instant::now() + DEBUG_TIMEOUT, active)?;
+        Ok(())
     }
 
     pub(super) fn step(
@@ -87,7 +122,8 @@ impl Debugger {
             DebugAction::StepInto => "-exec-step",
             DebugAction::StepOut => "-exec-finish",
         };
-        let mut stopped = self.execute(command, deadline, active)?;
+        let execution_deadline = Instant::now() + DEBUG_TIMEOUT;
+        let mut stopped = self.execute(command, execution_deadline, active)?;
         // A single step can enter the C++ runtime or a standard library header.
         // Step back to the nearest caller in the draft before exposing the next stop.
         while matches!(
@@ -95,15 +131,17 @@ impl Debugger {
             Some("end-stepping-range" | "function-finished")
         ) && draft_line(stopped.get("frame")).is_none()
         {
-            let frames = self.frames(deadline, active)?;
+            let frames = self
+                .frames(execution_deadline, active)
+                .map_err(|error| error.with_phase(DebugPhase::Inspection))?;
             let command = if frames.is_empty() {
                 "-exec-continue"
             } else {
                 "-exec-finish"
             };
-            stopped = self.execute(command, deadline, active)?;
+            stopped = self.execute(command, execution_deadline, active)?;
         }
-        self.location(stopped, false, deadline, active)
+        self.location(stopped, false, active)
     }
 
     pub(super) fn inspect(
@@ -112,6 +150,7 @@ impl Debugger {
         active: &ActiveDebug,
     ) -> Result<DebugFrameVariables> {
         self.variables(frame, Instant::now() + DEBUG_TIMEOUT, active)
+            .map_err(|error| error.with_phase(DebugPhase::Inspection))
     }
 
     pub(super) fn children(
@@ -120,6 +159,7 @@ impl Debugger {
         active: &ActiveDebug,
     ) -> Result<Vec<DebugVariable>> {
         self.variable_children(reference, Instant::now() + DEBUG_TIMEOUT, active)
+            .map_err(|error| error.with_phase(DebugPhase::Inspection))
     }
 
     fn set_breakpoints(
@@ -170,7 +210,6 @@ impl Debugger {
         &mut self,
         stopped: mi::Value,
         entry: bool,
-        deadline: Instant,
         active: &ActiveDebug,
     ) -> Result<DebugLocation> {
         let reason = match stopped.string("reason") {
@@ -192,11 +231,16 @@ impl Debugger {
             Some("signal-received") => DebugReason::Signal,
             _ => DebugReason::Step,
         };
-        let frames = self.frames(deadline, active)?;
-        let scope = match frames.first() {
-            Some(frame) => self.variables(frame.id, deadline, active)?,
-            None => DebugFrameVariables::default(),
-        };
+        let deadline = Instant::now() + DEBUG_TIMEOUT;
+        let (frames, scope) = (|| {
+            let frames = self.frames(deadline, active)?;
+            let scope = match frames.first() {
+                Some(frame) => self.variables(frame.id, deadline, active)?,
+                None => DebugFrameVariables::default(),
+            };
+            Ok::<_, DebugError>((frames, scope))
+        })()
+        .map_err(|error| error.with_phase(DebugPhase::Inspection))?;
         Ok(DebugLocation {
             status: DebugStatus::Paused,
             reason,
@@ -243,13 +287,16 @@ impl Debugger {
         deadline: Instant,
         active: &ActiveDebug,
     ) -> Result<mi::Value> {
-        self.command(command, deadline, active)?;
-        loop {
-            let line = self.transport.receive(deadline, active)?;
-            if let Some(fields) = line.trim_end().strip_prefix("*stopped") {
-                return mi::fields(fields);
-            }
-        }
+        let token = self.send(command, active)?;
+        wait_for_stop(&token, |phase| {
+            let phase = if command.starts_with("-target-attach ") {
+                DebugPhase::DebuggerReply
+            } else {
+                phase
+            };
+            self.transport.receive(deadline, active, phase)
+        })
+        .map_err(|error| command_error(command, error))
     }
 
     fn command(
@@ -258,7 +305,10 @@ impl Debugger {
         deadline: Instant,
         active: &ActiveDebug,
     ) -> Result<mi::Value> {
-        let result = self.exchange(command, deadline, active)?;
+        Self::accept(self.exchange(command, deadline, active)?)
+    }
+
+    fn accept(result: mi::Record) -> Result<mi::Value> {
         match result.class.as_str() {
             "done" | "running" => Ok(result.values),
             _ => Err(DebugError::failed(
@@ -286,12 +336,12 @@ impl Debugger {
         active: &ActiveDebug,
         mut on_console: impl FnMut(&str),
     ) -> Result<mi::Record> {
-        self.token += 1;
-        self.transport
-            .send(&format!("{}{command}", self.token), active)?;
-        let prefix = format!("{}^", self.token);
+        let prefix = format!("{}^", self.send(command, active)?);
         loop {
-            let line = self.transport.receive(deadline, active)?;
+            let line = self
+                .transport
+                .receive(deadline, active, DebugPhase::DebuggerReply)
+                .map_err(|error| command_error(command, error))?;
             if let Some(record) = line.trim_end().strip_prefix(&prefix) {
                 return mi::record(record);
             }
@@ -300,6 +350,50 @@ impl Debugger {
                     on_console(&message);
                 }
             }
+        }
+    }
+
+    fn send(&mut self, command: &str, active: &ActiveDebug) -> Result<String> {
+        self.token += 1;
+        let token = self.token.to_string();
+        self.transport.send(&format!("{token}{command}"), active)?;
+        Ok(token)
+    }
+}
+
+fn command_error(command: &str, mut error: DebugError) -> DebugError {
+    if error.code == "debug_timeout" {
+        let operation = if command.starts_with("-gdb-set ") {
+            Some(command)
+        } else {
+            command.split_ascii_whitespace().next()
+        };
+        if let Some(operation) = operation {
+            error.message = format!("{} (GDB command {operation})", error.message);
+        }
+    }
+    error
+}
+
+fn wait_for_stop(
+    token: &str,
+    mut receive: impl FnMut(DebugPhase) -> Result<String>,
+) -> Result<mi::Value> {
+    let reply = format!("{token}^");
+    let mut phase = DebugPhase::DebuggerReply;
+    loop {
+        let line = receive(phase)?;
+        let line = line.trim_end();
+        // A stop can be delivered before GDB's command result. Keep watching
+        // for it from the moment the execution command is written.
+        if let Some(fields) = mi::exec_fields(line, token, "stopped") {
+            return mi::fields(fields);
+        }
+        if let Some(record) = line.strip_prefix(&reply) {
+            Debugger::accept(mi::record(record)?)?;
+            phase = DebugPhase::ProgramStop;
+        } else if mi::exec_fields(line, token, "running").is_some() {
+            phase = DebugPhase::ProgramStop;
         }
     }
 }
@@ -315,4 +409,46 @@ fn draft_line(frame: Option<&mi::Value>) -> Option<u32> {
 
 fn is_draft_file(filename: &str) -> bool {
     filename.rsplit(['/', '\\']).next() == Some("solution.cpp")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn execution_keeps_an_early_stop_before_the_command_reply() {
+        let mut events = [
+            "23*stopped,reason=\"breakpoint-hit\",frame={line=\"7\"}",
+            "23^running",
+        ]
+        .into_iter();
+        let stopped = wait_for_stop("23", |phase| {
+            assert!(matches!(phase, DebugPhase::DebuggerReply));
+            Ok(events.next().expect("both MI events were consumed").into())
+        })
+        .unwrap();
+        assert_eq!(stopped.string("reason"), Some("breakpoint-hit"));
+        assert_eq!(
+            stopped.get("frame").and_then(|frame| frame.number("line")),
+            Some(7)
+        );
+        assert_eq!(events.next(), Some("23^running"));
+    }
+
+    #[test]
+    fn execution_waits_for_the_stop_after_the_command_reply() {
+        let mut events = [
+            ("23^running", false),
+            ("24*stopped,reason=\"breakpoint-hit\"", true),
+            ("*stopped,reason=\"exited-normally\"", true),
+        ]
+        .into_iter();
+        let stopped = wait_for_stop("23", |phase| {
+            let (event, program_running) = events.next().expect("expected another MI event");
+            assert_eq!(matches!(phase, DebugPhase::ProgramStop), program_running);
+            Ok(event.into())
+        })
+        .unwrap();
+        assert_eq!(stopped.string("reason"), Some("exited-normally"));
+    }
 }

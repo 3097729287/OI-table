@@ -74,6 +74,39 @@ pub(super) fn console_text(input: &str) -> Option<String> {
     }
 }
 
+pub(super) fn exec_fields<'a>(input: &'a str, token: &str, class: &str) -> Option<&'a str> {
+    let record = input
+        .strip_prefix(token)
+        .unwrap_or(input)
+        .strip_prefix('*')?;
+    let fields = record.strip_prefix(class)?;
+    (fields.is_empty() || fields.starts_with(',')).then_some(fields)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::exec_fields;
+
+    #[test]
+    fn accepts_untagged_and_matching_token_execution_events() {
+        let fields = ",reason=\"breakpoint-hit\"";
+        assert_eq!(
+            exec_fields(&format!("*stopped{fields}"), "12", "stopped"),
+            Some(fields)
+        );
+        assert_eq!(
+            exec_fields(&format!("12*stopped{fields}"), "12", "stopped"),
+            Some(fields)
+        );
+        assert_eq!(
+            exec_fields(&format!("13*stopped{fields}"), "12", "stopped"),
+            None
+        );
+        assert_eq!(exec_fields("*stopped-extra", "12", "stopped"), None);
+        assert_eq!(exec_fields("12^running", "12", "running"), None);
+    }
+}
+
 struct Parser<'a> {
     bytes: &'a [u8],
     offset: usize,

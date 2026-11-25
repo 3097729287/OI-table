@@ -29,10 +29,36 @@ const CANCEL_POLL: Duration = Duration::from_millis(50);
 
 type Result<T> = std::result::Result<T, DebugError>;
 
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum DebugPhase {
+    Compile,
+    ProgramStart,
+    DebuggerReply,
+    ProgramStop,
+    Inspection,
+}
+
+impl DebugPhase {
+    fn timeout_message(self) -> &'static str {
+        match self {
+            Self::Compile => "Compiling the C++ draft exceeded its time limit.",
+            Self::ProgramStart => "The debug program did not finish starting in time.",
+            Self::DebuggerReply => "The debugger did not respond in time.",
+            Self::ProgramStop => {
+                "The program did not reach a breakpoint or exit within the time limit."
+            }
+            Self::Inspection => "Reading the call stack or variables exceeded its time limit.",
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub(crate) struct DebugError {
-    code: &'static str,
-    message: String,
+    pub(crate) code: &'static str,
+    pub(crate) message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) phase: Option<DebugPhase>,
 }
 
 impl DebugError {
@@ -40,7 +66,22 @@ impl DebugError {
         Self {
             code,
             message: message.into(),
+            phase: None,
         }
+    }
+
+    fn timeout(phase: DebugPhase, message: impl Into<String>) -> Self {
+        Self {
+            phase: Some(phase),
+            ..Self::new("debug_timeout", message)
+        }
+    }
+
+    fn with_phase(mut self, phase: DebugPhase) -> Self {
+        if self.code == "debug_timeout" {
+            self.phase = Some(phase);
+        }
+        self
     }
 
     fn failed(message: impl Into<String>) -> Self {
@@ -190,12 +231,29 @@ pub(crate) struct DebugSnapshot {
     stderr: String,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct EditorDebugState {
     active: Arc<Mutex<Option<Arc<ActiveDebug>>>>,
 }
 
 impl EditorDebugState {
+    fn reserve(&self, id: u64) -> Result<Arc<ActiveDebug>> {
+        let mut slot = self
+            .active
+            .lock()
+            .map_err(|_| DebugError::failed("The debugger state is unavailable."))?;
+        if slot.is_some() {
+            return Err(DebugError::busy());
+        }
+        let active = Arc::new(ActiveDebug {
+            id,
+            cancelled: AtomicBool::new(false),
+            session: Mutex::new(None),
+        });
+        *slot = Some(Arc::clone(&active));
+        Ok(active)
+    }
+
     pub(crate) fn cancel_all(&self) {
         let detached = self.active.lock().ok().and_then(|mut slot| slot.take());
         if let Some(active) = detached {
@@ -278,20 +336,7 @@ pub(crate) async fn debug_start(
     }
     normalize_breakpoints(&mut request.breakpoints)?;
     let slot = Arc::clone(&state.active);
-    let active = Arc::new(ActiveDebug {
-        id: request.session_id,
-        cancelled: AtomicBool::new(false),
-        session: Mutex::new(None),
-    });
-    {
-        let mut slot = slot
-            .lock()
-            .map_err(|_| DebugError::failed("The debugger state is unavailable."))?;
-        if slot.is_some() {
-            return Err(DebugError::busy());
-        }
-        slot.replace(Arc::clone(&active));
-    }
+    let active = state.reserve(request.session_id)?;
 
     tauri::async_runtime::spawn_blocking(move || {
         let result = (|| {
@@ -310,6 +355,69 @@ pub(crate) async fn debug_start(
     })
     .await
     .map_err(|error| DebugError::failed(error.to_string()))?
+}
+
+pub(crate) fn verify_debug_fixture(
+    state: &EditorDebugState,
+    language: EditorLanguage,
+    source: &str,
+    input: &str,
+    breakpoint: u32,
+    expected: &str,
+) -> Result<()> {
+    // Editor sessions use positive IDs. This reservation keeps diagnostics
+    // from starting a second debugger while an editor owns the active slot.
+    let active = state.reserve(0)?;
+    let result = (|| {
+        let _running = active.lock_session()?;
+        let (mut session, paused) = DebugSession::start(
+            DebugStartRequest {
+                session_id: active.id,
+                language,
+                source: source.into(),
+                stdin: input.into(),
+                breakpoints: vec![breakpoint],
+            },
+            &active,
+        )?;
+        if paused.location.status == DebugStatus::Finished {
+            return Err(DebugError::failed(
+                "The debugger sample exited before reaching the expected breakpoint.",
+            ));
+        }
+        if paused.location.line != Some(breakpoint)
+            || !matches!(paused.location.reason, DebugReason::Breakpoint)
+            || paused.location.frames.len() < 2
+            || !paused
+                .location
+                .scope
+                .variables
+                .iter()
+                .any(|variable| variable.name == "result" && variable.value == expected)
+        {
+            return Err(DebugError::failed(
+                "The debugger did not stop at the expected breakpoint with the sample variable and call stack.",
+            ));
+        }
+        let done = session.step(
+            &DebugStepRequest {
+                session_id: active.id,
+                action: DebugAction::Continue,
+                breakpoints: vec![],
+            },
+            &active,
+        )?;
+        if !matches!(done.location.reason, DebugReason::Exited) || done.stdout.trim() != expected {
+            return Err(DebugError::failed(if done.stderr.trim().is_empty() {
+                "The debugger sample did not finish with the expected output.".into()
+            } else {
+                done.stderr
+            }));
+        }
+        Ok(())
+    })();
+    cleanup(&state.active, &active);
+    result
 }
 
 #[tauri::command]
@@ -591,15 +699,17 @@ impl Transport {
         Ok(())
     }
 
-    fn receive(&self, deadline: Instant, active: &ActiveDebug) -> Result<String> {
+    fn receive(
+        &self,
+        deadline: Instant,
+        active: &ActiveDebug,
+        phase: DebugPhase,
+    ) -> Result<String> {
         loop {
             active.check_cancelled()?;
             check_output_size(&self.directory)?;
             if Instant::now() >= deadline {
-                return Err(DebugError::new(
-                    "debug_timeout",
-                    "The debug operation exceeded its time limit.",
-                ));
+                return Err(DebugError::timeout(phase, phase.timeout_message()));
             }
             match self.output.recv_timeout(CANCEL_POLL) {
                 Ok(result) => {
@@ -674,9 +784,9 @@ fn compile_cpp(compiler: &Path, root: &Path, binary: &str, active: &ActiveDebug)
             ));
         }
         if Instant::now() >= deadline {
-            return Err(DebugError::new(
-                "debug_timeout",
-                "Compiling the C++ draft exceeded its time limit.",
+            return Err(DebugError::timeout(
+                DebugPhase::Compile,
+                DebugPhase::Compile.timeout_message(),
             ));
         }
         thread::sleep(CANCEL_POLL);
@@ -690,6 +800,15 @@ mod tests {
     use super::*;
 
     static GDB_TEST: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn diagnostic_fixture_does_not_replace_an_editor_debug_session() {
+        let state = EditorDebugState::default();
+        let original = state.reserve(1).unwrap();
+        let result = verify_debug_fixture(&state, EditorLanguage::Python, "", "", 1, "42");
+        assert_eq!(result.unwrap_err().code, "debug_busy");
+        assert!(Arc::ptr_eq(&get_active(&state, 1).unwrap(), &original));
+    }
 
     fn active() -> ActiveDebug {
         ActiveDebug {

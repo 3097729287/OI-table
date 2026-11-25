@@ -7,7 +7,7 @@ use crate::editor_run::find_python;
 
 use super::{
     hidden_command, ActiveDebug, DebugAction, DebugError, DebugFrameVariables, DebugLocation,
-    DebugVariable, Result, Transport, DEBUG_TIMEOUT,
+    DebugPhase, DebugVariable, Result, Transport, DEBUG_TIMEOUT,
 };
 
 pub(super) struct Debugger(Transport);
@@ -27,7 +27,11 @@ impl Debugger {
             .current_dir(root)
             .args(["-I", "-B", "-u", "-X", "utf8", "debugger.py"]);
         let mut debugger = Self(Transport::spawn(command, root)?);
-        let location = debugger.request(json!({ "breakpoints": breakpoints }), active)?;
+        let location = debugger.request(
+            json!({ "breakpoints": breakpoints }),
+            active,
+            DebugPhase::ProgramStop,
+        )?;
         Ok((debugger, location))
     }
 
@@ -40,6 +44,7 @@ impl Debugger {
         self.request(
             json!({ "action": action, "breakpoints": breakpoints }),
             active,
+            DebugPhase::ProgramStop,
         )
     }
 
@@ -48,7 +53,7 @@ impl Debugger {
         frame: u32,
         active: &ActiveDebug,
     ) -> Result<DebugFrameVariables> {
-        self.request(json!({ "frame": frame }), active)
+        self.request(json!({ "frame": frame }), active, DebugPhase::Inspection)
     }
 
     pub(super) fn children(
@@ -56,12 +61,23 @@ impl Debugger {
         reference: u32,
         active: &ActiveDebug,
     ) -> Result<Vec<DebugVariable>> {
-        self.request(json!({ "reference": reference }), active)
+        self.request(
+            json!({ "reference": reference }),
+            active,
+            DebugPhase::Inspection,
+        )
     }
 
-    fn request<T: DeserializeOwned>(&mut self, message: Value, active: &ActiveDebug) -> Result<T> {
+    fn request<T: DeserializeOwned>(
+        &mut self,
+        message: Value,
+        active: &ActiveDebug,
+        phase: DebugPhase,
+    ) -> Result<T> {
         self.0.send(&message.to_string(), active)?;
-        let response = self.0.receive(Instant::now() + DEBUG_TIMEOUT, active)?;
+        let response = self
+            .0
+            .receive(Instant::now() + DEBUG_TIMEOUT, active, phase)?;
         let json: Value = serde_json::from_str(&response)
             .map_err(|error| DebugError::failed(error.to_string()))?;
         if let Some(message) = json.get("compileError").and_then(Value::as_str) {

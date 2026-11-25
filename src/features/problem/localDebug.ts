@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createContext, useCallback, useEffect, useRef, useState } from "react";
+import { debugTimeoutMessages, type DebugTimeoutPhase } from "../../shared/debugDiagnostics";
 import type { CodeLanguage } from "../../shared/ui/codeLanguages";
 
 export type DebugAction = "continue" | "stepOver" | "stepInto" | "stepOut";
@@ -48,6 +49,7 @@ interface DebugSession {
   selectedFrame?: number;
   error?: string;
   errorDetail?: string;
+  errorPhase?: DebugTimeoutPhase;
   stdout?: string;
   stderr?: string;
   inspecting?: boolean;
@@ -91,14 +93,16 @@ export function isDebugActive(session?: DebugSession) {
   return session !== undefined && session.status !== "finished" && session.status !== "failed";
 }
 
-function debugError(error: unknown): Pick<DebugSession, "error" | "errorDetail"> {
+function debugError(error: unknown): Pick<DebugSession, "error" | "errorDetail" | "errorPhase"> {
   if (error && typeof error === "object" && "code" in error && typeof error.code === "string") {
     return {
       error: error.code,
       errorDetail: "message" in error && typeof error.message === "string" ? error.message : undefined,
+      errorPhase: "phase" in error && typeof error.phase === "string" && Object.hasOwn(debugTimeoutMessages, error.phase)
+        ? error.phase as DebugTimeoutPhase : undefined,
     };
   }
-  return { error: "debug_failed", errorDetail: typeof error === "string" ? error : undefined };
+  return { error: "debug_failed", errorDetail: typeof error === "string" ? error : undefined, errorPhase: undefined };
 }
 
 let nextSessionId = Date.now();
@@ -204,7 +208,7 @@ export function useLocalDebug(onStart: () => void, onReveal: (problemId: string)
     }
     if (current.status !== "paused" || current.inspecting || current.readingVariables || current.stopping) return;
     const { sessionId } = current;
-    replace({ ...current, status: "running", line: null, error: undefined, errorDetail: undefined });
+    replace({ ...current, status: "running", line: null, error: undefined, errorDetail: undefined, errorPhase: undefined });
     void runCommand(sessionId, () => invoke<DebugSnapshot>("debug_step", {
       request: { sessionId, action, breakpoints: breakpoints.current },
     }));
@@ -227,7 +231,7 @@ export function useLocalDebug(onStart: () => void, onReveal: (problemId: string)
       return;
     }
     const { sessionId } = current;
-    replace({ ...current, inspecting: true, error: undefined, errorDetail: undefined });
+    replace({ ...current, inspecting: true, error: undefined, errorDetail: undefined, errorPhase: undefined });
     try {
       const { variables, globalsReference } = await invoke<DebugFrameVariables>("debug_inspect", { request: { sessionId, frameId } });
       const pending = active.current;
