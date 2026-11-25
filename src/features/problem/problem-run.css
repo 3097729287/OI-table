@@ -1,0 +1,51 @@
+.problem-run__results {
+  block-size: 100%;
+}
+
+.problem-run__results-body {
+  padding: var(--space-sm) var(--problem-detail-gutter);
+  font-size: var(--ui-font-size-control);
+  overflow-wrap: anywhere;
+}
+
+.problem-run__summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px var(--space-sm);
+  color: var(--muted-color);
+}
+
+.problem-run__summary strong {
+  color: var(--error-color);
+}
+
+.problem-run__summary strong[data-status="success"] {
+  color: var(--accent-color);
+}
+
+.problem-run__stream,
+.problem-run__empty-output {
+  margin-block-start: var(--space-sm);
+}
+
+.problem-run__stream h2 {
+  margin-block-end: 4px;
+  color: var(--muted-color);
+  font: inherit;
+  font-weight: 600;
+}
+
+.problem-run__stream pre {
+  min-inline-size: 0;
+  padding: var(--space-sm);
+  border-radius: 4px;
+  background: var(--sidebar-background);
+  color: var(--text-color);
+  font: var(--editor-font-size)/1.5 var(--editor-font-family);
+  overflow-wrap: normal;
+}
+
+.problem-run__empty-output {
+  color: var(--muted-color);
+}

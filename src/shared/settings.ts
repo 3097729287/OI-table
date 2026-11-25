@@ -18,6 +18,7 @@ export interface AppSettings {
   editorFont: FontPreset | "interface";
   editorFontSizeMode: "custom" | "interface";
   editorFontSize: number;
+  problemDoubleColumn: boolean;
   logMaxSizeMib: number;
 }
 
@@ -69,6 +70,7 @@ async function initializeSettings() {
         editorFont: "monospace",
         editorFontSizeMode: "custom",
         editorFontSize: 13,
+        problemDoubleColumn: false,
         logMaxSizeMib: 5,
       },
       loadFailed: false,

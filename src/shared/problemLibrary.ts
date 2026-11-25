@@ -93,6 +93,19 @@ export interface LibraryProblemPage {
   nextCursor: string | null;
 }
 
+export interface ProblemSubmission {
+  id: string;
+  language: string;
+  createdAt: number;
+  status: string;
+  contentVersion: number;
+}
+
+export interface ProblemSubmissionPage {
+  items: ProblemSubmission[];
+  nextCursor: string | null;
+}
+
 export interface LibraryArchive {
   id: string;
   parentId: string | null;
@@ -136,6 +149,10 @@ export function listLibraryProblems(query: LibraryProblemQuery = {}) {
 
 export function getLibraryProblem(id: string, contentVersion?: number) {
   return invoke<LibraryProblemDetail>("get_library_problem", { id, contentVersion });
+}
+
+export function listProblemSubmissions(problemId: string, after?: string) {
+  return invoke<ProblemSubmissionPage>("list_problem_submissions", { problemId, after });
 }
 
 export function listLibraryArchiveChildren(libraryId: string, parentId?: string) {

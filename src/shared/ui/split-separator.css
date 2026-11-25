@@ -1,0 +1,15 @@
+.split-separator {
+  touch-action: none;
+}
+
+.split-separator[aria-orientation="vertical"]:not([aria-disabled="true"]) {
+  cursor: ew-resize;
+}
+
+.split-separator[aria-orientation="horizontal"]:not([aria-disabled="true"]) {
+  cursor: ns-resize;
+}
+
+.split-separator:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--split-separator-focus, var(--accent-color));
+}

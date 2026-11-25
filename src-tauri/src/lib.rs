@@ -1,4 +1,6 @@
+mod editor_run;
 mod logging;
+mod problem_drafts;
 mod problem_library;
 mod settings;
 mod storage;
@@ -18,6 +20,7 @@ pub fn run() {
     builder
         .setup(|app| {
             storage::setup(app)?;
+            problem_drafts::setup(app)?;
             let log_limit = settings::startup_log_limit(app);
             if let Err(error) = logging::setup(
                 app,
@@ -42,6 +45,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             settings::get_settings,
             settings::update_settings,
+            editor_run::run_editor_code,
+            problem_drafts::get_problem_draft,
+            problem_drafts::save_problem_draft,
             triggers::get_trigger,
             triggers::increment_trigger,
             problem_library::pick_problem_library_source,
@@ -51,6 +57,7 @@ pub fn run() {
             problem_library::uninstall_problem_library,
             problem_library::list_library_problems,
             problem_library::get_library_problem,
+            problem_library::list_problem_submissions,
             problem_library::list_library_archive_children,
             problem_library::list_library_tag_groups,
             windowing::open_window,

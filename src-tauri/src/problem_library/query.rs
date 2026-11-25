@@ -41,6 +41,23 @@ pub(crate) struct ProblemPage {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct SubmissionSummary {
+    id: String,
+    language: String,
+    created_at: i64,
+    status: String,
+    content_version: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SubmissionPage {
+    items: Vec<SubmissionSummary>,
+    next_cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ProblemDetail {
     #[serde(flatten)]
     summary: ProblemSummary,
@@ -165,6 +182,58 @@ pub(super) fn list_problems(connection: &Connection, query: ProblemQuery) -> Res
     items.truncate(PAGE_SIZE);
     let next_cursor = has_more.then(|| items[PAGE_SIZE - 1].id.clone());
     Ok(ProblemPage { items, next_cursor })
+}
+
+pub(super) fn list_problem_submissions(
+    connection: &Connection,
+    problem_id: &str,
+    after: Option<&str>,
+) -> Result<SubmissionPage> {
+    let read = connection.unchecked_transaction()?;
+    let before = if let Some(after) = after {
+        let created_at: i64 = read
+            .query_row(
+                "SELECT created_at FROM submissions WHERE id = ?1 AND problem_id = ?2",
+                params![after, problem_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| {
+                LibraryError::new("invalid_query", "Invalid submission history cursor")
+            })?;
+        Some(created_at)
+    } else {
+        None
+    };
+    let mut statement = read.prepare(
+        "SELECT id, language, created_at, status, content_version
+         FROM submissions
+         WHERE problem_id = ?1
+           AND (?2 IS NULL OR created_at < ?3 OR (created_at = ?3 AND id > ?2))
+         ORDER BY created_at DESC, id
+         LIMIT ?4",
+    )?;
+    let mut items = statement
+        .query_map(
+            params![problem_id, after, before, (PAGE_SIZE + 1) as i64],
+            |row| {
+                Ok(SubmissionSummary {
+                    id: row.get(0)?,
+                    language: row.get(1)?,
+                    created_at: row.get(2)?,
+                    status: row.get(3)?,
+                    content_version: row.get(4)?,
+                })
+            },
+        )?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    read.commit()?;
+
+    let has_more = items.len() > PAGE_SIZE;
+    items.truncate(PAGE_SIZE);
+    let next_cursor = has_more.then(|| items[PAGE_SIZE - 1].id.clone());
+    Ok(SubmissionPage { items, next_cursor })
 }
 
 pub(super) fn get_problem(

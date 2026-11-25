@@ -9,6 +9,7 @@ const SETTINGS_FILE: &str = "settings.json";
 const SETTINGS_CHANGED: &str = "oi-table:settings-changed";
 const THEME_KEY: &str = "theme";
 const LOG_MAX_SIZE_KEY: &str = "logMaxSizeMib";
+const PROBLEM_DOUBLE_COLUMN_KEY: &str = "problemDoubleColumn";
 const FONT_PRESETS: &[&str] = &["system", "yahei", "serif", "monospace"];
 pub const DEFAULT_LOG_MAX_SIZE_MIB: u32 = 5;
 
@@ -23,6 +24,9 @@ enum Rule {
         default: u32,
         min: u64,
         max: u64,
+    },
+    Boolean {
+        default: bool,
     },
 }
 
@@ -78,6 +82,7 @@ const RULES: &[(&str, Rule)] = &[
             alternatives: &[&["interface"]],
         },
     ),
+    (PROBLEM_DOUBLE_COLUMN_KEY, Rule::Boolean { default: false }),
     (
         LOG_MAX_SIZE_KEY,
         Rule::Integer {
@@ -107,6 +112,10 @@ fn normalize(mut settings: Settings) -> Settings {
                     .is_some_and(|value| (*min..=*max).contains(&value));
                 (!valid).then(|| Value::from(*default))
             }
+            Rule::Boolean { default } => current
+                .and_then(Value::as_bool)
+                .is_none()
+                .then(|| Value::from(*default)),
         };
         if let Some(fallback) = fallback {
             settings.insert((*key).to_owned(), fallback);
@@ -231,6 +240,7 @@ mod tests {
                 "uiLanguage": "zh-CN",
                 "uiFont": "monospace",
                 "editorFont": "monospace",
+                "problemDoubleColumn": true,
                 "editorPrefs": { "wordWrap": true, "extra": null },
             }))?,
             |log_limit| assert_eq!(log_limit, None),
@@ -248,6 +258,7 @@ mod tests {
         assert_eq!(settings["uiFont"], "monospace");
         assert_eq!(settings["editorFont"], "monospace");
         assert_eq!(settings["uiFontSize"], 18);
+        assert_eq!(settings[PROBLEM_DOUBLE_COLUMN_KEY], true);
         assert_eq!(
             settings["editorPrefs"],
             json!({ "wordWrap": true, "extra": null })
@@ -271,6 +282,7 @@ mod tests {
         assert_eq!(loaded["editorFont"], "monospace");
         assert_eq!(loaded["editorFontSize"], 13);
         assert_eq!(loaded["editorFontSizeMode"], "custom");
+        assert_eq!(loaded[PROBLEM_DOUBLE_COLUMN_KEY], false);
         assert_eq!(log_max_size(&loaded), DEFAULT_LOG_MAX_SIZE_MIB);
 
         save_settings(
@@ -298,6 +310,7 @@ mod tests {
                 "editorFont": "invalid-preset",
                 "editorFontSize": 41,
                 "editorFontSizeMode": false,
+                "problemDoubleColumn": "true",
                 "logMaxSizeMib": "12",
             }))?,
             |log_limit| assert_eq!(log_limit, Some(DEFAULT_LOG_MAX_SIZE_MIB)),
@@ -311,6 +324,7 @@ mod tests {
         assert_eq!(saved["editorFont"], "monospace");
         assert_eq!(saved["editorFontSize"], 13);
         assert_eq!(saved["editorFontSizeMode"], "custom");
+        assert_eq!(saved[PROBLEM_DOUBLE_COLUMN_KEY], false);
         assert_eq!(saved[LOG_MAX_SIZE_KEY], DEFAULT_LOG_MAX_SIZE_MIB);
         Ok(())
     }

@@ -1,13 +1,12 @@
-import { lazy, Suspense, useContext, useEffect, useState } from "react";
-import { getMessages, LocaleContext } from "../../i18n";
+import { useEffect, useState } from "react";
+import { useMessages } from "../../i18n";
 import {
-  getLibraryProblem, getLibraryRevision, localizedLibraryText, useLibraryRevision, type LibraryProblemDetail,
+  getLibraryProblem, getLibraryRevision, useLibraryRevision, type LibraryProblemDetail,
 } from "../../shared/problemLibrary";
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
+import { ProblemDetail } from "./ProblemDetail";
 import "./problem-preview.css";
-
-const MarkdownViewer = lazy(() => import("../../shared/ui/MarkdownViewer"));
 
 export const workspaceView = {
   id: "problem",
@@ -20,8 +19,7 @@ export const workspaceView = {
 
 export default function ProblemView({ params, title }: WorkspaceViewProps) {
   const { problemId } = params;
-  const locale = useContext(LocaleContext);
-  const messages = getMessages(locale);
+  const messages = useMessages();
   const revision = useLibraryRevision();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ id: string; problem: LibraryProblemDetail | null }>();
@@ -42,12 +40,10 @@ export default function ProblemView({ params, title }: WorkspaceViewProps) {
     return () => { current = false; };
   }, [problemId, revision, attempt]);
 
-  const heading = problem ? localizedLibraryText(problem.title, locale) || title : title;
-  const statement = problem ? localizedLibraryText(problem.statement, locale) : undefined;
+  if (problem) return <ProblemDetail key={problem.id} problem={problem} title={title} />;
 
   return (
-    <section className="workspace workbench-page problem-preview">
-      <h1 data-selectable>{heading}</h1>
+    <section className="workspace workbench-page problem-preview" aria-label={title}>
       {(!problemId || problem === null) && (
         <>
           <StatusMessage state="error">{messages.problemLoadError}</StatusMessage>
@@ -59,13 +55,6 @@ export default function ProblemView({ params, title }: WorkspaceViewProps) {
         </>
       )}
       {problemId && problem === undefined && <StatusMessage state="loading">{messages.problemLoading}</StatusMessage>}
-      {problem && (statement?.trim()
-        ? <div className="problem-preview__statement">
-          <Suspense fallback={<StatusMessage state="loading">{messages.problemLoading}</StatusMessage>}>
-            <MarkdownViewer source={statement} />
-          </Suspense>
-        </div>
-        : <StatusMessage state="empty">{messages.problemStatementEmpty}</StatusMessage>)}
     </section>
   );
 }

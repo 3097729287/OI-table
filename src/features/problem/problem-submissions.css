@@ -1,0 +1,69 @@
+.problem-submissions {
+  block-size: 100%;
+}
+
+.problem-submissions__body {
+  display: grid;
+  gap: var(--space-sm);
+  min-inline-size: 0;
+  max-inline-size: 90ch;
+  margin-inline: auto;
+  padding: var(--space-md) var(--problem-detail-gutter);
+  font-size: var(--ui-font-size-control);
+  overflow-wrap: anywhere;
+}
+
+.problem-submissions__records {
+  padding: 0;
+  list-style: none;
+}
+
+.problem-submissions__record {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px var(--space-md);
+  padding-block: var(--space-sm);
+  border-block-end: 1px solid var(--workbench-border, var(--control-border));
+}
+
+.problem-submissions__verdict {
+  font-weight: 600;
+}
+
+.problem-submissions__verdict[data-accepted="true"] {
+  color: var(--accent-color);
+}
+
+.problem-submissions__record time,
+.problem-submissions__metadata {
+  color: var(--muted-color);
+  font-size: var(--ui-font-size-small);
+}
+
+.problem-submissions__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  gap: 4px var(--space-sm);
+}
+
+.problem-submissions__failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.problem-submissions__action {
+  justify-self: start;
+  inline-size: auto;
+  block-size: auto;
+  min-block-size: 30px;
+  cursor: pointer;
+}
+
+.problem-submissions__action:hover {
+  background: var(--navigation-hover);
+}
