@@ -1,0 +1,1014 @@
+use std::{
+    fs,
+    io::{self, BufRead, BufReader, Read, Write},
+    path::{Path, PathBuf},
+    process::{Child, ChildStdin, Command, Stdio},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::{self, Receiver, RecvTimeoutError},
+        Arc, Mutex, TryLockError,
+    },
+    thread,
+    time::{Duration, Instant},
+};
+
+use serde::{Deserialize, Serialize};
+
+use crate::editor_run::{hidden_command, stop_child, EditorLanguage};
+
+mod cpp;
+mod python;
+
+const MAX_DRAFT_BYTES: usize = 256 * 1024;
+const MAX_OUTPUT_BYTES: u64 = 256 * 1024;
+const MAX_PROTOCOL_BYTES: u64 = 512 * 1024;
+const MAX_BREAKPOINTS: usize = 256;
+const DEBUG_TIMEOUT: Duration = Duration::from_secs(10);
+const COMPILE_TIMEOUT: Duration = Duration::from_secs(15);
+const CANCEL_POLL: Duration = Duration::from_millis(50);
+
+type Result<T> = std::result::Result<T, DebugError>;
+
+#[derive(Debug, Serialize)]
+pub(crate) struct DebugError {
+    code: &'static str,
+    message: String,
+}
+
+impl DebugError {
+    fn new(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+
+    fn failed(message: impl Into<String>) -> Self {
+        Self::new("debug_failed", message)
+    }
+
+    fn invalid(message: impl Into<String>) -> Self {
+        Self::new("invalid_request", message)
+    }
+
+    fn busy() -> Self {
+        Self::new("debug_busy", "Another debug operation is active.")
+    }
+
+    fn cancelled() -> Self {
+        Self::new("debug_cancelled", "The debug session was stopped.")
+    }
+}
+
+impl From<io::Error> for DebugError {
+    fn from(error: io::Error) -> Self {
+        Self::failed(error.to_string())
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DebugStartRequest {
+    session_id: u64,
+    language: EditorLanguage,
+    source: String,
+    stdin: String,
+    breakpoints: Vec<u32>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DebugStepRequest {
+    session_id: u64,
+    action: DebugAction,
+    breakpoints: Vec<u32>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DebugInspectRequest {
+    session_id: u64,
+    frame_id: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DebugVariablesRequest {
+    session_id: u64,
+    reference: u32,
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum DebugAction {
+    Continue,
+    StepOver,
+    StepInto,
+    StepOut,
+}
+
+#[derive(Deserialize, Serialize)]
+struct DebugFrame {
+    id: u32,
+    name: String,
+    line: u32,
+}
+
+#[derive(Deserialize, Serialize)]
+pub(crate) struct DebugVariable {
+    name: String,
+    value: String,
+    r#type: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reference: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    group: Option<DebugVariableGroup>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum DebugVariableGroup {
+    Special,
+    Function,
+    Class,
+}
+
+#[derive(Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DebugFrameVariables {
+    variables: Vec<DebugVariable>,
+    globals_reference: Option<u32>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+enum DebugStatus {
+    Paused,
+    Finished,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum DebugReason {
+    Entry,
+    Breakpoint,
+    Step,
+    Exception,
+    Signal,
+    Exited,
+}
+
+#[derive(Deserialize, Serialize)]
+struct DebugLocation {
+    status: DebugStatus,
+    reason: DebugReason,
+    line: Option<u32>,
+    frames: Vec<DebugFrame>,
+    #[serde(flatten)]
+    scope: DebugFrameVariables,
+}
+
+impl DebugLocation {
+    fn finished(reason: DebugReason) -> Self {
+        Self {
+            status: DebugStatus::Finished,
+            reason,
+            line: None,
+            frames: Vec::new(),
+            scope: DebugFrameVariables::default(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DebugSnapshot {
+    session_id: u64,
+    #[serde(flatten)]
+    location: DebugLocation,
+    stdout: String,
+    stderr: String,
+}
+
+#[derive(Default)]
+pub(crate) struct EditorDebugState {
+    active: Arc<Mutex<Option<Arc<ActiveDebug>>>>,
+}
+
+impl EditorDebugState {
+    pub(crate) fn cancel_all(&self) {
+        let detached = self.active.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(active) = detached {
+            stop_active(&active);
+        }
+    }
+}
+
+struct ActiveDebug {
+    id: u64,
+    cancelled: AtomicBool,
+    session: Mutex<Option<DebugSession>>,
+}
+
+fn stop_active(active: &ActiveDebug) {
+    active.cancelled.store(true, Ordering::Release);
+    // Active operations wake when they observe cancellation and release the transport.
+    if let Ok(mut session) = active.session.lock() {
+        session.take();
+    }
+}
+
+impl ActiveDebug {
+    fn check_cancelled(&self) -> Result<()> {
+        if self.cancelled.load(Ordering::Acquire) {
+            return Err(DebugError::cancelled());
+        }
+        Ok(())
+    }
+
+    fn lock_session(&self) -> Result<std::sync::MutexGuard<'_, Option<DebugSession>>> {
+        self.session.try_lock().map_err(|error| match error {
+            TryLockError::WouldBlock => DebugError::busy(),
+            TryLockError::Poisoned(_) => DebugError::failed("The debugger state is unavailable."),
+        })
+    }
+}
+
+fn cleanup(slot: &Mutex<Option<Arc<ActiveDebug>>>, active: &Arc<ActiveDebug>) {
+    if let Ok(mut slot) = slot.lock() {
+        if slot
+            .as_ref()
+            .is_some_and(|current| Arc::ptr_eq(current, active))
+        {
+            slot.take();
+        }
+    }
+}
+
+fn get_active(state: &EditorDebugState, id: u64) -> Result<Arc<ActiveDebug>> {
+    state
+        .active
+        .lock()
+        .map_err(|_| DebugError::failed("The debugger state is unavailable."))?
+        .as_ref()
+        .filter(|active| active.id == id)
+        .cloned()
+        .ok_or_else(DebugError::cancelled)
+}
+
+#[tauri::command]
+pub(crate) async fn debug_start(
+    state: tauri::State<'_, EditorDebugState>,
+    mut request: DebugStartRequest,
+) -> Result<DebugSnapshot> {
+    if !cfg!(desktop) {
+        return Err(DebugError::new(
+            "tool_unavailable",
+            "Debugging is available on desktop.",
+        ));
+    }
+    if request.session_id == 0
+        || request.session_id > 9_007_199_254_740_991
+        || request.source.len() > MAX_DRAFT_BYTES
+        || request.stdin.len() > MAX_DRAFT_BYTES
+    {
+        return Err(DebugError::invalid(
+            "Debug sessions accept up to 256 KiB each of source and input.",
+        ));
+    }
+    normalize_breakpoints(&mut request.breakpoints)?;
+    let slot = Arc::clone(&state.active);
+    let active = Arc::new(ActiveDebug {
+        id: request.session_id,
+        cancelled: AtomicBool::new(false),
+        session: Mutex::new(None),
+    });
+    {
+        let mut slot = slot
+            .lock()
+            .map_err(|_| DebugError::failed("The debugger state is unavailable."))?;
+        if slot.is_some() {
+            return Err(DebugError::busy());
+        }
+        slot.replace(Arc::clone(&active));
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = (|| {
+            let mut stored = active.lock_session()?;
+            let (session, snapshot) = DebugSession::start(request, &active)?;
+            active.check_cancelled()?;
+            if snapshot.location.status == DebugStatus::Paused {
+                stored.replace(session);
+            }
+            Ok(snapshot)
+        })();
+        if !matches!(&result, Ok(snapshot) if snapshot.location.status == DebugStatus::Paused) {
+            cleanup(&slot, &active);
+        }
+        result
+    })
+    .await
+    .map_err(|error| DebugError::failed(error.to_string()))?
+}
+
+#[tauri::command]
+pub(crate) async fn debug_step(
+    state: tauri::State<'_, EditorDebugState>,
+    mut request: DebugStepRequest,
+) -> Result<DebugSnapshot> {
+    normalize_breakpoints(&mut request.breakpoints)?;
+    let active = get_active(&state, request.session_id)?;
+    let slot = Arc::clone(&state.active);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut stored = active.lock_session()?;
+        let session = stored.as_mut().ok_or_else(DebugError::busy)?;
+        let result = session.step(&request, &active);
+        if !matches!(&result, Ok(snapshot) if snapshot.location.status == DebugStatus::Paused) {
+            cleanup(&slot, &active);
+            stored.take();
+        }
+        result
+    })
+    .await
+    .map_err(|error| DebugError::failed(error.to_string()))?
+}
+
+#[tauri::command]
+pub(crate) async fn debug_inspect(
+    state: tauri::State<'_, EditorDebugState>,
+    request: DebugInspectRequest,
+) -> Result<DebugFrameVariables> {
+    load_variables(&state, request.session_id, move |session, active| {
+        session.inspect(request.frame_id, active)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn debug_variables(
+    state: tauri::State<'_, EditorDebugState>,
+    request: DebugVariablesRequest,
+) -> Result<Vec<DebugVariable>> {
+    load_variables(&state, request.session_id, move |session, active| {
+        session.children(request.reference, active)
+    })
+    .await
+}
+
+async fn load_variables<T: Send + 'static>(
+    state: &EditorDebugState,
+    session_id: u64,
+    load: impl FnOnce(&mut DebugSession, &ActiveDebug) -> Result<T> + Send + 'static,
+) -> Result<T> {
+    let active = get_active(state, session_id)?;
+    let slot = Arc::clone(&state.active);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut stored = active.lock_session()?;
+        let session = stored.as_mut().ok_or_else(DebugError::busy)?;
+        let result = load(session, &active);
+        if result
+            .as_ref()
+            .is_err_and(|error| !matches!(error.code, "invalid_request" | "debug_busy"))
+        {
+            cleanup(&slot, &active);
+            stored.take();
+        }
+        result
+    })
+    .await
+    .map_err(|error| DebugError::failed(error.to_string()))?
+}
+
+#[tauri::command]
+pub(crate) async fn debug_stop(
+    state: tauri::State<'_, EditorDebugState>,
+    session_id: u64,
+) -> Result<()> {
+    let detached = {
+        let mut slot = state
+            .active
+            .lock()
+            .map_err(|_| DebugError::failed("The debugger state is unavailable."))?;
+        if let Some(active) = slot.as_ref().filter(|active| active.id == session_id) {
+            active.cancelled.store(true, Ordering::Release);
+            slot.take()
+        } else {
+            None
+        }
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        if let Some(active) = detached {
+            stop_active(&active);
+        }
+    })
+    .await
+    .map_err(|error| DebugError::failed(error.to_string()))?;
+    Ok(())
+}
+
+fn normalize_breakpoints(breakpoints: &mut Vec<u32>) -> Result<()> {
+    if breakpoints.len() > MAX_BREAKPOINTS || breakpoints.contains(&0) {
+        return Err(DebugError::invalid(
+            "Debug sessions support up to 256 positive breakpoint lines.",
+        ));
+    }
+    breakpoints.sort_unstable();
+    breakpoints.dedup();
+    Ok(())
+}
+
+enum Engine {
+    Cpp(cpp::Debugger),
+    Python(python::Debugger),
+}
+
+struct DebugSession {
+    engine: Engine,
+    frames: Vec<u32>,
+    directory: tempfile::TempDir,
+}
+
+impl DebugSession {
+    fn start(request: DebugStartRequest, active: &ActiveDebug) -> Result<(Self, DebugSnapshot)> {
+        active.check_cancelled()?;
+        let directory = tempfile::tempdir()?;
+        let root = directory.path();
+        fs::write(root.join("input.txt"), request.stdin)?;
+        let (engine, location) = match request.language {
+            EditorLanguage::Cpp => {
+                fs::write(root.join("solution.cpp"), request.source)?;
+                let (engine, location) = cpp::Debugger::start(root, &request.breakpoints, active)?;
+                (Engine::Cpp(engine), location)
+            }
+            EditorLanguage::Python => {
+                fs::write(root.join("solution.py"), request.source)?;
+                let (engine, location) =
+                    python::Debugger::start(root, &request.breakpoints, active)?;
+                (Engine::Python(engine), location)
+            }
+        };
+        let mut session = Self {
+            engine,
+            frames: Vec::new(),
+            directory,
+        };
+        let snapshot = session.snapshot(request.session_id, location);
+        Ok((session, snapshot))
+    }
+
+    fn snapshot(&mut self, session_id: u64, location: DebugLocation) -> DebugSnapshot {
+        self.frames = location.frames.iter().map(|frame| frame.id).collect();
+        DebugSnapshot {
+            session_id,
+            location,
+            stdout: read_output(&self.directory.path().join("output.txt")),
+            stderr: read_output(&self.directory.path().join("error.txt")),
+        }
+    }
+
+    fn step(&mut self, request: &DebugStepRequest, active: &ActiveDebug) -> Result<DebugSnapshot> {
+        active.check_cancelled()?;
+        let location = match &mut self.engine {
+            Engine::Cpp(engine) => engine.step(request.action, &request.breakpoints, active)?,
+            Engine::Python(engine) => engine.step(request.action, &request.breakpoints, active)?,
+        };
+        active.check_cancelled()?;
+        Ok(self.snapshot(request.session_id, location))
+    }
+
+    fn inspect(&mut self, frame: u32, active: &ActiveDebug) -> Result<DebugFrameVariables> {
+        active.check_cancelled()?;
+        if !self.frames.contains(&frame) {
+            return Err(DebugError::invalid(
+                "The requested stack frame is unavailable.",
+            ));
+        }
+        match &mut self.engine {
+            Engine::Cpp(engine) => engine.inspect(frame, active),
+            Engine::Python(engine) => engine.inspect(frame, active),
+        }
+    }
+
+    fn children(&mut self, reference: u32, active: &ActiveDebug) -> Result<Vec<DebugVariable>> {
+        active.check_cancelled()?;
+        match &mut self.engine {
+            Engine::Cpp(engine) => engine.children(reference, active),
+            Engine::Python(engine) => engine.children(reference, active),
+        }
+    }
+}
+
+fn read_output(path: &Path) -> String {
+    let mut bytes = Vec::new();
+    if let Ok(file) = fs::File::open(path) {
+        let _ = file.take(MAX_OUTPUT_BYTES).read_to_end(&mut bytes);
+    }
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+struct DebugProcess(Child);
+
+impl Drop for DebugProcess {
+    fn drop(&mut self) {
+        if !matches!(self.0.try_wait(), Ok(Some(_))) {
+            stop_child(&mut self.0);
+        }
+    }
+}
+
+struct Transport {
+    input: ChildStdin,
+    output: Receiver<io::Result<String>>,
+    directory: PathBuf,
+    _process: DebugProcess,
+}
+
+impl Transport {
+    fn spawn(mut command: Command, directory: &Path) -> Result<Self> {
+        let mut process = DebugProcess(
+            command
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()?,
+        );
+        let input = process
+            .0
+            .stdin
+            .take()
+            .ok_or_else(|| DebugError::failed("Debugger input is unavailable."))?;
+        let output = process
+            .0
+            .stdout
+            .take()
+            .ok_or_else(|| DebugError::failed("Debugger output is unavailable."))?;
+        let (sender, output_pipe) = mpsc::sync_channel(128);
+        thread::spawn(move || {
+            let mut output = BufReader::new(output);
+            loop {
+                let mut line = Vec::new();
+                match output
+                    .by_ref()
+                    .take(MAX_PROTOCOL_BYTES + 1)
+                    .read_until(b'\n', &mut line)
+                {
+                    Ok(0) => break,
+                    Ok(_) if line.len() as u64 <= MAX_PROTOCOL_BYTES => {
+                        if sender
+                            .send(Ok(String::from_utf8_lossy(&line).into_owned()))
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    Ok(_) => {
+                        let _ = sender.send(Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "Debugger response is too large.",
+                        )));
+                        break;
+                    }
+                    Err(error) => {
+                        let _ = sender.send(Err(error));
+                        break;
+                    }
+                }
+            }
+        });
+        Ok(Self {
+            input,
+            output: output_pipe,
+            directory: directory.to_owned(),
+            _process: process,
+        })
+    }
+
+    fn send(&mut self, line: &str, active: &ActiveDebug) -> Result<()> {
+        active.check_cancelled()?;
+        writeln!(self.input, "{line}")?;
+        self.input.flush()?;
+        Ok(())
+    }
+
+    fn receive(&self, deadline: Instant, active: &ActiveDebug) -> Result<String> {
+        loop {
+            active.check_cancelled()?;
+            check_output_size(&self.directory)?;
+            if Instant::now() >= deadline {
+                return Err(DebugError::new(
+                    "debug_timeout",
+                    "The debug operation exceeded its time limit.",
+                ));
+            }
+            match self.output.recv_timeout(CANCEL_POLL) {
+                Ok(result) => {
+                    check_output_size(&self.directory)?;
+                    return Ok(result?);
+                }
+                Err(RecvTimeoutError::Timeout) => continue,
+                Err(RecvTimeoutError::Disconnected) => {
+                    return Err(DebugError::failed("The debugger exited unexpectedly."))
+                }
+            }
+        }
+    }
+}
+
+fn check_output_size(root: &Path) -> Result<()> {
+    for file in ["output.txt", "error.txt"] {
+        if root
+            .join(file)
+            .metadata()
+            .is_ok_and(|metadata| metadata.len() > MAX_OUTPUT_BYTES)
+        {
+            return Err(DebugError::new(
+                "output_limit",
+                "Program output exceeded the debug limit.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn compile_cpp(compiler: &Path, root: &Path, binary: &str, active: &ActiveDebug) -> Result<()> {
+    fs::write(
+        root.join("debug_streams.cpp"),
+        include_str!("editor_debug/cpp_streams.cpp"),
+    )?;
+    let diagnostics = root.join("compiler.txt");
+    let stderr = fs::File::create(&diagnostics)?;
+    let mut process = DebugProcess(
+        hidden_command(compiler)
+            .current_dir(root)
+            .args([
+                "-std=gnu++17",
+                "-g",
+                "-O0",
+                "debug_streams.cpp",
+                "solution.cpp",
+                "-o",
+                binary,
+            ])
+            .env("LC_ALL", "C")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(stderr)
+            .spawn()?,
+    );
+    let deadline = Instant::now() + COMPILE_TIMEOUT;
+    loop {
+        active.check_cancelled()?;
+        if let Some(status) = process.0.try_wait()? {
+            if status.success() {
+                return Ok(());
+            }
+            let message = read_output(&diagnostics);
+            return Err(DebugError::new(
+                "compile_failed",
+                if message.is_empty() {
+                    "The C++ draft could not be compiled.".into()
+                } else {
+                    message
+                },
+            ));
+        }
+        if Instant::now() >= deadline {
+            return Err(DebugError::new(
+                "debug_timeout",
+                "Compiling the C++ draft exceeded its time limit.",
+            ));
+        }
+        thread::sleep(CANCEL_POLL);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::editor_run::{find_cpp, find_program, find_python};
+
+    use super::*;
+
+    static GDB_TEST: Mutex<()> = Mutex::new(());
+
+    fn active() -> ActiveDebug {
+        ActiveDebug {
+            id: 1,
+            cancelled: AtomicBool::new(false),
+            session: Mutex::new(None),
+        }
+    }
+
+    fn request(language: EditorLanguage, source: &str, breakpoints: &[u32]) -> DebugStartRequest {
+        DebugStartRequest {
+            session_id: 1,
+            language,
+            source: source.into(),
+            stdin: "17\n".into(),
+            breakpoints: breakpoints.into(),
+        }
+    }
+
+    fn variable_reference(variables: &[DebugVariable], name: &str) -> u32 {
+        variables
+            .iter()
+            .find(|variable| variable.name == name)
+            .and_then(|variable| variable.reference)
+            .unwrap()
+    }
+
+    fn inspect_and_run(
+        request: DebugStartRequest,
+        breakpoint: u32,
+        caller_line: u32,
+        next_line: u32,
+    ) {
+        let active = active();
+        let (mut session, paused) = DebugSession::start(request, &active).unwrap();
+        assert!(matches!(paused.location.reason, DebugReason::Breakpoint));
+        assert_eq!(paused.location.line, Some(breakpoint));
+        let frames = &paused.location.frames;
+        assert_eq!(frames.len(), 2);
+        assert_eq!(frames[0].name, "f");
+        assert_eq!(frames[1].line, caller_line);
+        assert!(paused
+            .location
+            .scope
+            .variables
+            .iter()
+            .any(|value| { value.name == "y" && value.value == "18" && value.r#type == "int" }));
+        let caller = session.inspect(frames[1].id, &active).unwrap();
+        assert!(caller
+            .variables
+            .iter()
+            .any(|value| value.name == "n" && value.value == "17"));
+
+        let step = |action| DebugStepRequest {
+            session_id: 1,
+            action,
+            breakpoints: vec![],
+        };
+        let returned = session.step(&step(DebugAction::StepOut), &active).unwrap();
+        assert!(matches!(returned.location.reason, DebugReason::Step));
+        assert_eq!(returned.location.line, Some(next_line));
+        let done = session.step(&step(DebugAction::Continue), &active).unwrap();
+        assert!(matches!(done.location.status, DebugStatus::Finished));
+        assert!(matches!(done.location.reason, DebugReason::Exited));
+        assert_eq!(done.stdout.trim(), "36");
+    }
+
+    #[test]
+    fn python_breakpoints_variables_frames_and_input() {
+        if find_python().is_none() {
+            return;
+        }
+        let source =
+            "def f(x):\n    y = x + 1\n    return y * 2\n\nn = int(input())\nr = f(n)\nprint(r)\n";
+        inspect_and_run(request(EditorLanguage::Python, source, &[3]), 3, 6, 7);
+    }
+
+    #[test]
+    fn python_expands_nested_rows_and_expires_references_after_stepping() {
+        if find_python().is_none() {
+            return;
+        }
+        let active = active();
+        let source = "rows = [{'details': (7, 11)}]\nprint(rows)\nrows.append({})\n";
+        let (mut session, paused) =
+            DebugSession::start(request(EditorLanguage::Python, source, &[2]), &active).unwrap();
+        let rows = variable_reference(&paused.location.scope.variables, "rows");
+        let nested = session.children(rows, &active).unwrap();
+        let dictionary = variable_reference(&nested, "[0]");
+        let fields = session.children(dictionary, &active).unwrap();
+        let tuple = variable_reference(&fields, "['details']");
+        let details = session.children(tuple, &active).unwrap();
+        assert!(details
+            .iter()
+            .any(|detail| detail.name == "[1]" && detail.value == "11"));
+
+        let stepped = session
+            .step(
+                &DebugStepRequest {
+                    session_id: 1,
+                    action: DebugAction::StepOver,
+                    breakpoints: vec![],
+                },
+                &active,
+            )
+            .unwrap();
+        assert_ne!(
+            variable_reference(&stepped.location.scope.variables, "rows"),
+            rows
+        );
+        assert_eq!(
+            session.children(rows, &active).err().unwrap().code,
+            "invalid_request"
+        );
+    }
+
+    #[test]
+    fn python_separates_function_locals_from_module_globals() {
+        if find_python().is_none() {
+            return;
+        }
+        let active = active();
+        let source = "shared = [2, 3]\ndef f(x):\n    y = x + 1\n    return y\nf(7)\n";
+        let (mut session, paused) =
+            DebugSession::start(request(EditorLanguage::Python, source, &[4]), &active).unwrap();
+        let locals = &paused.location.scope.variables;
+        assert!(locals
+            .iter()
+            .any(|variable| variable.name == "y" && variable.value == "8"));
+        assert!(!locals.iter().any(|variable| variable.name == "shared"));
+        let globals_reference = paused.location.scope.globals_reference.unwrap();
+        let globals = session.children(globals_reference, &active).unwrap();
+        assert!(globals.iter().any(|variable| {
+            variable.name == "f" && matches!(variable.group, Some(DebugVariableGroup::Function))
+        }));
+        assert!(globals
+            .iter()
+            .any(|variable| variable.name == "shared" && variable.reference.is_some()));
+        let caller = session
+            .inspect(paused.location.frames[1].id, &active)
+            .unwrap();
+        assert_eq!(caller.globals_reference, Some(globals_reference));
+    }
+
+    #[test]
+    #[ignore = "requires an installed GDB and OS permission to debug a child process"]
+    fn cpp_breakpoints_variables_frames_and_input() {
+        let _gdb = GDB_TEST.lock().unwrap();
+        assert!(find_cpp().is_some() && find_program("gdb").is_some());
+        let source = concat!(
+            "#include <iostream>\n",
+            "int f(int x) {\n",
+            "    int y = x + 1;\n",
+            "    return y * 2;\n",
+            "}\n",
+            "int main() {\n",
+            "    std::ios::sync_with_stdio(false);\n",
+            "    int n; std::cin >> n;\n",
+            "    int r = f(n);\n",
+            "    std::cout << r << '\\n';\n",
+            "}\n",
+        );
+        inspect_and_run(request(EditorLanguage::Cpp, source, &[4]), 4, 9, 9);
+    }
+
+    #[test]
+    #[ignore = "requires an installed GDB and OS permission to debug a child process"]
+    fn cpp_expands_draft_globals_nested_fields_array_and_vector() {
+        let _gdb = GDB_TEST.lock().unwrap();
+        assert!(find_cpp().is_some() && find_program("gdb").is_some());
+        let source = concat!(
+            "#include <vector>\n",
+            "struct Item { int score; int levels[2]; std::vector<int> nums; };\n",
+            "int score = 42;\n",
+            "static int values[2] = {17, 19};\n",
+            "namespace draft { int counter = 5; }\n",
+            "int main() {\n",
+            "    Item item;\n",
+            "    int score = 7;\n",
+            "    item.score = score;\n",
+            "    item.levels[0] = 3;\n",
+            "    item.levels[1] = 5;\n",
+            "    item.nums.push_back(11);\n",
+            "    item.nums.push_back(13);\n",
+            "    int marker = item.score + values[0];\n",
+            "    ++::score;\n",
+            "    return marker;\n",
+            "}\n",
+        );
+        let active = active();
+        let (mut session, paused) =
+            DebugSession::start(request(EditorLanguage::Cpp, source, &[14]), &active).unwrap();
+        let item = variable_reference(&paused.location.scope.variables, "item");
+        assert!(paused
+            .location
+            .scope
+            .variables
+            .iter()
+            .any(|value| value.name == "score" && value.value == "7"));
+        let globals_reference = paused.location.scope.globals_reference.unwrap();
+        let globals = session.children(globals_reference, &active).unwrap();
+        assert_eq!(globals.len(), 3);
+        assert!(globals
+            .iter()
+            .any(|value| value.name == "score" && value.value == "42"));
+        assert!(globals
+            .iter()
+            .any(|value| value.name == "draft::counter" && value.value == "5"));
+        let values = session
+            .children(variable_reference(&globals, "values"), &active)
+            .unwrap();
+        assert!(values
+            .iter()
+            .any(|value| value.name == "[0]" && value.value == "17"));
+        let same_frame = session
+            .inspect(paused.location.frames[0].id, &active)
+            .unwrap();
+        assert_eq!(variable_reference(&same_frame.variables, "item"), item);
+        let fields = session.children(item, &active).unwrap();
+        assert!(fields
+            .iter()
+            .any(|field| field.name == "score" && field.value == "7"));
+        let levels = session
+            .children(variable_reference(&fields, "levels"), &active)
+            .unwrap();
+        assert_eq!(
+            levels
+                .iter()
+                .map(|level| (level.name.as_str(), level.value.as_str()))
+                .collect::<Vec<_>>(),
+            vec![("[0]", "3"), ("[1]", "5")]
+        );
+        let nums = session
+            .children(variable_reference(&fields, "nums"), &active)
+            .unwrap();
+        assert_eq!(
+            nums.iter()
+                .map(|number| (number.name.as_str(), number.value.as_str()))
+                .collect::<Vec<_>>(),
+            vec![("[0]", "11"), ("[1]", "13")]
+        );
+
+        session
+            .step(
+                &DebugStepRequest {
+                    session_id: 1,
+                    action: DebugAction::StepOver,
+                    breakpoints: vec![14],
+                },
+                &active,
+            )
+            .unwrap();
+        assert_eq!(
+            session.children(item, &active).err().unwrap().code,
+            "invalid_request"
+        );
+        assert_eq!(
+            session
+                .children(globals_reference, &active)
+                .err()
+                .unwrap()
+                .code,
+            "invalid_request"
+        );
+    }
+
+    #[test]
+    fn python_debug_stops_on_large_output() {
+        if find_python().is_none() {
+            return;
+        }
+        let active = active();
+        let source = "for i in range(10000):\n    print('s' * 1024)\n";
+        let (mut session, paused) =
+            DebugSession::start(request(EditorLanguage::Python, source, &[]), &active).unwrap();
+        assert!(matches!(paused.location.reason, DebugReason::Entry));
+        let error = session
+            .step(
+                &DebugStepRequest {
+                    session_id: 1,
+                    action: DebugAction::Continue,
+                    breakpoints: vec![],
+                },
+                &active,
+            )
+            .err()
+            .unwrap();
+        assert_eq!(error.code, "output_limit");
+    }
+
+    #[test]
+    fn python_debug_can_cancel_while_program_is_running() {
+        if find_python().is_none() {
+            return;
+        }
+        let active = Arc::new(active());
+        let worker_state = Arc::clone(&active);
+        let (running, started) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            let source = "while True:\n    pass\n";
+            let (mut session, _) =
+                DebugSession::start(request(EditorLanguage::Python, source, &[]), &worker_state)
+                    .unwrap();
+            running.send(()).unwrap();
+            session
+                .step(
+                    &DebugStepRequest {
+                        session_id: 1,
+                        action: DebugAction::Continue,
+                        breakpoints: vec![],
+                    },
+                    &worker_state,
+                )
+                .err()
+                .unwrap()
+        });
+        started.recv_timeout(DEBUG_TIMEOUT).unwrap();
+        thread::sleep(CANCEL_POLL * 2);
+        stop_active(&active);
+        assert_eq!(worker.join().unwrap().code, "debug_cancelled");
+    }
+}

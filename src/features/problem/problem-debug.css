@@ -1,0 +1,163 @@
+.problem-debug {
+  padding-block: var(--space-sm);
+  color: var(--text-color);
+  font-size: var(--ui-font-size-small);
+}
+
+.problem-debug__header,
+.problem-debug__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px var(--space-sm);
+  padding-inline: var(--space-sm);
+}
+
+.problem-debug__header h2,
+.problem-debug__section h3 {
+  font: inherit;
+  font-weight: 600;
+}
+
+.problem-debug__launch {
+  display: grid;
+  gap: 6px;
+  padding: var(--space-sm);
+}
+
+.problem-debug button.problem-debug__launch-button {
+  justify-content: center;
+  gap: 5px;
+  inline-size: 100%;
+  min-block-size: 30px;
+  padding: 4px var(--space-sm);
+  border-radius: 4px;
+  background: var(--accent-color);
+  color: var(--window-background);
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.problem-debug button.problem-debug__launch-button:enabled:hover {
+  background: color-mix(in srgb, var(--accent-color) 90%, var(--text-color));
+  color: var(--window-background);
+}
+
+.problem-debug button.problem-debug__launch-button:disabled {
+  background: var(--navigation-hover);
+  color: var(--muted-color);
+}
+
+.problem-debug__launch p {
+  color: var(--muted-color);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.problem-debug__actions {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 2px;
+}
+
+.problem-debug button.problem-debug__action {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 24px;
+  min-block-size: 24px;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--muted-color);
+}
+
+.problem-debug button.problem-debug__action:not([aria-disabled="true"]):hover {
+  color: var(--text-color);
+}
+
+.problem-debug button.problem-debug__action--stop:not([aria-disabled="true"]) {
+  color: var(--error-color);
+}
+
+.problem-debug button.problem-debug__action[aria-disabled="true"] {
+  background: transparent;
+  color: var(--muted-color);
+  cursor: default;
+  opacity: 0.45;
+}
+
+.problem-debug__status {
+  min-block-size: 28px;
+  margin-block-start: 2px;
+  color: var(--muted-color);
+}
+
+.problem-debug[data-status="paused"] .problem-debug__status {
+  color: var(--accent-color);
+}
+
+.problem-debug[data-status="failed"] .problem-debug__status,
+.problem-debug__error {
+  color: var(--error-color);
+}
+
+.problem-debug__section {
+  border-block-start: 1px solid var(--workbench-border, var(--control-border));
+}
+
+.problem-debug__section h3 {
+  padding: 6px var(--space-sm) 4px;
+}
+
+.problem-debug__empty,
+.problem-debug__error {
+  padding: 2px var(--space-sm) var(--space-sm);
+  overflow-wrap: anywhere;
+}
+
+.problem-debug__empty {
+  color: var(--muted-color);
+}
+
+.problem-debug__error pre {
+  margin-block-start: 3px;
+  font: var(--ui-font-size-small)/1.4 var(--editor-font-family);
+  white-space: pre-wrap;
+}
+
+.problem-debug__stack {
+  padding: 0 0 4px;
+  list-style: none;
+}
+
+.problem-debug button.problem-debug__frame {
+  justify-content: space-between;
+  padding-inline: var(--space-sm);
+  font-family: var(--editor-font-family);
+}
+
+.problem-debug button.problem-debug__frame[aria-disabled="true"] {
+  cursor: default;
+}
+
+.problem-debug button.problem-debug__frame[aria-disabled="true"]:not([aria-current="true"]):hover {
+  background: transparent;
+  color: inherit;
+}
+
+.problem-debug button.problem-debug__frame[aria-current="true"] {
+  background: var(--navigation-selected);
+  color: var(--accent-color);
+}
+
+.problem-debug__frame span:first-child {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.problem-debug__frame-line {
+  color: var(--muted-color);
+  font-variant-numeric: tabular-nums;
+}

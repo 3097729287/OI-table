@@ -2,6 +2,7 @@ import archive from "./icons/archive.svg?no-inline";
 import catalog from "./icons/catalog.svg?no-inline";
 import chevronRight from "./icons/chevron-right.svg?no-inline";
 import close from "./icons/close.svg?no-inline";
+import debug from "./icons/debug.svg?no-inline";
 import editor from "./icons/editor.svg?no-inline";
 import favorites from "./icons/favorites.svg?no-inline";
 import maximize from "./icons/maximize.svg?no-inline";
@@ -23,6 +24,7 @@ const sources = {
   catalog,
   chevronRight,
   close,
+  debug,
   editor,
   favorites,
   maximize,

@@ -108,7 +108,7 @@ fn validate_sizes(source: &str, input: &str) -> Result<()> {
     Ok(())
 }
 
-fn find_program(name: &str) -> Option<PathBuf> {
+pub(crate) fn find_program(name: &str) -> Option<PathBuf> {
     let paths = env::var_os("PATH")?;
     let executable = format!("{name}{}", env::consts::EXE_SUFFIX);
     env::split_paths(&paths)
@@ -117,13 +117,13 @@ fn find_program(name: &str) -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
-fn find_cpp() -> Option<(&'static str, PathBuf)> {
+pub(crate) fn find_cpp() -> Option<(&'static str, PathBuf)> {
     ["g++", "clang++"]
         .into_iter()
         .find_map(|name| find_program(name).map(|path| (name, path)))
 }
 
-fn find_python() -> Option<PathBuf> {
+pub(crate) fn find_python() -> Option<PathBuf> {
     let names = if cfg!(windows) {
         ["python", "python3"]
     } else {
@@ -286,7 +286,7 @@ impl Capture {
     }
 }
 
-fn hidden_command(program: &Path) -> Command {
+pub(crate) fn hidden_command(program: &Path) -> Command {
     #[allow(unused_mut)]
     let mut command = Command::new(program);
     #[cfg(windows)]
@@ -305,7 +305,7 @@ fn hidden_command(program: &Path) -> Command {
     command
 }
 
-fn stop_child(child: &mut Child) {
+pub(crate) fn stop_child(child: &mut Child) {
     #[cfg(windows)]
     if let Some(root) = env::var_os("SystemRoot") {
         let taskkill = PathBuf::from(root).join("System32").join("taskkill.exe");

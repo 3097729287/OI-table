@@ -12,6 +12,8 @@ import { Icon } from "../Icon";
 import { StatusMessage } from "../StatusMessage";
 import { codeLanguageExtensions, codeLanguageNames, syntaxDiagnostics, type CodeLanguage } from "./codeLanguages";
 import { codeSyntaxHighlighting } from "./codeEditorTheme";
+import { breakpointLines, codeEditorBreakpointGutter, codeEditorDebugReadOnly, debugLine as debugLineField,
+  normalizeBreakpointLines, sameBreakpointLines, setBreakpointLines, setDebugLine } from "./codeEditorDebug";
 import { CodeEditorSurface, codeEditorContent, codeEditorSurfaceExtensions } from "./CodeEditorSurface";
 import { flushProblemDraft, loadProblemDraft, problemDraftSaveStatus, queueProblemDraft, subscribeToProblemDraft } from "./problemDrafts";
 import { Select } from "./Select";
@@ -27,9 +29,10 @@ const editorExtensions = [
 type Messages = ReturnType<typeof useMessages>;
 type SavedDraft = { state: EditorState; scroll: ReturnType<EditorView["scrollSnapshot"]> };
 
-function editorLocalization(messages: Messages) {
+function editorLocalization(messages: Messages, debugEnabled: boolean) {
   return [
     codeEditorContent(messages.problemCodeDraft),
+    debugEnabled ? codeEditorBreakpointGutter(`${messages.problemDebugToggleBreakpoint} (F9)`) : [],
     EditorState.phrases.of({
       Diagnostics: messages.problemEditorDiagnosticList,
       "No diagnostics": messages.problemEditorNoDiagnostics,
@@ -48,16 +51,27 @@ interface CodeEditorProps {
   problemId: string;
   onRun?: (language: CodeLanguage, source: string) => void;
   running?: boolean;
+  onDebug?: (language: CodeLanguage, source: string, breakpoints: number[]) => void;
+  breakpoints?: Partial<Record<CodeLanguage, readonly number[]>>;
+  onBreakpointsChange?: (language: CodeLanguage, breakpoints: number[]) => void;
+  debugLine?: number;
+  debugRevealKey?: number;
+  debugReadOnly?: boolean;
+  debugUnavailable?: boolean;
 }
 
-export default function CodeEditor({ problemId, onRun, running = false }: CodeEditorProps) {
+export default function CodeEditor({ problemId, onRun, running = false, onDebug, breakpoints, onBreakpointsChange,
+  debugLine, debugRevealKey, debugReadOnly = false, debugUnavailable = false }: CodeEditorProps) {
   const messages = useMessages();
   const texts = useRef(messages);
+  const debugEnabled = onDebug !== undefined;
+  const debugBindings = useRef({ debugEnabled, debugReadOnly, breakpoints, onBreakpointsChange });
   const container = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
   const drafts = useRef(new Map<CodeLanguage, SavedDraft>());
   const sources = useRef({ cpp: "", python: "" });
   const [localization] = useState(() => new Compartment());
+  const [editability] = useState(() => new Compartment());
   const [language, setLanguage] = useState<CodeLanguage>(defaultLanguage);
   const [metrics, setMetrics] = useState({ line: 1, column: 1, problems: 0, length: 0 });
   const [mountedEditor, setMountedEditor] = useState<EditorView>();
@@ -71,7 +85,10 @@ export default function CodeEditor({ problemId, onRun, running = false }: CodeEd
     return EditorState.create({ doc: sources.current[codeLanguage], extensions: [
       editorExtensions,
       codeLanguageExtensions(codeLanguage),
-      localization.of(editorLocalization(texts.current)),
+      breakpointLines.init((state) => normalizeBreakpointLines(debugBindings.current.breakpoints?.[codeLanguage] ?? [], state.doc.lines)),
+      debugLineField,
+      localization.of(editorLocalization(texts.current, debugBindings.current.debugEnabled)),
+      editability.of(debugBindings.current.debugReadOnly ? codeEditorDebugReadOnly : []),
       linter((editor) => syntaxDiagnostics(editor.state, texts.current.problemEditorSyntaxError), {
         delay: 350,
         needsRefresh: (update) => localization.get(update.startState) !== localization.get(update.state),
@@ -81,12 +98,21 @@ export default function CodeEditor({ problemId, onRun, running = false }: CodeEd
           sources.current = { ...sources.current, [codeLanguage]: update.state.doc.toString() };
           queueProblemDraft(problemId, { language: codeLanguage, drafts: sources.current });
         }
+        const lines = update.state.field(breakpointLines);
+        if (lines !== update.startState.field(breakpointLines) && !update.transactions.some((transaction) =>
+          transaction.effects.some((effect) => effect.is(setBreakpointLines)))) {
+          debugBindings.current.onBreakpointsChange?.(codeLanguage, [...lines]);
+        }
         const next = editorMetrics(update.state);
         setMetrics((previous) => previous.line === next.line && previous.column === next.column &&
           previous.problems === next.problems && previous.length === next.length ? previous : next);
       }),
     ] });
   }
+
+  useLayoutEffect(() => {
+    debugBindings.current = { debugEnabled, debugReadOnly, breakpoints, onBreakpointsChange };
+  }, [debugEnabled, debugReadOnly, breakpoints, onBreakpointsChange]);
 
   useLayoutEffect(() => {
     const parent = container.current;
@@ -117,18 +143,46 @@ export default function CodeEditor({ problemId, onRun, running = false }: CodeEd
     texts.current = messages;
     const editor = view.current;
     if (!editor) return;
-    editor.dispatch({ effects: localization.reconfigure(editorLocalization(messages)) });
+    editor.dispatch({ effects: localization.reconfigure(editorLocalization(messages, debugEnabled)) });
     forceLinting(editor);
-  }, [localization, messages]);
+  }, [localization, messages, debugEnabled]);
+
+  useLayoutEffect(() => {
+    const editor = view.current;
+    if (!editor) return;
+    editor.dispatch({ effects: editability.reconfigure(debugReadOnly ? codeEditorDebugReadOnly : []) });
+  }, [debugReadOnly, editability, mountedEditor]);
+
+  useLayoutEffect(() => {
+    const editor = view.current;
+    if (!editor || !breakpoints) return;
+    const lines = normalizeBreakpointLines(breakpoints[language] ?? [], editor.state.doc.lines);
+    if (!sameBreakpointLines(lines, editor.state.field(breakpointLines))) {
+      editor.dispatch({ effects: setBreakpointLines.of(lines) });
+    }
+  }, [breakpoints, language, mountedEditor]);
+
+  useLayoutEffect(() => {
+    const editor = view.current;
+    if (!editor) return;
+    const line = debugLine !== undefined && Number.isInteger(debugLine) && debugLine >= 1 && debugLine <= editor.state.doc.lines
+      ? debugLine : undefined;
+    const changed = editor.state.field(debugLineField) !== line;
+    if (!changed && line === undefined) return;
+    editor.dispatch({ effects: [
+      ...(changed ? [setDebugLine.of(line)] : []),
+      ...(line === undefined ? [] : [EditorView.scrollIntoView(editor.state.doc.line(line).from, { yMargin: 32 })]),
+    ] });
+  }, [debugLine, debugRevealKey, language, mountedEditor]);
 
   function selectLanguage(next: CodeLanguage) {
     const editor = view.current;
-    if (!editor || next === language) return;
+    if (!editor || next === language || debugReadOnly) return;
     drafts.current.set(language, { state: editor.state, scroll: editor.scrollSnapshot() });
     const saved = drafts.current.get(next);
     editor.setState(saved?.state ?? createDraft(next));
     editor.dispatch({ effects: [
-      localization.reconfigure(editorLocalization(texts.current)),
+      localization.reconfigure(editorLocalization(texts.current, debugEnabled)),
       ...(saved ? [saved.scroll] : []),
     ] });
     setLanguage(next);
@@ -137,17 +191,33 @@ export default function CodeEditor({ problemId, onRun, running = false }: CodeEd
     queueProblemDraft(problemId, { language: next, drafts: sources.current });
   }
 
+  const actionDisabled = loadState !== "ready" || running || debugReadOnly || metrics.length === 0;
+
   return (
     <section className="code-editor" aria-label={messages.problemCodeDraft}>
       <header className="code-editor__bar">
         <Select className="ui-select--quiet" aria-label={messages.problemEditorLanguage} title={messages.problemEditorLanguage}
-          disabled={loadState !== "ready"} value={language} options={languages} onValueChange={selectLanguage} />
-        {onRun && (
-          <button type="button" className="ui-icon-button code-editor__run" disabled={loadState !== "ready" || running || metrics.length === 0}
-            aria-label={messages.problemRunLocal} title={messages.problemRunLocal} aria-busy={running || undefined}
-            onClick={() => { if (view.current) onRun(language, view.current.state.doc.toString()); }}>
-            <Icon name="run" />
-          </button>
+          disabled={loadState !== "ready" || debugReadOnly} value={language} options={languages} onValueChange={selectLanguage} />
+        {(onRun || onDebug) && (
+          <div className="code-editor__actions">
+            {onRun && (
+              <button type="button" className="ui-icon-button code-editor__action" disabled={actionDisabled}
+                aria-label={messages.problemRunLocal} title={messages.problemRunLocal} aria-busy={running || undefined}
+                onClick={() => { if (view.current) onRun(language, view.current.state.doc.toString()); }}>
+                <Icon name="run" />
+              </button>
+            )}
+            {onDebug && (
+              <button type="button" className="ui-icon-button code-editor__action" disabled={actionDisabled || debugUnavailable}
+                aria-label={messages.problemDebugStart} title={messages.problemDebugStart}
+                onClick={() => {
+                  const editor = view.current;
+                  if (editor) onDebug(language, editor.state.doc.toString(), [...editor.state.field(breakpointLines)]);
+                }}>
+                <Icon name="debug" />
+              </button>
+            )}
+          </div>
         )}
       </header>
       <CodeEditorSurface mount={container} editor={mountedEditor}>

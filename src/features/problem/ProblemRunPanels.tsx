@@ -20,8 +20,11 @@ const errorMessages: Record<string, keyof ReturnType<typeof useMessages>> = {
   input_too_large: "problemRunInputTooLarge",
 };
 
-export function ProblemRunResults({ run }: { run?: LocalRun }) {
+export type ProblemRunResult = LocalRun | { state: "debug"; stdout: string; stderr: string };
+
+export function ProblemRunResults({ run }: { run?: ProblemRunResult }) {
   const messages = useMessages();
+  const output = run?.state === "complete" ? run.result : run?.state === "debug" ? run : undefined;
   return (
     <ScrollArea className="problem-run__results" orientation="vertical">
       <div className="problem-run__results-body">
@@ -31,18 +34,20 @@ export function ProblemRunResults({ run }: { run?: LocalRun }) {
           <StatusMessage state="error">{messages[errorMessages[run.error] ?? "problemRunFailed"]}</StatusMessage>
         )}
         {run?.state === "complete" && (
+          <div className="problem-run__summary" role="status">
+            <strong data-status={run.result.status}>{messages[resultMessages[run.result.status]]}</strong>
+            <span>{run.language === "cpp" ? "C++" : "Python"}</span>
+            {run.result.exitCode !== null && (
+              <span>{messages.problemRunExitCode.replace("{code}", String(run.result.exitCode))}</span>
+            )}
+            <span>{messages.problemRunDuration.replace("{duration}", String(run.result.durationMs))}</span>
+          </div>
+        )}
+        {output && (
           <>
-            <div className="problem-run__summary" role="status">
-              <strong data-status={run.result.status}>{messages[resultMessages[run.result.status]]}</strong>
-              <span>{run.language === "cpp" ? "C++" : "Python"}</span>
-              {run.result.exitCode !== null && (
-                <span>{messages.problemRunExitCode.replace("{code}", String(run.result.exitCode))}</span>
-              )}
-              <span>{messages.problemRunDuration.replace("{duration}", String(run.result.durationMs))}</span>
-            </div>
-            {run.result.stdout && <RunStream title={messages.problemRunStdout} text={run.result.stdout} />}
-            {run.result.stderr && <RunStream title={messages.problemRunStderr} text={run.result.stderr} />}
-            {!run.result.stdout && !run.result.stderr && (
+            {output.stdout && <RunStream title={messages.problemRunStdout} text={output.stdout} />}
+            {output.stderr && <RunStream title={messages.problemRunStderr} text={output.stderr} />}
+            {!output.stdout && !output.stderr && (
               <p className="problem-run__empty-output">{messages.problemRunEmptyOutput}</p>
             )}
           </>

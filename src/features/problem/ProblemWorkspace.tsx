@@ -23,7 +23,7 @@ interface ProblemWorkspaceProps {
   enabled: boolean;
   labels: { tabs: string; resizeWidth: string; resizeHeight: string };
   actions?: ReactNode;
-  activate?: { id: ProblemWorkspaceTabId };
+  activate?: { id: ProblemWorkspaceTabId; focus?: boolean };
   onSplitChange?(split: boolean): void;
 }
 
@@ -134,7 +134,7 @@ export function ProblemWorkspace({ tabs, enabled, labels, actions, activate, onS
 
   useLayoutEffect(() => {
     if (!activate || !layout.targets.has(activate.id)) return;
-    if (!split) tabToFocus.current = activate.id;
+    if (!split && activate.focus !== false) tabToFocus.current = activate.id;
     dispatch({ type: "open", view: activate.id, target: { id: activate.id, params: {} } });
   }, [activate]);
 

@@ -1,5 +1,7 @@
 import { useCallback, useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { isTauri } from "@tauri-apps/api/core";
+import { ProblemDebugContext, useLocalDebug, type ProblemDebugLaunch } from "../features/problem/localDebug";
 import { LocaleContext, useMessages, type MessageKey } from "../i18n";
 import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
@@ -277,6 +279,8 @@ export function Workbench() {
   const messages = useMessages();
   const locale = useContext(LocaleContext);
   const [layout, dispatch] = useReducer(workspaceReducer, initialLayout);
+  const [showDebug, setShowDebug] = useState(false);
+  const [registeredLaunch, setRegisteredLaunch] = useState<{ problemId: string; launch: ProblemDebugLaunch }>();
   const [tabMenu, setTabMenu] = useState<TabMenuAnchor | null>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<PaneSize>({ width: 0, height: 0 });
@@ -314,6 +318,16 @@ export function Workbench() {
   const frameByPane = useMemo(() => new Map(frames.map((frame) => [frame.pane.id, frame])), [frames]);
   const frameByView = useMemo(() => new Map(frames.flatMap((frame) =>
     frame.pane.tabs.map((id) => [id, frame] as const))), [frames]);
+  const focusedPane = layout.focused ? frameByPane.get(layout.focused)?.pane : undefined;
+  const focusedTarget = focusedPane && layout.targets.get(focusedPane.active);
+  const activeProblemId = focusedTarget?.id === "problem" ? focusedTarget.params.problemId : undefined;
+  const registerLaunch = useCallback((problemId: string, launch: ProblemDebugLaunch) => {
+    const entry = { problemId, launch };
+    setRegisteredLaunch(entry);
+    return () => setRegisteredLaunch((current) => current === entry ? undefined : current);
+  }, []);
+  const launch = !isTauri() ? { message: messages.problemDebugDesktop }
+    : registeredLaunch?.problemId === activeProblemId ? registeredLaunch?.launch : undefined;
   const previewSplit = useCallback((action: Extract<LayoutAction, { type: "split" }>) =>
     previewBounds(layout, action, size), [layout, size]);
   const drag = useTabDrag(dispatchDrag, frameByPane, previewSplit);
@@ -324,6 +338,18 @@ export function Workbench() {
   const sidebar = useContext(WorkspaceSidebar);
   const sidebarResize = useSidebarResize(sidebar.visible);
   const tabMenuPane = tabMenu ? frameByPane.get(tabMenu.pane)?.pane : undefined;
+  const revealDebugProblem = useRef<(problemId: string) => void>(() => {});
+  useLayoutEffect(() => {
+    revealDebugProblem.current = (problemId) => {
+      const view = workspaceTabId({ id: "problem", params: { problemId } });
+      const pane = frameByView.get(view)?.pane;
+      if (pane) dispatch({ type: "select", pane: pane.id, view });
+    };
+  }, [frameByView]);
+  const debug = useLocalDebug(() => {
+    setShowDebug(true);
+    sidebar.show();
+  }, (problemId) => revealDebugProblem.current(problemId));
 
   function openTarget(target: WorkspaceTarget) {
     const view = viewsById.get(target.id);
@@ -361,7 +387,8 @@ export function Workbench() {
     <main ref={sidebarResize.workbench} className="workbench"
       data-sidebar-resizing={sidebarResize.resizing}
       style={{ "--sidebar-width": `${sidebar.visible ? sidebarResize.width : 0}px` } as CSSProperties}>
-      <WorkspaceNavigator onOpen={openTarget} />
+      <WorkspaceNavigator showDebug={showDebug} onShowDebug={setShowDebug} onOpen={openTarget}
+        debug={debug.state} debugLaunch={launch} />
       {sidebar.visible && (
         <div className="workbench-sidebar-resizer" role="separator" tabIndex={0}
           aria-orientation="vertical" aria-controls="workspace-sidebar" aria-label={messages.resizeSidebar}
@@ -398,7 +425,9 @@ export function Workbench() {
                   role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                   hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                   onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
-                  <Page {...target} title={tabDetails(view, target, messages, locale).title} open={openTarget} />
+                  <ProblemDebugContext value={{ ...debug, activeProblemId, registerLaunch }}>
+                    <Page {...target} title={tabDetails(view, target, messages, locale).title} open={openTarget} />
+                  </ProblemDebugContext>
                 </ScrollArea>
               </PanePanelHost>
             );

@@ -24,12 +24,17 @@
   border-block-end: 1px solid var(--workbench-border, var(--control-border));
 }
 
-.code-editor__run {
+.code-editor__actions {
+  display: flex;
+  gap: 2px;
   margin-inline-start: auto;
+}
+
+.code-editor__action {
   color: var(--accent-color);
 }
 
-.code-editor__run:disabled {
+.code-editor__action:disabled {
   opacity: 0.5;
 }
 
@@ -48,6 +53,57 @@
 .code-editor__surface .cm-content:focus-visible {
   outline: none;
   box-shadow: none;
+}
+
+.code-editor__surface .cm-debug-gutter {
+  --breakpoint-color: light-dark(#ba3b36, #ff8379);
+  --debug-position-color: light-dark(#976212, #ffd278);
+  inline-size: 20px;
+}
+
+.code-editor__surface .cm-debug-gutter .cm-gutterElement > span {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: 100%;
+  cursor: pointer;
+}
+
+.code-editor__surface .cm-debug-gutter .cm-gutterElement > span::before {
+  content: "";
+  grid-area: 1 / 1;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+}
+
+.code-editor__surface .cm-debug-gutter .cm-gutterElement:not(.cm-debug-paused, .cm-debug-breakpoint):hover > span::before {
+  background: color-mix(in srgb, var(--breakpoint-color) 40%, transparent);
+}
+
+.code-editor__surface .cm-debug-gutter .cm-gutterElement.cm-debug-breakpoint > span::before {
+  background: var(--breakpoint-color);
+}
+
+.code-editor__surface .cm-debug-gutter .cm-debug-paused > span::after {
+  content: "";
+  grid-area: 1 / 1;
+  inline-size: 10px;
+  block-size: 10px;
+  background: var(--debug-position-color);
+  clip-path: polygon(0 27%, 48% 27%, 48% 0, 100% 50%, 48% 100%, 48% 73%, 0 73%);
+}
+
+.code-editor__surface .cm-debug-gutter .cm-debug-breakpoint.cm-debug-paused > span::before {
+  transform: translateX(-4px);
+}
+
+.code-editor__surface .cm-debug-gutter .cm-debug-breakpoint.cm-debug-paused > span::after {
+  transform: translateX(4px);
+}
+
+.code-editor__surface .cm-editor .cm-line.cm-debug-current-line {
+  background: light-dark(#fbf1de, #443821);
 }
 
 .code-editor__surface .cm-scroller {
