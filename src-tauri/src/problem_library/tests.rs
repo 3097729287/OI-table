@@ -638,6 +638,80 @@ fn install_rolls_back_an_earlier_write_when_a_later_write_fails() {
 }
 
 #[test]
+fn lists_submission_metadata_for_a_single_problem_across_versions() {
+    let (_directory, mut connection) = test_database();
+    install(&mut connection, fixture_files(BASICS)).unwrap();
+    install(
+        &mut connection,
+        single_problem_release(2, false, "Updated range sums statement."),
+    )
+    .unwrap();
+
+    let created_at = 1_795_580_000_000_i64;
+    let insert = "INSERT INTO submissions (id, problem_id, content_version, source, language, created_at, status)
+                  VALUES (?1, ?2, ?3, 'int main() {}', 'cpp', ?4, 'accepted')";
+    let write = connection.transaction().unwrap();
+    for index in 0..=50 {
+        write
+            .execute(
+                insert,
+                rusqlite::params![
+                    format!("entry-{index:02}"),
+                    RANGE_SUMS,
+                    (index % 2) + 1,
+                    created_at
+                ],
+            )
+            .unwrap();
+    }
+    write
+        .execute(
+            insert,
+            rusqlite::params!["earliest", RANGE_SUMS, 1, created_at - 1],
+        )
+        .unwrap();
+    write
+        .execute(
+            insert,
+            rusqlite::params!["other-problem", PARENTHESIS_DEPTH, 1, created_at + 1],
+        )
+        .unwrap();
+    write.commit().unwrap();
+    db::set_library_status(&mut connection, BASICS, LibraryStatus::Disabled).unwrap();
+
+    let first = serde_json::to_value(
+        query::list_problem_submissions(&connection, RANGE_SUMS, None).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(first["items"].as_array().unwrap().len(), 50);
+    assert_eq!(
+        first["items"][0],
+        json!({
+            "id": "entry-00", "language": "cpp", "createdAt": created_at,
+            "status": "accepted", "contentVersion": 1
+        })
+    );
+    assert_eq!(first["items"][1]["contentVersion"], 2);
+    assert_eq!(first["nextCursor"], "entry-49");
+
+    let second = serde_json::to_value(
+        query::list_problem_submissions(&connection, RANGE_SUMS, first["nextCursor"].as_str())
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(second["items"].as_array().unwrap().len(), 2);
+    assert_eq!(second["items"][0]["id"], "entry-50");
+    assert_eq!(second["items"][1]["id"], "earliest");
+    assert!(second["nextCursor"].is_null());
+    assert_eq!(
+        query::list_problem_submissions(&connection, RANGE_SUMS, Some("other-problem"))
+            .unwrap_err()
+            .code,
+        "invalid_query"
+    );
+}
+
+#[test]
 fn disable_and_uninstall_hide_problems_but_reinstall_keeps_saved_references() {
     let (_directory, mut connection) = test_database();
     install(&mut connection, fixture_files(BASICS)).unwrap();

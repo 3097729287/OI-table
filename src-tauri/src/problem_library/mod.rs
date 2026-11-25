@@ -17,7 +17,7 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 
 use db::{ImportSummary, LibraryInfo, LibraryStatus};
-use query::{ArchiveInfo, ProblemDetail, ProblemPage, ProblemQuery, TagGroup};
+use query::{ArchiveInfo, ProblemDetail, ProblemPage, ProblemQuery, SubmissionPage, TagGroup};
 
 type Result<T> = std::result::Result<T, LibraryError>;
 
@@ -238,6 +238,18 @@ pub(crate) async fn get_library_problem(
 ) -> Result<ProblemDetail> {
     run(app, move |path| {
         query::get_problem(&db::open(path)?, &id, content_version)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn list_problem_submissions(
+    app: AppHandle,
+    problem_id: String,
+    after: Option<String>,
+) -> Result<SubmissionPage> {
+    run(app, move |path| {
+        query::list_problem_submissions(&db::open(path)?, &problem_id, after.as_deref())
     })
     .await
 }

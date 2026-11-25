@@ -1,0 +1,107 @@
+.code-editor {
+  --code-editor-padding: var(--code-editor-gutter, var(--space-md));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  block-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 0;
+  border-block-start: 1px solid var(--workbench-border, var(--control-border));
+}
+
+.code-editor__bar,
+.code-editor__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--space-sm);
+  padding-inline: var(--code-editor-padding);
+  background: var(--sidebar-background);
+}
+
+.code-editor__bar {
+  justify-content: space-between;
+  min-block-size: calc(var(--code-editor-bar-height, 36px) + 1px);
+  padding-block: 3px;
+  border-block-end: 1px solid var(--workbench-border, var(--control-border));
+}
+
+.code-editor__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-inline-size: 0;
+  inline-size: 100%;
+}
+
+.code-editor :is(.code-editor__language, .code-editor__check, .code-editor__run) {
+  inline-size: auto;
+  block-size: 29px;
+  padding-block: 0;
+}
+
+.code-editor__run {
+  margin-inline-start: auto;
+  background: var(--accent-color);
+  border-color: transparent;
+  color: var(--window-background);
+}
+
+.code-editor__check:enabled,
+.code-editor__run:enabled,
+.code-editor__problems {
+  cursor: pointer;
+}
+
+.code-editor__check:enabled:hover,
+.code-editor__problems:hover {
+  background: var(--navigation-hover);
+}
+
+.code-editor__run:enabled:hover {
+  background: color-mix(in srgb, var(--accent-color) 88%, var(--window-background));
+}
+
+.code-editor__surface {
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.code-editor__surface .cm-scroller,
+.code-editor__surface .cm-tooltip-autocomplete ul,
+.code-editor__surface .cm-panel-lint ul {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted-color) 42%, transparent) transparent;
+}
+
+.code-editor__status {
+  min-block-size: 26px;
+  padding-block: 2px;
+  border-block-start: 1px solid var(--workbench-border, var(--control-border));
+  color: var(--muted-color);
+  font-size: var(--ui-font-size-small);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.code-editor__problems {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.code-editor__problems[data-has-problems="true"] {
+  color: var(--accent-color);
+}
+
+.code-editor__feedback {
+  min-inline-size: 0;
+}
+
+.code-editor__position {
+  margin-inline-start: auto;
+}

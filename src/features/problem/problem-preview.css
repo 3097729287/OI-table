@@ -22,7 +22,6 @@
 
 .problem-detail {
   --problem-detail-gutter: min(var(--space-lg), 4%);
-  --problem-detail-bar-height: 36px;
   display: grid;
   grid-template-rows: auto minmax(8rem, 1fr);
   block-size: 100%;
@@ -58,54 +57,19 @@
   overflow-wrap: anywhere;
 }
 
-.problem-detail__controls,
-.problem-detail__surface-switch,
-.problem-detail__reader-controls,
-.problem-detail__reader-tabs {
+.problem-detail__controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-sm);
   min-inline-size: 0;
 }
 
-.problem-detail__controls {
-  gap: var(--space-sm);
-}
-
-.problem-detail__surface-switch {
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--control-border);
-  border-radius: 5px;
-  background: var(--sidebar-background);
-}
-
-.problem-detail__surface-button,
-.problem-detail__reader-tab {
-  min-block-size: 27px;
-  padding: 4px var(--space-sm);
-  border: 0;
-  background: transparent;
-  color: var(--muted-color);
-  font: inherit;
-  font-size: var(--ui-font-size-control);
-  line-height: 1.3;
-  cursor: pointer;
-}
-
-.problem-detail__surface-button {
-  border-radius: 3px;
-}
-
-.problem-detail__surface-button:hover,
-.problem-detail__reader-tab:hover,
 .problem-detail__layout:enabled:hover {
   background: var(--navigation-hover);
   color: var(--text-color);
 }
 
-.problem-detail__surface-button[aria-pressed="true"],
 .problem-detail__layout[aria-pressed="true"] {
   background: var(--navigation-selected);
   color: var(--accent-color);
@@ -123,90 +87,20 @@
   cursor: pointer;
 }
 
-.problem-detail :is(.problem-detail__surface-button, .problem-detail__reader-tab, .problem-detail__layout):focus-visible {
+.problem-detail__layout:focus-visible {
   outline: 1px solid var(--accent-color);
   outline-offset: -2px;
   box-shadow: none;
 }
 
-.problem-detail__reader,
 .problem-detail__editor {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  --code-editor-gutter: var(--problem-detail-gutter);
   block-size: 100%;
-  min-block-size: 0;
   min-inline-size: 0;
-  border-block-start: 1px solid var(--workbench-border, var(--control-border));
-}
-
-.problem-detail__reader {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.problem-detail__editor {
-  grid-template-rows: auto minmax(0, 1fr) auto;
-}
-
-.problem-detail[data-split="false"] .problem-detail__editor {
-  inline-size: 100%;
-  max-inline-size: 90ch;
-  margin-inline: auto;
-}
-
-.problem-detail__reader-bar,
-.problem-detail__editor-bar {
-  border-block-end: 1px solid var(--workbench-border, var(--control-border));
-  background: var(--sidebar-background);
-}
-
-.problem-detail__reader-controls {
-  justify-content: space-between;
-  gap: 0 var(--space-sm);
-  min-block-size: var(--problem-detail-bar-height);
-  max-inline-size: 90ch;
-  margin-inline: auto;
-  padding-inline: var(--problem-detail-gutter);
-}
-
-.problem-detail[data-split="true"] .problem-detail__reader-controls {
-  flex-wrap: nowrap;
-  max-inline-size: none;
-}
-
-.problem-detail__reader-tabs {
-  gap: 0;
-}
-
-.problem-detail[data-split="true"] .problem-detail__reader-tabs {
-  flex-wrap: nowrap;
-}
-
-.problem-detail__reader-tab {
-  min-inline-size: 0;
-  min-block-size: var(--problem-detail-bar-height);
-  border-block: 2px solid transparent;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.problem-detail__reader-tab[aria-selected="true"] {
-  border-block-end-color: var(--accent-color);
-  color: var(--accent-color);
-  font-weight: 600;
-}
-
-.problem-detail .problem-detail__language {
-  flex: 0 1 auto;
-  min-inline-size: 0;
-  margin-block: 3px;
-}
-
-.problem-detail[data-split="true"] .problem-detail__language {
-  min-inline-size: 40px;
 }
 
 .problem-detail__read-scroll {
+  block-size: 100%;
   min-inline-size: 0;
   min-block-size: 0;
 }
@@ -264,58 +158,4 @@
   border-inline-start: 2px solid var(--control-border);
   color: var(--muted-color);
   font-size: var(--ui-font-size-control);
-}
-
-.problem-detail__editor-bar {
-  display: flex;
-  align-items: center;
-  min-block-size: calc(var(--problem-detail-bar-height) + 1px);
-  padding: 4px var(--problem-detail-gutter);
-}
-
-.problem-detail__editor-bar h2 {
-  color: var(--text-color);
-  font-size: var(--ui-font-size-control);
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.problem-detail__draft {
-  min-inline-size: 0;
-  min-block-size: 0;
-}
-
-.problem-detail__draft textarea {
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-  padding: var(--space-sm) var(--problem-detail-gutter);
-  border: 0;
-  background: var(--window-background);
-  color: inherit;
-  font: var(--editor-font-size)/1.6 var(--editor-font-family);
-  resize: none;
-}
-
-.problem-detail__draft textarea::placeholder {
-  color: var(--muted-color);
-}
-
-.problem-detail__draft textarea:focus-visible {
-  outline: 1px solid var(--accent-color);
-  outline-offset: -1px;
-  box-shadow: none;
-}
-
-.problem-detail__editor-status {
-  display: flex;
-  justify-content: flex-end;
-  min-block-size: 25px;
-  padding: 4px var(--problem-detail-gutter);
-  border-block-start: 1px solid var(--workbench-border, var(--control-border));
-  background: var(--sidebar-background);
-  color: var(--muted-color);
-  font-size: var(--ui-font-size-small);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
 }

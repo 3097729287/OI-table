@@ -1,3 +1,5 @@
+mod editor_check;
+mod editor_run;
 mod logging;
 mod problem_library;
 mod settings;
@@ -42,6 +44,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             settings::get_settings,
             settings::update_settings,
+            editor_check::check_editor_code,
+            editor_run::run_editor_code,
             triggers::get_trigger,
             triggers::increment_trigger,
             problem_library::pick_problem_library_source,
@@ -51,6 +55,7 @@ pub fn run() {
             problem_library::uninstall_problem_library,
             problem_library::list_library_problems,
             problem_library::get_library_problem,
+            problem_library::list_problem_submissions,
             problem_library::list_library_archive_children,
             problem_library::list_library_tag_groups,
             windowing::open_window,
