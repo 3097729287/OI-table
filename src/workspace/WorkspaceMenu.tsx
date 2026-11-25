@@ -1,7 +1,9 @@
-import { useState, type CSSProperties } from "react";
+import { useId, useState, type CSSProperties } from "react";
+import { ArchiveNavigation, CatalogNavigation } from "../features/catalog/LibraryNavigation";
 import { useMessages, type MessageKey } from "../i18n";
 import { Icon, type IconName } from "../shared/Icon";
 import { workspaceTabId, type WorkspaceTarget } from "./layout";
+import { SidebarDisclosure } from "./SidebarDisclosure";
 import { workspaceEntries, workspaceSections, workspaceViews, type WorkspaceSection } from "./views";
 
 interface MenuGroup {
@@ -52,8 +54,14 @@ interface WorkspaceMenuProps {
 
 export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
   const messages = useMessages();
+  const menuId = useId();
   const [expandedGroups, setExpandedGroups] = useState<Partial<Record<string, boolean>>>({});
   const [selectedEntry, setSelectedEntry] = useState<string>();
+
+  function openEntry(target: WorkspaceTarget) {
+    setSelectedEntry(workspaceTabId(target));
+    onOpen(target);
+  }
 
   function renderItems(items: readonly MenuItem[], depth = 0) {
     return (
@@ -63,9 +71,10 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
           if (item.kind === "group") {
             const defaultExpanded = depth === 0;
             const expanded = expandedGroups[item.id] ?? defaultExpanded;
+            const listId = `${menuId}${item.id}`;
             return (
               <li key={`group:${item.id}`}>
-                <button type="button" aria-expanded={expanded} title={title}
+                <button type="button" aria-expanded={expanded} aria-controls={listId} title={title}
                   onClick={() => setExpandedGroups((groups) => ({
                     ...groups,
                     [item.id]: !(groups[item.id] ?? defaultExpanded),
@@ -73,24 +82,27 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
                   <Icon name="chevronRight" size={15} />
                   <span className="workbench-sidebar__label">{title}</span>
                 </button>
-                {expanded && renderItems(item.children, depth + 1)}
+                <SidebarDisclosure id={listId} expanded={expanded}>{renderItems(item.children, depth + 1)}</SidebarDisclosure>
               </li>
             );
+          }
+
+          if (item.id === "catalog") {
+            return <CatalogNavigation key={item.id} onOpen={openEntry} selectedEntry={selectedEntry} />;
           }
 
           return (
             <li key={item.id}>
               <button type="button" aria-current={selectedEntry === item.id || undefined} title={title}
-                onClick={() => {
-                  setSelectedEntry(item.id);
-                  onOpen(item.target);
-                }}>
+                onClick={() => openEntry(item.target)}>
                 <Icon name={item.icon} size={15} />
                 <span className="workbench-sidebar__label">{title}</span>
               </button>
             </li>
           );
         })}
+        {depth === 0 && section === "archive" &&
+          <ArchiveNavigation onOpen={openEntry} selectedEntry={selectedEntry} />}
       </ul>
     );
   }

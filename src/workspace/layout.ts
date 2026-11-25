@@ -3,6 +3,7 @@ export type WorkspaceParams = Readonly<Record<string, string>>;
 export interface WorkspaceTarget {
   id: string;
   params: WorkspaceParams;
+  label?: Readonly<Partial<Record<"en" | "zh-CN", string>>>;
 }
 
 export function workspaceTabId(target: WorkspaceTarget, singleton = false): string {
@@ -299,6 +300,7 @@ export function previewBounds(
 
 function sameTarget(current: WorkspaceTarget | undefined, next: WorkspaceTarget): boolean {
   if (!current || current.id !== next.id) return false;
+  if (current.label?.en !== next.label?.en || current.label?.["zh-CN"] !== next.label?.["zh-CN"]) return false;
 
   const params = Object.entries(next.params);
   return Object.keys(current.params).length === params.length

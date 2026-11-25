@@ -1,0 +1,26 @@
+.problem-preview {
+  max-inline-size: 90ch;
+  padding-inline: min(var(--space-lg), 4%);
+  overflow-wrap: anywhere;
+}
+
+.problem-preview__statement {
+  margin-block-start: var(--space-md);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.problem-preview__retry {
+  margin-block-start: var(--space-sm);
+  padding: 4px var(--space-sm);
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  background: var(--sidebar-background);
+  color: var(--text-color);
+  font: inherit;
+  font-size: var(--ui-font-size-control);
+}
+
+.problem-preview__retry:hover {
+  background: var(--navigation-hover);
+}
