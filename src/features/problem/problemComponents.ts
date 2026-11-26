@@ -1,4 +1,5 @@
 import { createElement, use, type ComponentType } from "react";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
 function preloadableComponent<Props extends object>(importModule: () => Promise<{ default: ComponentType<Props> }>) {
   let loaded: ComponentType<Props> | undefined;
@@ -44,6 +45,7 @@ export function scheduleProblemComponentsPreload() {
     if (document.visibilityState !== "visible") return;
     stop();
     void Promise.allSettled([markdown.preload(), code.preload(), plainText.preload()]);
+    if (isTauri()) void invoke<void>("warm_cpp_debugger").catch(() => {});
   }
 
   function waitForIdle() {

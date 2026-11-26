@@ -3,18 +3,20 @@ import { createPortal } from "react-dom";
 import { useMessages } from "../../i18n";
 import { Icon } from "../../shared/Icon";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
+import "../../shared/ui/floating-surface.css";
 import type { DebugVariable } from "./localDebug";
 import "./problem-debug-variables.css";
 
 interface VariableContext {
   revision: number;
+  valueRevision: number;
   scope: string;
   collapsedAt: number;
   canInspect: boolean;
   loadChildren(reference: number): Promise<readonly DebugVariable[]>;
 }
 
-interface VariablesProps extends Omit<VariableContext, "scope" | "collapsedAt"> {
+interface VariablesProps extends Omit<VariableContext, "scope" | "collapsedAt" | "valueRevision"> {
   variables?: readonly DebugVariable[];
   globalsReference?: number;
   scope?: string;
@@ -124,25 +126,54 @@ function valueKind(type: string, value: string) {
   return undefined;
 }
 
+interface VariableObservation {
+  scope: string;
+  revision: number;
+  value: string;
+  type: string;
+  previous?: { value: string; type: string };
+}
+
 function VariableRow({ variable, context }: { variable: DebugVariable; context: VariableContext }) {
   const { reference, name, value, type } = variable;
+  const { scope, valueRevision } = context;
+  const [observed, setObserved] = useState<VariableObservation>({ scope, revision: valueRevision, value, type });
+  if (observed.scope !== scope || observed.revision !== valueRevision) {
+    const comparable = observed.scope === scope && observed.revision + 1 === valueRevision;
+    const previous = comparable && (observed.value !== value || observed.type !== type)
+      ? { value: observed.value, type: observed.type } : undefined;
+    setObserved({ scope, revision: valueRevision, value, type, previous });
+  }
+  const previous = variable.previous ?? observed.previous;
+  const typeDescription = previous?.type && previous.type !== type ? `${previous.type} → ${type || "?"}` : type;
+  const change = previous && [`${name} = ${previous.value || '""'} → ${value || '""'}`, typeDescription]
+    .filter(Boolean).join("\n");
   const messages = useMessages();
   const childrenId = useId();
   const { expanded, toggle } = useVariableExpansion(context);
   const visible = reference != null && expanded;
+  const canToggle = reference != null && context.canInspect;
 
   return (
     <li className="problem-debug__variable">
-      <div className="problem-debug-variable__row">
+      <div className="problem-debug-variable__row" data-expandable={canToggle || undefined}
+        onClick={canToggle ? (event) => {
+          const arrow = event.target instanceof Element && event.target.closest("button");
+          if (event.detail > 0 && !arrow) {
+            const selection = event.currentTarget.ownerDocument.getSelection();
+            if (selection && !selection.isCollapsed && selection.getRangeAt(0).intersectsNode(event.currentTarget)) return;
+          }
+          toggle();
+        } : undefined}>
         {reference != null ? (
           <button type="button" className="problem-debug-variable__toggle"
             aria-label={messages.problemDebugToggleVariable.replace("{name}", () => name)}
-            aria-expanded={visible} aria-controls={childrenId} aria-disabled={!context.canInspect || undefined}
-            onClick={() => { if (context.canInspect) toggle(); }}>
+            aria-expanded={visible} aria-controls={childrenId} aria-disabled={!canToggle || undefined}>
             <Icon name="chevronRight" size={13} />
           </button>
         ) : <span className="problem-debug-variable__indent" aria-hidden="true" />}
-        <span className="problem-debug-variable__text" data-selectable data-variable-text data-variable-type={type || undefined}>
+        <span className="problem-debug-variable__text" data-selectable data-variable-text data-variable-type={type || undefined}
+          data-variable-change={change}>
           <span className="problem-debug-variable__name">{name}</span>
           {value.length > 0 && <><span className="problem-debug-variable__assignment">{" = "}</span>
             <span className="problem-debug-variable__value" data-kind={valueKind(type, value)}>{value}</span></>}
@@ -167,7 +198,8 @@ function VariableChildren({ reference, expanded, context, grouped }: {
   const messages = useMessages();
   const [branch, setBranch] = useState<VariableBranch>({ scope });
   if (branch.scope !== scope) setBranch({ scope });
-  const children = branch.scope === scope ? branch.result?.children : undefined;
+  const result = branch.scope === scope ? branch.result : undefined;
+  const children = result?.children;
   const current = branch.result?.revision === revision && branch.result.reference === reference;
   const failed = branch.error?.revision === revision && branch.error.reference === reference;
   const fetchChildren = useEffectEvent(loadChildren);
@@ -191,7 +223,8 @@ function VariableChildren({ reference, expanded, context, grouped }: {
 
   return (
     <div aria-busy={expanded && !current && !failed || undefined}>
-      {children && <VariableList grouped={grouped} variables={children} context={{ ...context, canInspect: expanded && canInspect && current }} />}
+      {result && <VariableList grouped={grouped} variables={result.children}
+        context={{ ...context, valueRevision: result.revision, canInspect: expanded && canInspect && current }} />}
       {!children && !failed && <p className="problem-debug-variable__status" role="status">{messages.problemDebugInspecting}</p>}
       {current && children?.length === 0 && <p className="problem-debug-variable__status">{messages.problemDebugVariableEmpty}</p>}
       {failed && (
@@ -221,11 +254,13 @@ function VariableTooltip({ hover, close, hold, dismissSoon }: {
   dismissSoon(): void;
 }) {
   const tooltip = useRef<HTMLDivElement>(null);
+  const hoverBridge = useRef<HTMLDivElement>(null);
   const id = useId();
 
   useLayoutEffect(() => {
     const popup = tooltip.current;
-    if (!popup) return;
+    const bridge = hoverBridge.current;
+    if (!popup || !bridge) return;
     const { anchor } = hover;
     const view = anchor.ownerDocument.documentElement;
     const rect = anchor.getBoundingClientRect();
@@ -235,8 +270,17 @@ function VariableTooltip({ hover, close, hold, dismissSoon }: {
     const above = rect.top - gap - inset;
     const preferBelow = below >= popup.offsetHeight || below >= above;
     popup.style.maxBlockSize = `${Math.max(0, preferBelow ? below : above)}px`;
-    popup.style.left = `${Math.max(inset, Math.min(rect.left, view.clientWidth - popup.offsetWidth - inset))}px`;
+    const left = Math.max(inset, Math.min(rect.left, view.clientWidth - popup.offsetWidth - inset));
+    popup.style.left = `${left}px`;
     popup.style.top = `${preferBelow ? rect.bottom + gap : rect.top - gap - popup.offsetHeight}px`;
+    popup.style.transformOrigin = preferBelow ? "left top" : "left bottom";
+
+    const bridgeLeft = Math.max(0, Math.min(rect.left, left));
+    const bridgeRight = Math.min(view.clientWidth, Math.max(rect.right, left + popup.offsetWidth));
+    bridge.style.left = `${bridgeLeft}px`;
+    bridge.style.top = `${preferBelow ? rect.bottom : rect.top - gap}px`;
+    bridge.style.width = `${bridgeRight - bridgeLeft}px`;
+    bridge.style.height = `${gap}px`;
     anchor.setAttribute("aria-describedby", id);
     return () => anchor.removeAttribute("aria-describedby");
   }, [hover, id]);
@@ -259,10 +303,14 @@ function VariableTooltip({ hover, close, hold, dismissSoon }: {
   }, [hover, close]);
 
   return createPortal(
-    <ScrollArea ref={tooltip} id={id} className="problem-debug-variable-tooltip" orientation="vertical"
-      role="tooltip" onPointerEnter={hold} onPointerLeave={dismissSoon}>
-      <pre data-selectable>{hover.text}</pre>
-    </ScrollArea>,
+    <>
+      <div ref={hoverBridge} className="problem-debug-variable-tooltip-bridge" aria-hidden="true"
+        onPointerEnter={hold} onPointerLeave={dismissSoon} />
+      <ScrollArea ref={tooltip} id={id} className="floating-surface problem-debug-variable-tooltip" orientation="vertical"
+        role="tooltip" onPointerEnter={hold} onPointerLeave={dismissSoon}>
+        <pre data-selectable>{hover.text}</pre>
+      </ScrollArea>
+    </>,
     hover.anchor.ownerDocument.body,
   );
 }
@@ -295,11 +343,12 @@ export function ProblemDebugVariables({ variables, globalsReference, revision, s
     close();
     const value = anchor.textContent ?? "";
     const type = anchor.dataset.variableType;
-    if (!type && !/[\r\n]/.test(value) && anchor.scrollWidth <= anchor.clientWidth) return;
+    if (!anchor.dataset.variableChange && !type && !/[\r\n]/.test(value) && anchor.scrollWidth <= anchor.clientWidth) return;
     timer.current = window.setTimeout(() => {
       const rect = anchor.getBoundingClientRect();
       if (anchor.isConnected && rect.bottom > 0 && rect.top < anchor.ownerDocument.documentElement.clientHeight) {
-        setHover({ anchor, revision, scope, text: type ? `${value}\n${type}` : value });
+        const text = anchor.dataset.variableChange ?? [anchor.textContent, anchor.dataset.variableType].filter(Boolean).join("\n");
+        setHover({ anchor, revision, scope, text });
       }
     }, 300);
   }
@@ -308,7 +357,7 @@ export function ProblemDebugVariables({ variables, globalsReference, revision, s
     if (event.target instanceof HTMLElement && event.target.closest("[data-variable-text]")) dismissSoon();
   }
 
-  const context = { revision, scope, collapsedAt, canInspect: expanded && canInspect, loadChildren };
+  const context = { revision, valueRevision: revision, scope, collapsedAt, canInspect: expanded && canInspect, loadChildren };
 
   function collapseAll() {
     close();

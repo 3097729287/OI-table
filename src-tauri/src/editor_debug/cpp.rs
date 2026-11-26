@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::Path, time::Instant};
+use std::{collections::BTreeMap, path::Path, sync::Mutex, time::Instant};
 
 use crate::editor_run::{find_cpp, find_program};
 
@@ -13,6 +13,56 @@ mod mi;
 mod variables;
 #[cfg(windows)]
 mod windows_inferior;
+
+#[derive(Default)]
+pub(super) struct Pool {
+    idle: Mutex<Option<Debugger>>,
+    maintenance: ActiveDebug,
+}
+
+impl Pool {
+    pub(super) fn warm(&self) {
+        if let Ok(mut idle) = self.idle.try_lock() {
+            if idle.is_none() && self.maintenance.check_cancelled().is_ok() {
+                *idle = find_gdb()
+                    .and_then(|gdb| Debugger::spawn(&gdb, &std::env::temp_dir(), &self.maintenance))
+                    .ok();
+            }
+        }
+    }
+
+    fn take(&self) -> Option<Debugger> {
+        self.idle.lock().ok()?.take()
+    }
+
+    pub(super) fn recycle(&self, mut debugger: Debugger, paused: bool) {
+        if debugger.reset(paused, &self.maintenance).is_ok() {
+            if let Ok(mut idle) = self.idle.lock() {
+                if idle.is_none() && self.maintenance.check_cancelled().is_ok() {
+                    *idle = Some(debugger);
+                }
+            }
+        }
+    }
+
+    pub(super) fn close(&self) {
+        self.maintenance.cancel();
+        if let Ok(mut idle) = self.idle.lock() {
+            idle.take();
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn idle_pid(&self) -> Option<u32> {
+        let idle = self.idle.lock().unwrap();
+        Some(idle.as_ref()?.transport._process.0.id())
+    }
+}
+
+fn find_gdb() -> Result<std::path::PathBuf> {
+    find_program("gdb")
+        .ok_or_else(|| DebugError::new("tool_unavailable", "Install GDB and add it to PATH."))
+}
 
 pub(super) struct Debugger {
     transport: Transport,
@@ -29,6 +79,7 @@ impl Debugger {
         root: &Path,
         breakpoints: &[u32],
         active: &ActiveDebug,
+        pool: &Pool,
     ) -> Result<(Self, DebugLocation)> {
         let (_, compiler) = find_cpp().ok_or_else(|| {
             DebugError::new(
@@ -36,29 +87,28 @@ impl Debugger {
                 "Install g++ or clang++ and add it to PATH.",
             )
         })?;
-        let gdb = find_program("gdb").ok_or_else(|| {
-            DebugError::new("tool_unavailable", "Install GDB and add it to PATH.")
-        })?;
+        let gdb = find_gdb()?;
         let binary = format!("solution{}", std::env::consts::EXE_SUFFIX);
-        let mut command = hidden_command(&gdb);
-        command
-            .current_dir(root)
-            .env("LC_ALL", "C")
-            .env_remove("DEBUGINFOD_URLS")
-            .args(["--nx", "--quiet", "--interpreter=mi2"]);
-        // Let GDB start while the compiler produces the executable. Load the
-        // symbols only after a successful compile.
-        let transport = Transport::spawn(command, root);
-        compile_cpp(&compiler, root, &binary, active)?;
-        let mut debugger = Self {
-            transport: transport?,
-            #[cfg(windows)]
-            inferior: None,
-            token: 0,
-            breakpoints: BTreeMap::new(),
-            variables: variables::VariableTable::default(),
-            globals: None,
-        };
+        let mut debugger = std::thread::scope(|scope| {
+            let compile = scope.spawn(|| compile_cpp(&compiler, root, &binary, active));
+            let cached = pool.take().and_then(|mut debugger| {
+                debugger.change_directory(root, active).ok()?;
+                Some(debugger)
+            });
+            // A stale process or unsupported working directory can use a clean launch.
+            let debugger = cached.map_or_else(|| Self::spawn(&gdb, root, active), Ok);
+            match compile.join().expect("compile C++ debug program") {
+                Ok(()) => debugger,
+                Err(error) => {
+                    // Compilation has not loaded any executable into this debugger.
+                    if let Ok(debugger) = debugger {
+                        pool.recycle(debugger, false);
+                    }
+                    Err(error)
+                }
+            }
+        })?;
+        debugger.transport.directory = Some(root.to_owned());
         #[cfg(windows)]
         {
             // Windows can take time to start a freshly linked executable. The
@@ -66,9 +116,9 @@ impl Debugger {
             let inferior = std::thread::scope(|scope| {
                 let inferior =
                     scope.spawn(|| windows_inferior::Inferior::start(root, &binary, active));
-                let configured = debugger.configure(&binary, active);
+                let loaded = debugger.load_symbols(&binary, active);
                 let inferior = inferior.join().expect("start C++ debug program");
-                configured?;
+                loaded?;
                 inferior
             })?;
             // Older MinGW GDB can stall when it launches the program itself.
@@ -77,7 +127,7 @@ impl Debugger {
             debugger.execute(&attach, Instant::now() + DEBUG_TIMEOUT, active)?;
         }
         #[cfg(not(windows))]
-        debugger.configure(&binary, active)?;
+        debugger.load_symbols(&binary, active)?;
         let deadline = Instant::now() + DEBUG_TIMEOUT;
         debugger.set_breakpoints(breakpoints, deadline, active)?;
         let at_entry = debugger.breakpoints.values().all(Option::is_none);
@@ -99,7 +149,23 @@ impl Debugger {
         Ok((debugger, location))
     }
 
-    fn configure(&mut self, binary: &str, active: &ActiveDebug) -> Result<()> {
+    fn spawn(gdb: &Path, directory: &Path, active: &ActiveDebug) -> Result<Self> {
+        active.check_cancelled()?;
+        let mut command = hidden_command(gdb);
+        command
+            .current_dir(directory)
+            .env("LC_ALL", "C")
+            .env_remove("DEBUGINFOD_URLS")
+            .args(["--nx", "--quiet", "--interpreter=mi2"]);
+        let mut debugger = Self {
+            transport: Transport::spawn(command, None)?,
+            #[cfg(windows)]
+            inferior: None,
+            token: 0,
+            breakpoints: BTreeMap::new(),
+            variables: variables::VariableTable::default(),
+            globals: None,
+        };
         let deadline = Instant::now() + DEBUG_TIMEOUT;
         for setup in [
             "-gdb-set pagination off",
@@ -107,16 +173,50 @@ impl Debugger {
             "-gdb-set print elements 20",
             "-gdb-set print repeats 8",
         ] {
-            self.command(setup, deadline, active)?;
+            debugger.command(setup, deadline, active)?;
         }
         // GDB builds without Python still expose native arrays and aggregate fields.
-        self.exchange("-enable-pretty-printing", deadline, active)?;
-        self.exchange("-gdb-set print characters 1024", deadline, active)?;
+        debugger.exchange("-enable-pretty-printing", deadline, active)?;
+        debugger.exchange("-gdb-set print characters 1024", deadline, active)?;
+        Ok(debugger)
+    }
+
+    fn load_symbols(&mut self, binary: &str, active: &ActiveDebug) -> Result<()> {
         self.command(
             &format!("-file-exec-and-symbols {binary}"),
-            deadline,
+            Instant::now() + DEBUG_TIMEOUT,
             active,
         )?;
+        Ok(())
+    }
+
+    fn change_directory(&mut self, directory: &Path, active: &ActiveDebug) -> Result<()> {
+        let path = directory
+            .to_str()
+            .ok_or_else(|| DebugError::failed("The debug directory is not a UTF-8 path."))?;
+        self.command(
+            &format!("-environment-cd {}", mi::argument(path)),
+            Instant::now() + DEBUG_TIMEOUT,
+            active,
+        )?;
+        Ok(())
+    }
+
+    fn reset(&mut self, paused: bool, active: &ActiveDebug) -> Result<()> {
+        self.transport.directory = None;
+        let deadline = Instant::now() + DEBUG_TIMEOUT;
+        self.clear_variables(deadline, active)?;
+        if paused {
+            self.command("-interpreter-exec console \"kill\"", deadline, active)?;
+        }
+        #[cfg(windows)]
+        self.inferior.take();
+        self.command("-break-delete", deadline, active)?;
+        self.command("-file-exec-and-symbols", deadline, active)?;
+        self.change_directory(&std::env::temp_dir(), active)?;
+        self.breakpoints.clear();
+        self.variables = variables::VariableTable::default();
+        self.globals = None;
         Ok(())
     }
 

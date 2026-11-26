@@ -170,6 +170,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const doubleColumn = layoutOverride ?? settings?.problemDoubleColumn ?? false;
   const locale = language === "interface" ? interfaceLocale : language;
   const revealKey = debug?.revealKey;
+  const sourceRevealKey = debug?.sourceRevealKey;
   const debugSessionId = debug?.sessionId;
   const debugStdout = debug?.stdout ?? "";
   const debugStderr = debug?.stderr || (debug?.error === "compile_failed" ? debug.errorDetail : undefined) || "";
@@ -206,8 +207,12 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   }, [isDebugTarget, desktop, registerLaunch, problem.id, launch, launchDisabled, launchMessage]);
 
   useLayoutEffect(() => {
-    if (revealKey) setActivate({ id: "code", focus: false });
-  }, [revealKey]);
+    if (debugSessionId !== undefined) setActivate({ id: "output", focus: false });
+  }, [debugSessionId]);
+
+  useLayoutEffect(() => {
+    if (sourceRevealKey !== undefined) setActivate({ id: "code", focus: false });
+  }, [sourceRevealKey]);
 
   useLayoutEffect(() => {
     // Keep the latest output on this problem when the debugger panel closes.
@@ -289,10 +294,10 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
     try {
       const draft = await request;
       if (launchRequest.current !== request) return;
-      setActivate({ id: "code", focus: false });
       const source = draft?.drafts[codeLanguage];
       if (!source) {
         setLaunchState("empty");
+        setActivate({ id: "code", focus: false });
         return;
       }
       const lineCount = source.split("\n").length;

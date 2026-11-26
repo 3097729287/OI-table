@@ -18,6 +18,7 @@ use crate::editor_run::{hidden_command, stop_child, EditorLanguage};
 
 mod cpp;
 mod python;
+mod variable_history;
 
 const MAX_DRAFT_BYTES: usize = 256 * 1024;
 const MAX_OUTPUT_BYTES: u64 = 256 * 1024;
@@ -148,14 +149,14 @@ enum DebugAction {
     StepOut,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 struct DebugFrame {
     id: u32,
     name: String,
     line: u32,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct DebugVariable {
     name: String,
     value: String,
@@ -164,9 +165,17 @@ pub(crate) struct DebugVariable {
     reference: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     group: Option<DebugVariableGroup>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    previous: Option<DebugVariableValue>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
+struct DebugVariableValue {
+    value: String,
+    r#type: String,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum DebugVariableGroup {
     Special,
@@ -234,6 +243,7 @@ pub(crate) struct DebugSnapshot {
 #[derive(Clone, Default)]
 pub(crate) struct EditorDebugState {
     active: Arc<Mutex<Option<Arc<ActiveDebug>>>>,
+    cpp: Arc<cpp::Pool>,
 }
 
 impl EditorDebugState {
@@ -255,28 +265,37 @@ impl EditorDebugState {
     }
 
     pub(crate) fn cancel_all(&self) {
+        self.cpp.close();
         let detached = self.active.lock().ok().and_then(|mut slot| slot.take());
         if let Some(active) = detached {
-            stop_active(&active);
+            stop_active(&active, None);
         }
     }
 }
 
+#[derive(Default)]
 struct ActiveDebug {
     id: u64,
     cancelled: AtomicBool,
     session: Mutex<Option<DebugSession>>,
 }
 
-fn stop_active(active: &ActiveDebug) {
-    active.cancelled.store(true, Ordering::Release);
+fn stop_active(active: &ActiveDebug, pool: Option<&cpp::Pool>) {
+    active.cancel();
     // Active operations wake when they observe cancellation and release the transport.
-    if let Ok(mut session) = active.session.lock() {
-        session.take();
+    if let Ok(mut stored) = active.session.lock() {
+        let session = stored.take();
+        if let (Some(session), Some(pool)) = (session, pool) {
+            session.recycle(pool, true);
+        }
     }
 }
 
 impl ActiveDebug {
+    fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+    }
+
     fn check_cancelled(&self) -> Result<()> {
         if self.cancelled.load(Ordering::Acquire) {
             return Err(DebugError::cancelled());
@@ -315,6 +334,21 @@ fn get_active(state: &EditorDebugState, id: u64) -> Result<Arc<ActiveDebug>> {
 }
 
 #[tauri::command]
+pub(crate) async fn warm_cpp_debugger(state: tauri::State<'_, EditorDebugState>) -> Result<()> {
+    if cfg!(desktop) {
+        let state = state.inner().clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            if state.active.lock().is_ok_and(|slot| slot.is_none()) {
+                state.cpp.warm();
+            }
+        })
+        .await
+        .map_err(|error| DebugError::failed(error.to_string()))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub(crate) async fn debug_start(
     state: tauri::State<'_, EditorDebugState>,
     mut request: DebugStartRequest,
@@ -336,15 +370,18 @@ pub(crate) async fn debug_start(
     }
     normalize_breakpoints(&mut request.breakpoints)?;
     let slot = Arc::clone(&state.active);
+    let pool = Arc::clone(&state.cpp);
     let active = state.reserve(request.session_id)?;
 
     tauri::async_runtime::spawn_blocking(move || {
         let result = (|| {
             let mut stored = active.lock_session()?;
-            let (session, snapshot) = DebugSession::start(request, &active)?;
+            let (session, snapshot) = DebugSession::start(request, &active, &pool)?;
             active.check_cancelled()?;
             if snapshot.location.status == DebugStatus::Paused {
                 stored.replace(session);
+            } else {
+                session.recycle(&pool, false);
             }
             Ok(snapshot)
         })();
@@ -379,6 +416,7 @@ pub(crate) fn verify_debug_fixture(
                 breakpoints: vec![breakpoint],
             },
             &active,
+            &state.cpp,
         )?;
         if paused.location.status == DebugStatus::Finished {
             return Err(DebugError::failed(
@@ -414,6 +452,7 @@ pub(crate) fn verify_debug_fixture(
                 done.stderr
             }));
         }
+        session.recycle(&state.cpp, false);
         Ok(())
     })();
     cleanup(&state.active, &active);
@@ -428,13 +467,17 @@ pub(crate) async fn debug_step(
     normalize_breakpoints(&mut request.breakpoints)?;
     let active = get_active(&state, request.session_id)?;
     let slot = Arc::clone(&state.active);
+    let pool = Arc::clone(&state.cpp);
     tauri::async_runtime::spawn_blocking(move || {
         let mut stored = active.lock_session()?;
         let session = stored.as_mut().ok_or_else(DebugError::busy)?;
         let result = session.step(&request, &active);
         if !matches!(&result, Ok(snapshot) if snapshot.location.status == DebugStatus::Paused) {
+            let session = stored.take();
+            if let (Ok(_), Some(session)) = (&result, session) {
+                session.recycle(&pool, false);
+            }
             cleanup(&slot, &active);
-            stored.take();
         }
         result
     })
@@ -499,15 +542,16 @@ pub(crate) async fn debug_stop(
             .lock()
             .map_err(|_| DebugError::failed("The debugger state is unavailable."))?;
         if let Some(active) = slot.as_ref().filter(|active| active.id == session_id) {
-            active.cancelled.store(true, Ordering::Release);
+            active.cancel();
             slot.take()
         } else {
             None
         }
     };
+    let pool = Arc::clone(&state.cpp);
     tauri::async_runtime::spawn_blocking(move || {
         if let Some(active) = detached {
-            stop_active(&active);
+            stop_active(&active, Some(&pool));
         }
     })
     .await
@@ -531,14 +575,28 @@ enum Engine {
     Python(python::Debugger),
 }
 
+impl Engine {
+    fn children(&mut self, reference: u32, active: &ActiveDebug) -> Result<Vec<DebugVariable>> {
+        match self {
+            Self::Cpp(engine) => engine.children(reference, active),
+            Self::Python(engine) => engine.children(reference, active),
+        }
+    }
+}
+
 struct DebugSession {
     engine: Engine,
-    frames: Vec<u32>,
+    frames: Vec<DebugFrame>,
+    variable_history: variable_history::VariableHistory,
     directory: tempfile::TempDir,
 }
 
 impl DebugSession {
-    fn start(request: DebugStartRequest, active: &ActiveDebug) -> Result<(Self, DebugSnapshot)> {
+    fn start(
+        request: DebugStartRequest,
+        active: &ActiveDebug,
+        pool: &cpp::Pool,
+    ) -> Result<(Self, DebugSnapshot)> {
         active.check_cancelled()?;
         let directory = tempfile::tempdir()?;
         let root = directory.path();
@@ -546,7 +604,8 @@ impl DebugSession {
         let (engine, location) = match request.language {
             EditorLanguage::Cpp => {
                 fs::write(root.join("solution.cpp"), request.source)?;
-                let (engine, location) = cpp::Debugger::start(root, &request.breakpoints, active)?;
+                let (engine, location) =
+                    cpp::Debugger::start(root, &request.breakpoints, active, pool)?;
                 (Engine::Cpp(engine), location)
             }
             EditorLanguage::Python => {
@@ -559,14 +618,25 @@ impl DebugSession {
         let mut session = Self {
             engine,
             frames: Vec::new(),
+            variable_history: variable_history::VariableHistory::default(),
             directory,
         };
         let snapshot = session.snapshot(request.session_id, location);
         Ok((session, snapshot))
     }
 
-    fn snapshot(&mut self, session_id: u64, location: DebugLocation) -> DebugSnapshot {
-        self.frames = location.frames.iter().map(|frame| frame.id).collect();
+    fn recycle(self, pool: &cpp::Pool, paused: bool) {
+        if let Engine::Cpp(debugger) = self.engine {
+            pool.recycle(debugger, paused);
+        }
+    }
+
+    fn snapshot(&mut self, session_id: u64, mut location: DebugLocation) -> DebugSnapshot {
+        self.frames = location.frames.clone();
+        self.variable_history.show(
+            self.frames.iter().map(|frame| frame.name.clone()).collect(),
+            &mut location.scope,
+        );
         DebugSnapshot {
             session_id,
             location,
@@ -577,6 +647,8 @@ impl DebugSession {
 
     fn step(&mut self, request: &DebugStepRequest, active: &ActiveDebug) -> Result<DebugSnapshot> {
         active.check_cancelled()?;
+        self.variable_history
+            .remember(|reference| self.engine.children(reference, active))?;
         let location = match &mut self.engine {
             Engine::Cpp(engine) => engine.step(request.action, &request.breakpoints, active)?,
             Engine::Python(engine) => engine.step(request.action, &request.breakpoints, active)?,
@@ -587,23 +659,35 @@ impl DebugSession {
 
     fn inspect(&mut self, frame: u32, active: &ActiveDebug) -> Result<DebugFrameVariables> {
         active.check_cancelled()?;
-        if !self.frames.contains(&frame) {
+        let Some(index) = self
+            .frames
+            .iter()
+            .position(|candidate| candidate.id == frame)
+        else {
             return Err(DebugError::invalid(
                 "The requested stack frame is unavailable.",
             ));
-        }
-        match &mut self.engine {
+        };
+        let mut scope = match &mut self.engine {
             Engine::Cpp(engine) => engine.inspect(frame, active),
             Engine::Python(engine) => engine.inspect(frame, active),
-        }
+        }?;
+        self.variable_history.show(
+            self.frames[index..]
+                .iter()
+                .map(|frame| frame.name.clone())
+                .collect(),
+            &mut scope,
+        );
+        Ok(scope)
     }
 
     fn children(&mut self, reference: u32, active: &ActiveDebug) -> Result<Vec<DebugVariable>> {
         active.check_cancelled()?;
-        match &mut self.engine {
-            Engine::Cpp(engine) => engine.children(reference, active),
-            Engine::Python(engine) => engine.children(reference, active),
-        }
+        let mut children = self.engine.children(reference, active)?;
+        self.variable_history
+            .compare_children(reference, &mut children);
+        Ok(children)
     }
 }
 
@@ -628,12 +712,12 @@ impl Drop for DebugProcess {
 struct Transport {
     input: ChildStdin,
     output: Receiver<io::Result<String>>,
-    directory: PathBuf,
+    directory: Option<PathBuf>,
     _process: DebugProcess,
 }
 
 impl Transport {
-    fn spawn(mut command: Command, directory: &Path) -> Result<Self> {
+    fn spawn(mut command: Command, directory: Option<&Path>) -> Result<Self> {
         let mut process = DebugProcess(
             command
                 .stdin(Stdio::piped())
@@ -687,7 +771,7 @@ impl Transport {
         Ok(Self {
             input,
             output: output_pipe,
-            directory: directory.to_owned(),
+            directory: directory.map(Path::to_owned),
             _process: process,
         })
     }
@@ -707,13 +791,17 @@ impl Transport {
     ) -> Result<String> {
         loop {
             active.check_cancelled()?;
-            check_output_size(&self.directory)?;
+            if let Some(directory) = &self.directory {
+                check_output_size(directory)?;
+            }
             if Instant::now() >= deadline {
                 return Err(DebugError::timeout(phase, phase.timeout_message()));
             }
             match self.output.recv_timeout(CANCEL_POLL) {
                 Ok(result) => {
-                    check_output_size(&self.directory)?;
+                    if let Some(directory) = &self.directory {
+                        check_output_size(directory)?;
+                    }
                     return Ok(result?);
                 }
                 Err(RecvTimeoutError::Timeout) => continue,
@@ -818,6 +906,13 @@ mod tests {
         }
     }
 
+    fn start_session(
+        request: DebugStartRequest,
+        active: &ActiveDebug,
+    ) -> Result<(DebugSession, DebugSnapshot)> {
+        DebugSession::start(request, active, &cpp::Pool::default())
+    }
+
     fn request(language: EditorLanguage, source: &str, breakpoints: &[u32]) -> DebugStartRequest {
         DebugStartRequest {
             session_id: 1,
@@ -836,6 +931,92 @@ mod tests {
             .unwrap()
     }
 
+    fn check_previously_unopened_variables(
+        language: EditorLanguage,
+        source: &str,
+        pause_line: u32,
+    ) {
+        let active = active();
+        let (mut session, paused) =
+            start_session(request(language, source, &[pause_line]), &active).unwrap();
+        assert_eq!(paused.location.line, Some(pause_line));
+        let snapshot = session
+            .step(
+                &DebugStepRequest {
+                    session_id: active.id,
+                    action: DebugAction::StepOver,
+                    breakpoints: vec![],
+                },
+                &active,
+            )
+            .unwrap();
+        assert_eq!(snapshot.location.line, Some(pause_line + 1));
+        let scope = snapshot.location.scope;
+        let item = session
+            .children(variable_reference(&scope.variables, "item"), &active)
+            .unwrap();
+        let children = session
+            .children(variable_reference(&item, "values"), &active)
+            .unwrap();
+        assert_eq!(children[0].value, "2");
+        assert_eq!(
+            children[0].previous.as_ref().map(|row| row.value.as_str()),
+            Some("1")
+        );
+        assert!(children[1].previous.is_none());
+        let globals = session
+            .children(scope.globals_reference.unwrap(), &active)
+            .unwrap();
+        let shared = session
+            .children(variable_reference(&globals, "shared"), &active)
+            .unwrap();
+        assert_eq!(shared[0].value, "6");
+        assert_eq!(
+            shared[0].previous.as_ref().map(|row| row.value.as_str()),
+            Some("5")
+        );
+    }
+
+    #[test]
+    fn python_compares_children_first_opened_after_stepping() {
+        if find_python().is_none() {
+            return;
+        }
+        check_previously_unopened_variables(
+            EditorLanguage::Python,
+            concat!(
+                "class Box: pass\n",
+                "shared = [5]\n",
+                "def work():\n",
+                "    item = Box()\n",
+                "    item.values = [1, 3]\n",
+                "    item.values[0] = 2; shared[0] = 6\n",
+                "    return item\n",
+                "work()\n",
+            ),
+            6,
+        );
+    }
+
+    #[test]
+    #[ignore = "requires an installed GDB and OS permission to debug a child process"]
+    fn cpp_compares_children_first_opened_after_stepping() {
+        let _gdb = GDB_TEST.lock().unwrap();
+        check_previously_unopened_variables(
+            EditorLanguage::Cpp,
+            concat!(
+                "struct Box { int values[2]; };\n",
+                "int shared[1] = {5};\n",
+                "int main() {\n",
+                "    Box item = {{1, 3}};\n",
+                "    item.values[0] = 2; shared[0] = 6;\n",
+                "    return item.values[0];\n",
+                "}\n",
+            ),
+            5,
+        );
+    }
+
     fn inspect_and_run(
         request: DebugStartRequest,
         breakpoint: u32,
@@ -843,7 +1024,7 @@ mod tests {
         next_line: u32,
     ) {
         let active = active();
-        let (mut session, paused) = DebugSession::start(request, &active).unwrap();
+        let (mut session, paused) = start_session(request, &active).unwrap();
         assert!(matches!(paused.location.reason, DebugReason::Breakpoint));
         assert_eq!(paused.location.line, Some(breakpoint));
         let frames = &paused.location.frames;
@@ -894,7 +1075,7 @@ mod tests {
         let active = active();
         let source = "rows = [{'details': (7, 11)}]\nprint(rows)\nrows.append({})\n";
         let (mut session, paused) =
-            DebugSession::start(request(EditorLanguage::Python, source, &[2]), &active).unwrap();
+            start_session(request(EditorLanguage::Python, source, &[2]), &active).unwrap();
         let rows = variable_reference(&paused.location.scope.variables, "rows");
         let nested = session.children(rows, &active).unwrap();
         let dictionary = variable_reference(&nested, "[0]");
@@ -933,7 +1114,7 @@ mod tests {
         let active = active();
         let source = "shared = [2, 3]\ndef f(x):\n    y = x + 1\n    return y\nf(7)\n";
         let (mut session, paused) =
-            DebugSession::start(request(EditorLanguage::Python, source, &[4]), &active).unwrap();
+            start_session(request(EditorLanguage::Python, source, &[4]), &active).unwrap();
         let locals = &paused.location.scope.variables;
         assert!(locals
             .iter()
@@ -976,6 +1157,59 @@ mod tests {
 
     #[test]
     #[ignore = "requires an installed GDB and OS permission to debug a child process"]
+    fn reuses_warmed_gdb_across_cpp_debug_sessions() {
+        let _gdb = GDB_TEST.lock().unwrap();
+        let pool = cpp::Pool::default();
+        pool.warm();
+        let pid = pool.idle_pid().expect("GDB warmed up");
+        let first_active = active();
+        let first = "int main() {\n    int value = 1;\n    return value;\n}\n";
+        let (session, paused) = DebugSession::start(
+            request(EditorLanguage::Cpp, first, &[3]),
+            &first_active,
+            &pool,
+        )
+        .unwrap();
+        assert_eq!(paused.location.line, Some(3));
+        let directory = session.directory.path().to_path_buf();
+        first_active.session.lock().unwrap().replace(session);
+        stop_active(&first_active, Some(&pool));
+        assert!(!directory.exists());
+        assert_eq!(pool.idle_pid(), Some(pid));
+
+        let active = active();
+        let invalid = request(EditorLanguage::Cpp, "this is not valid C++", &[]);
+        assert!(
+            matches!(DebugSession::start(invalid, &active, &pool), Err(error) if error.code == "compile_failed")
+        );
+        assert_eq!(pool.idle_pid(), Some(pid));
+
+        let second =
+            "#include <cstdio>\nint main() {\n    std::puts(\"fresh\");\n    return 0;\n}\n";
+        let (mut session, paused) =
+            DebugSession::start(request(EditorLanguage::Cpp, second, &[4]), &active, &pool)
+                .unwrap();
+        assert_eq!(paused.location.line, Some(4));
+        assert_eq!(paused.stdout.trim(), "fresh");
+        let done = session
+            .step(
+                &DebugStepRequest {
+                    session_id: active.id,
+                    action: DebugAction::Continue,
+                    breakpoints: vec![],
+                },
+                &active,
+            )
+            .unwrap();
+        assert!(done.location.status == DebugStatus::Finished);
+        session.recycle(&pool, false);
+        assert_eq!(pool.idle_pid(), Some(pid));
+        pool.close();
+        assert!(pool.idle_pid().is_none());
+    }
+
+    #[test]
+    #[ignore = "requires an installed GDB and OS permission to debug a child process"]
     fn cpp_expands_draft_globals_nested_fields_array_and_vector() {
         let _gdb = GDB_TEST.lock().unwrap();
         assert!(find_cpp().is_some() && find_program("gdb").is_some());
@@ -1000,7 +1234,7 @@ mod tests {
         );
         let active = active();
         let (mut session, paused) =
-            DebugSession::start(request(EditorLanguage::Cpp, source, &[14]), &active).unwrap();
+            start_session(request(EditorLanguage::Cpp, source, &[14]), &active).unwrap();
         let item = variable_reference(&paused.location.scope.variables, "item");
         assert!(paused
             .location
@@ -1083,7 +1317,7 @@ mod tests {
         let active = active();
         let source = "for i in range(10000):\n    print('s' * 1024)\n";
         let (mut session, paused) =
-            DebugSession::start(request(EditorLanguage::Python, source, &[]), &active).unwrap();
+            start_session(request(EditorLanguage::Python, source, &[]), &active).unwrap();
         assert!(matches!(paused.location.reason, DebugReason::Entry));
         let error = session
             .step(
@@ -1110,8 +1344,7 @@ mod tests {
         let worker = thread::spawn(move || {
             let source = "while True:\n    pass\n";
             let (mut session, _) =
-                DebugSession::start(request(EditorLanguage::Python, source, &[]), &worker_state)
-                    .unwrap();
+                start_session(request(EditorLanguage::Python, source, &[]), &worker_state).unwrap();
             running.send(()).unwrap();
             session
                 .step(
@@ -1127,7 +1360,7 @@ mod tests {
         });
         started.recv_timeout(DEBUG_TIMEOUT).unwrap();
         thread::sleep(CANCEL_POLL * 2);
-        stop_active(&active);
+        stop_active(&active, None);
         assert_eq!(worker.join().unwrap().code, "debug_cancelled");
     }
 }

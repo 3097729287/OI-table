@@ -17,6 +17,7 @@ export interface DebugVariable {
   type: string;
   reference?: number;
   group?: "special" | "function" | "class";
+  previous?: { value: string; type: string };
 }
 
 interface DebugFrameVariables {
@@ -40,6 +41,7 @@ interface DebugSession {
   language: CodeLanguage;
   status: "starting" | "running" | "paused" | "finished" | "failed";
   revealKey: number;
+  sourceRevealKey?: number;
   variableRevision: number;
   reason?: string;
   line?: number | null;
@@ -218,7 +220,8 @@ export function useLocalDebug(onStart: () => void, onReveal: (problemId: string)
   function reveal() {
     const current = active.current;
     if (!current) return;
-    replace({ ...current, revealKey: current.revealKey + 1 });
+    const revealKey = current.revealKey + 1;
+    replace({ ...current, revealKey, sourceRevealKey: revealKey });
     onReveal(current.problemId);
   }
 
@@ -237,6 +240,7 @@ export function useLocalDebug(onStart: () => void, onReveal: (problemId: string)
       const { variables, globalsReference } = await invoke<DebugFrameVariables>("debug_inspect", { request: { sessionId, frameId } });
       const pending = active.current;
       if (pending?.sessionId !== sessionId || pending.stopping) return;
+      const revealKey = pending.revealKey + 1;
       replace({
         ...pending,
         inspecting: false,
@@ -244,7 +248,8 @@ export function useLocalDebug(onStart: () => void, onReveal: (problemId: string)
         line: frame.line,
         variables,
         globalsReference,
-        revealKey: pending.revealKey + 1,
+        revealKey,
+        sourceRevealKey: revealKey,
         variableRevision: pending.variableRevision + 1,
       });
       onReveal(pending.problemId);

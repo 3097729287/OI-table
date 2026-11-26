@@ -122,7 +122,8 @@
 }
 
 .code-editor__surface .cm-editor .cm-line.cm-debug-current-line {
-  background: light-dark(#fbf1de, #443821);
+  background-color: light-dark(#fbf1de, #443821);
+  background-clip: content-box;
 }
 
 .code-editor__surface .cm-scroller {

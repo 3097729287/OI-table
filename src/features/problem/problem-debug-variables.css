@@ -2,6 +2,7 @@
   --debug-variable-string: light-dark(#76501f, #d9b47e);
   --debug-variable-number: light-dark(#42674d, #adca9b);
   --debug-variable-literal: light-dark(#695488, #ccb7e4);
+  --debug-variable-changed: light-dark(#854500, #ffd18c);
   padding-block-end: 4px;
 }
 
@@ -85,6 +86,10 @@
   background: var(--navigation-hover);
 }
 
+.problem-debug-variable__row[data-expandable] {
+  cursor: pointer;
+}
+
 .problem-debug__variables button.problem-debug-variable__toggle,
 .problem-debug-variable__indent {
   flex: none;
@@ -141,6 +146,13 @@
   color: var(--debug-variable-literal);
 }
 
+.problem-debug-variable__text[data-variable-change] > :is(.problem-debug-variable__value, .problem-debug-variable__name:only-child) {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--debug-variable-changed) 16%, transparent);
+  color: var(--debug-variable-changed);
+  font-weight: 600;
+}
+
 .problem-debug-variable__status {
   padding-block: 3px;
   color: var(--muted-color);
@@ -154,15 +166,14 @@
   color: var(--accent-color);
 }
 
-.problem-debug-variable-tooltip {
+.problem-debug-variable-tooltip,
+.problem-debug-variable-tooltip-bridge {
   position: fixed;
   z-index: 10;
+}
+
+.problem-debug-variable-tooltip {
   max-inline-size: min(480px, calc(100vw - 16px));
-  border: 1px solid var(--control-border);
-  border-radius: 4px;
-  background: var(--window-background);
-  color: var(--text-color);
-  box-shadow: 0 3px 12px #0003;
 }
 
 .problem-debug-variable-tooltip pre {

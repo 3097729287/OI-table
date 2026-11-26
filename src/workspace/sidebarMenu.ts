@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { MessageKey } from "../i18n";
 import type { IconName } from "../shared/Icon";
 import type { WorkspaceTarget } from "./layout";
@@ -15,11 +15,19 @@ export type SidebarMenuItem =
   | { kind: "group"; id: string; title: MessageKey; children: readonly SidebarMenuItem[] }
   | { kind: "view"; viewId: string; variant?: string; title?: MessageKey; Row?: ComponentType<SidebarRowProps> };
 
+export interface WorkspaceProviderProps {
+  activeTarget?: WorkspaceTarget;
+  openSidebar: (id: string) => void;
+  revealTarget: (target: WorkspaceTarget) => void;
+  children: ReactNode;
+}
+
 interface SidebarSectionInfo {
   id: string;
   title: MessageKey;
   icon: IconName;
   order: number;
+  Provider?: ComponentType<WorkspaceProviderProps>;
 }
 
 export type SidebarMenuSection = SidebarSectionInfo & {
