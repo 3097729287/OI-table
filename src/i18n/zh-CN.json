@@ -111,7 +111,7 @@
   "problemSubmissionMemoryLimit": "超出内存限制",
   "problemSubmissionVersion": "题目版本 {version}",
   "allSubmissions": "全部记录",
-  "localTestHistory": "本地测试",
+  "localSubmissionHistory": "本地提交",
   "onlineSubmissionHistory": "在线提交",
   "allProblems": "全部题目",
   "libraryArchives": "题库归档",

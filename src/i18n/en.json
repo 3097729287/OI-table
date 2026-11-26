@@ -111,7 +111,7 @@
   "problemSubmissionMemoryLimit": "Memory limit exceeded",
   "problemSubmissionVersion": "Problem version {version}",
   "allSubmissions": "All records",
-  "localTestHistory": "Local tests",
+  "localSubmissionHistory": "Local submissions",
   "onlineSubmissionHistory": "Online submissions",
   "allProblems": "All problems",
   "libraryArchives": "Library archives",

@@ -7,9 +7,10 @@ export const workspaceView = {
   title: "submissionHistory",
   icon: "submissions",
   section: "submissions",
-  sidebarTitle: "allSubmissions",
+  sidebarTitle: false,
+  sidebarGroups: [{ id: "records", title: "allSubmissions" }],
   variants: [
-    { params: { filter: "local" }, title: "localTestHistory" },
+    { params: { filter: "local" }, title: "localSubmissionHistory" },
     { params: { filter: "online" }, title: "onlineSubmissionHistory" },
   ],
   order: 50,
