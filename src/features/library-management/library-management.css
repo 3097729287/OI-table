@@ -224,11 +224,11 @@
 }
 
 .library-management__button[data-variant="primary"]:enabled:not([aria-disabled="true"]):hover {
-  background: color-mix(in srgb, var(--accent-color) 90%, var(--text-color));
+  background: var(--accent-hover);
 }
 
 .library-management__button[data-variant="primary"]:enabled:not([aria-disabled="true"]):active {
-  background: color-mix(in srgb, var(--accent-color) 80%, var(--text-color));
+  background: var(--accent-pressed);
 }
 
 .library-management__button:focus-visible,
@@ -281,7 +281,7 @@
   border-radius: 6px;
   background: var(--window-background);
   color: var(--text-color);
-  box-shadow: 0 4px 16px light-dark(#1b253418, #0005);
+  box-shadow: 0 4px 16px var(--library-toast-shadow-color);
   font-size: var(--ui-font-size-control);
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -359,7 +359,7 @@ details.library-management__toast-details p {
   border-radius: 8px;
   background: var(--window-background);
   color: var(--text-color);
-  box-shadow: 0 12px 40px light-dark(#1b25342b, #0008);
+  box-shadow: 0 12px 40px var(--library-dialog-shadow-color);
   overflow-wrap: anywhere;
 }
 
@@ -370,7 +370,7 @@ details.library-management__toast-details p {
 }
 
 .library-management__dialog::backdrop {
-  background: light-dark(#10203455, #020509aa);
+  background: var(--library-dialog-backdrop);
 }
 
 .library-management__dialog-header {
@@ -424,7 +424,7 @@ details.library-management__toast-details p {
   align-items: start;
   gap: var(--space-sm) var(--space-md);
   padding: var(--space-md);
-  border: 1px dashed color-mix(in srgb, var(--accent-color) 45%, var(--control-border));
+  border: 1px dashed var(--library-drop-border);
   border-radius: 6px;
   background: var(--sidebar-background);
 }
@@ -445,7 +445,7 @@ details.library-management__toast-details p {
   inline-size: 38px;
   block-size: 38px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--accent-color) 12%, var(--window-background));
+  background: var(--library-import-selected-background);
   color: var(--accent-color);
 }
 
@@ -477,7 +477,7 @@ details.library-management__toast-details p {
 .library-management__dialog-error {
   padding: var(--space-sm) 10px;
   border-inline-start: 2px solid var(--error-color);
-  background: color-mix(in srgb, var(--error-color) 8%, var(--window-background));
+  background: var(--library-import-error-background);
   color: var(--error-color);
   font-size: var(--ui-font-size-control);
   line-height: 1.4;

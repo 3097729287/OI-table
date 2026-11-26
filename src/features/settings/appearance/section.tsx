@@ -9,6 +9,8 @@ const themeLabels = {
   system: "themeSystem",
   light: "themeLight",
   dark: "themeDark",
+  mint: "themeMint",
+  lavender: "themeLavender",
 } satisfies Record<Theme, MessageKey>;
 
 const languageLabels = {

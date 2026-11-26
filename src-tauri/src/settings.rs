@@ -36,7 +36,7 @@ const RULES: &[(&str, Rule)] = &[
         THEME_KEY,
         Rule::Choice {
             default: "system",
-            alternatives: &[&["light", "dark"]],
+            alternatives: &[&["light", "dark", "mint", "lavender"]],
         },
     ),
     (
@@ -256,13 +256,13 @@ mod tests {
         )?;
         save_settings(
             &storage,
-            serde_json::from_value(json!({ "theme": "light", "uiFontSize": 18 }))?,
+            serde_json::from_value(json!({ "theme": "mint", "uiFontSize": 18 }))?,
             |log_limit| assert_eq!(log_limit, None),
         )?;
 
         let reopened = Storage::new(directory.path().to_owned());
         let settings = read_settings(&reopened, Some("dark".into()), || unreachable!())?;
-        assert_eq!(settings[THEME_KEY], "light");
+        assert_eq!(settings[THEME_KEY], "mint");
         assert_eq!(settings["uiLanguage"], "zh-CN");
         assert_eq!(settings["uiFont"], "monospace");
         assert_eq!(settings["editorFont"], "monospace");
@@ -306,6 +306,7 @@ mod tests {
             &storage,
             serde_json::from_value(json!({
                 "uiLanguage": "en",
+                "theme": "lavender",
                 "uiFont": "fira-code",
                 "uiFontSize": 20,
                 "editorFont": "interface",
@@ -317,6 +318,7 @@ mod tests {
             |log_limit| assert_eq!(log_limit, Some(12)),
         )?;
         let followed = read_settings(&storage, None, || unreachable!())?;
+        assert_eq!(followed[THEME_KEY], "lavender");
         assert_eq!(followed["uiFont"], "fira-code");
         assert_eq!(followed["editorFont"], "interface");
         assert_eq!(followed["editorFontSize"], 40);
@@ -338,7 +340,7 @@ mod tests {
         )?;
 
         let saved = storage.read::<Settings>(SETTINGS_FILE)?.unwrap();
-        assert_eq!(saved[THEME_KEY], "dark");
+        assert_eq!(saved[THEME_KEY], "lavender");
         assert_eq!(saved["uiLanguage"], "en");
         assert_eq!(saved["uiFont"], "fira-code");
         assert_eq!(saved["uiFontSize"], 16);

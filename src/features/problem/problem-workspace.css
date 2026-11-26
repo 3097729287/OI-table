@@ -1,8 +1,6 @@
 .problem-workspace {
   --problem-tab-height: var(--problem-detail-toolbar-height, 32px);
   --problem-workspace-border: var(--workbench-border, var(--control-border));
-  --problem-workspace-bar: var(--problem-detail-toolbar-background,
-    color-mix(in srgb, var(--navigation-background) 62%, var(--window-background)));
   position: relative;
   min-inline-size: 0;
   min-block-size: 0;
@@ -25,7 +23,7 @@
   display: flex;
   min-inline-size: 0;
   border-block-end: 1px solid var(--problem-workspace-border);
-  background: var(--problem-workspace-bar);
+  background: var(--problem-toolbar-background);
 }
 
 .problem-workspace__tabrail {
@@ -219,6 +217,6 @@
   position: absolute;
   z-index: 3;
   border: 1px dashed var(--accent-color);
-  background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+  background: var(--split-preview-background);
   pointer-events: none;
 }

@@ -3,18 +3,17 @@ import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 
 export const codeSyntaxHighlighting = syntaxHighlighting(HighlightStyle.define([
-  { tag: [tags.keyword, tags.modifier, tags.controlKeyword], color: "light-dark(#784296, #d6a8ee)" },
-  { tag: [tags.typeName, tags.className, tags.namespace], color: "light-dark(#13687b, #81ced4)" },
-  { tag: [tags.string, tags.regexp], color: "light-dark(#237343, #9bd6a7)" },
-  { tag: [tags.number, tags.bool, tags.null], color: "light-dark(#945021, #efb081)" },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "light-dark(#245ca5, #9cbff7)" },
-  { tag: [tags.comment, tags.docComment], color: "var(--muted-color)" },
-  { tag: tags.meta, color: "var(--accent-color)" },
+  { tag: [tags.keyword, tags.modifier, tags.controlKeyword], color: "var(--code-syntax-keyword)" },
+  { tag: [tags.typeName, tags.className, tags.namespace], color: "var(--code-syntax-type)" },
+  { tag: [tags.string, tags.regexp], color: "var(--code-syntax-string)" },
+  { tag: [tags.number, tags.bool, tags.null], color: "var(--code-syntax-number)" },
+  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "var(--code-syntax-function)" },
+  { tag: [tags.comment, tags.docComment], color: "var(--code-syntax-comment)" },
+  { tag: tags.meta, color: "var(--code-syntax-meta)" },
 ]));
 
 export const codeEditorTheme = EditorView.theme({
   "&": {
-    "--code-editor-caret": "light-dark(#214f6d, #eef5ff)",
     height: "100%", backgroundColor: "var(--window-background)", color: "var(--text-color)",
   },
   "&.cm-focused": { outline: "none" },
@@ -25,7 +24,7 @@ export const codeEditorTheme = EditorView.theme({
   "&.cm-editor .cm-cursorLayer .cm-cursor, &.cm-editor .cm-dropCursor": {
     borderLeft: "2px solid var(--code-editor-caret)", marginLeft: "-1px",
   },
-  // drawSelection hides the primary native caret and restores it for focused widgets.
+  // drawSelection 隐藏编辑区的原生光标，聚焦输入控件时恢复主题光标颜色。
   "&.cm-editor .cm-content :focus": { caretColor: "var(--code-editor-caret) !important" },
   ".cm-line": { padding: "0 var(--space-sm)" },
   ".cm-gutters": {
@@ -37,12 +36,26 @@ export const codeEditorTheme = EditorView.theme({
   "&.cm-editor .cm-scroller .cm-gutters.cm-gutters-before, &.cm-editor .cm-scroller .cm-gutters.cm-gutters-after": {
     border: "0",
   },
-  ".cm-activeLineGutter, .cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--accent-color) 8%, transparent)" },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": { backgroundColor: "var(--navigation-selected)" },
+  ".cm-activeLineGutter, .cm-activeLine": { backgroundColor: "var(--editor-active-line-background)" },
+  ".cm-selectionBackground": { backgroundColor: "var(--editor-selection-background)" },
+  "&.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+    backgroundColor: "var(--editor-focused-selection-background)",
+  },
+  "&.cm-focused .cm-matchingBracket": { backgroundColor: "var(--editor-matching-bracket-background)" },
+  "&.cm-focused .cm-nonmatchingBracket": { backgroundColor: "var(--editor-nonmatching-bracket-background)" },
+  ".cm-snippetField": { backgroundColor: "var(--editor-snippet-background)" },
+  ".cm-snippetFieldPosition": { borderLeftColor: "var(--editor-snippet-position-color)" },
   ".cm-tooltip, .cm-panels": {
     backgroundColor: "var(--sidebar-background)", color: "var(--text-color)", borderColor: "var(--control-border)",
   },
+  ".cm-tooltip-autocomplete > ul > completion-section": { borderBottomColor: "var(--editor-completion-section-border)" },
   ".cm-tooltip-autocomplete > ul > li[aria-selected], .cm-panel.cm-panel-lint ul [aria-selected], .cm-panel.cm-panel-lint ul:focus [aria-selected]": {
     backgroundColor: "var(--navigation-selected)", color: "var(--text-color)",
   },
+  ".cm-diagnostic-warning": { borderLeftColor: "var(--editor-diagnostic-warning-color)" },
+  ".cm-lintRange-warning": {
+    backgroundImage: "none",
+    textDecorationLine: "underline", textDecorationStyle: "wavy", textDecorationColor: "var(--editor-diagnostic-warning-color)",
+  },
+  ".cm-lintRange-active": { backgroundColor: "var(--editor-active-diagnostic-background)" },
 });

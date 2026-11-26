@@ -33,7 +33,7 @@
 }
 
 .context-menu button:enabled:active {
-  background: color-mix(in srgb, var(--title-bar-hover) 90%, var(--text-color));
+  background: var(--context-menu-pressed-background);
 }
 
 :is(.context-menu, .context-menu button):focus-visible {

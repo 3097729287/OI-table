@@ -7,13 +7,13 @@
   border-radius: 8px;
   background: var(--window-background);
   color: var(--text-color);
-  box-shadow: 0 8px 32px color-mix(in srgb, black 24%, transparent);
+  box-shadow: 0 8px 32px var(--personal-dialog-shadow-color);
   overflow: auto;
   overflow-wrap: anywhere;
 }
 
 .personal-dialog::backdrop {
-  background: rgb(0 0 0 / 35%);
+  background: var(--personal-dialog-backdrop);
 }
 
 .personal-dialog__header,
@@ -80,7 +80,7 @@
 }
 
 .personal-dialog__button[data-variant="primary"]:enabled:not([aria-disabled="true"]):hover {
-  background: color-mix(in srgb, var(--accent-color) 88%, var(--text-color));
+  background: var(--personal-dialog-primary-hover);
 }
 
 .personal-dialog__button[data-variant="danger"] {
@@ -89,7 +89,7 @@
 }
 
 .personal-dialog__button[data-variant="danger"]:enabled:not([aria-disabled="true"]):hover {
-  background: color-mix(in srgb, var(--error-color) 12%, var(--window-background));
+  background: var(--personal-dialog-danger-hover);
 }
 
 .personal-dialog__status,

@@ -57,7 +57,7 @@
 }
 
 .run-debug-settings__actions button.run-debug-settings__primary:not([aria-disabled="true"]):hover {
-  background: color-mix(in srgb, var(--accent-color) 90%, var(--text-color));
+  background: var(--accent-hover);
 }
 
 .run-debug-settings__actions button[aria-disabled="true"] {
@@ -116,7 +116,7 @@
   gap: 4px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--run-debug-tone) 12%, transparent);
+  background: var(--run-debug-badge-background);
   color: var(--run-debug-tone);
   font-size: var(--ui-font-size-caption);
   font-weight: 500;
@@ -154,7 +154,7 @@
 }
 
 .run-debug-settings__badge[data-status="ready"] {
-  --run-debug-tone: light-dark(#285d42, #9ecab1);
+  --run-debug-tone: var(--success-color);
 }
 
 .run-debug-settings__badge[data-status="ready"] .run-debug-settings__status-icon::before {
@@ -166,7 +166,7 @@
 }
 
 .run-debug-settings__badge[data-status="missing"] {
-  --run-debug-tone: light-dark(#795125, #e0be90);
+  --run-debug-tone: var(--warning-color);
 }
 
 .run-debug-settings__badge[data-status="busy"] {

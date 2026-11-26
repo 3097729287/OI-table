@@ -47,44 +47,41 @@
 
 ## 主题配色与自定义
 
-**切换明暗**使用设置里的“跟随系统 / 浅色 / 深色”。窗口把设置写到根元素的 `data-theme`，由 `color-scheme` 决定使用 `light-dark(浅色, 深色)` 中的哪一个值。**自定义配色**目前通过修改样式源码完成。下表给出默认值，后面的修改入口说明各变量实际影响哪些区域。
+应用的浅色和深色基础值、派生色一起定义在全局 `:root`，组件通过 CSS 变量取色。窗口将主题写到根元素的 `data-theme`。浅色和深色选项固定 `color-scheme`，跟随系统、薄荷绿和雾紫按系统模式选择 `light-dark()` 中的对应值。 [全局配色](../src/theme/colors.css)
 
-| 用途 | CSS 变量 | 浅色 | 深色 |
-| --- | --- | --- | --- |
-| 内容、活动标签底色 | `--window-background` | `#fff` | `#161b24` |
-| 标题栏、导航轨、标签栏底色 | `--navigation-background` | `#eceff2` | `#1b2028` |
-| 侧栏底色 | `--sidebar-background` | `#f7f8f9` | `#252b35` |
-| 正文和主要图标 | `--text-color` | `#1b2534` | `#edf2f8` |
-| 次要文字、未选标签、普通状态提示 | `--muted-color` | `#526070` | `#aab8c9` |
-| 侧栏选中文字、焦点窗格下划线、拖放指示 | `--accent-color` | `#235a78` | `#93c8e4` |
-| 导航悬停底色 | `--navigation-hover` | `#e8ebef` | `#2a313c` |
-| 侧栏选中底色 | `--navigation-selected` | `#e2e9ed` | `#303d48` |
-| 标题栏按钮、标签和菜单项悬停底色 | `--title-bar-hover` | `#dfe5ed` | `#344155` |
-| 错误文字 | `--error-color` | `#a1241c` | `#ff9a90` |
-
-### 按修改目标找入口
-
-| 想改什么 | 修改位置和变量 | 会一起变化的部分 |
+| 区域 | 颜色变量 | 使用位置 |
 | --- | --- | --- |
-| 整个应用的底色与文字 | [基础样式](../src/app.css) 的 `:root`。用 `--window-background` 改内容底色，`--navigation-background` 改导航底色，`--sidebar-background` 改工作台二级侧栏底色。用 `--text-color`、`--muted-color`、`--error-color` 分别改正文、次要信息和错误。 | 设置页与其他工作区页面使用同一内容底色。普通图标继承文字色，菜单边界取正文色的 15%。 |
-| 窗口标题与关闭按钮 | 同一 `:root` 下的 `--title-bar-color` 默认引用正文色。`--title-bar-hover` 控制普通悬停，`--title-bar-close-hover` 与 `--title-bar-close-color` 控制关闭按钮悬停的底色和图标，默认红底白字。 | 普通悬停色还影响标签、上下文菜单项和设置按钮。业务错误文字由独立的 `--error-color` 控制。 |
-| 侧栏选中与悬停 | 二级侧栏使用 `:root` 的 `--accent-color`、`--navigation-selected` 和 `--navigation-hover`。 | 工作台通过 `--workbench-accent` 引用同一强调色，分屏预览混入 18% 强调色。导航轨当前分类使用自己的显式色值。 |
-| 表单控件与工作台边界 | [基础样式](../src/app.css) 的 `--control-border` 和[工作台样式](../src/workspace/workbench.css) 的 `--workbench-border`。 | [公共表单控件](../src/shared/ui/Fields.tsx)统一绘制外框、下拉面板和数字步进按钮。控件边界默认取正文色的 21%，工作台边界默认取 15%。 |
-| 表单控件尺寸 | [基础样式](../src/app.css) 的 `--control-width` 和 `--control-height`。 | 输入框和下拉按钮默认宽 160px、高 36px，编辑时维持原尺寸。 |
-| 滚动条 | [共用滚动样式](../src/shared/ui/scrollbar.css) 的 `--scrollbar-line` 和 `--scrollbar-hit-padding`。 | 2px 滑块，上下或左右各加 3px 操作区域，浮在内容边缘。普通内容使用 [ScrollArea](../src/shared/ui/ScrollArea.tsx)。标签栏和第三方编辑器把实际滚动视口交给 [Scrollbar](../src/shared/ui/Scrollbar.tsx)，绑定时统一隐藏系统滚动条。 |
+| 基础底色 | `--window-background`、`--navigation-background`、`--sidebar-background` | 内容区、编辑器、活动标签、标题栏、导航轨、二级侧栏、浮层和题面代码块 |
+| 文字与操作 | `--text-color`、`--muted-color`、`--accent-color`、`--accent-hover`、`--accent-pressed` | 正文、图标、次要信息、主要按钮、操作反馈 |
+| 边框与导航状态 | `--control-border`、`--workbench-border`、`--navigation-hover`、`--navigation-selected` | 输入框、窗格分隔线、题目列表、侧栏、菜单与下拉选项 |
+| 标题栏 | `--title-bar-color`、`--title-bar-hover`、`--title-bar-close-hover`、`--title-bar-close-color` | 窗口标题、窗口按钮、标签与菜单项悬停 |
+| 工作台与题目工具栏 | `--workbench-accent`、`--workspace-rail-*`、`--tab-*`、`--split-preview-background`、`--problem-toolbar-background` | 导航轨指示条与光晕、标签栏与插入位置、内外分屏预览、题目内部标签栏 |
+| 浮层 | `--floating-surface-border`、`--context-menu-pressed-background`、`--popover-shadow-*`、`--personal-dialog-*` | 右键菜单、收藏浮层、变量提示、收藏组编辑和删除弹窗 |
+| 题库管理与收藏 | `--library-*`、`--favorite-*` | 导入弹窗、拖放区、选择项、错误提示和通知阴影，收藏星星、复选框和分隔线 |
+| 编辑器语法与交互 | `--code-syntax-*`、`--code-editor-caret`、`--editor-*` | C++ 和 Python 语法色、光标、选区、活动行、括号、代码片段、补全、诊断波浪线和警告选中态 |
+| 调试 | `--breakpoint-*`、`--debug-position-color`、`--debug-current-line-background`、`--debug-variable-*` | 断点、暂停位置、当前行底色、变量类型与变化高亮 |
+| 状态与自检 | `--error-color`、`--success-color`、`--warning-color`、`--run-debug-badge-background` | 错误信息、运行与调试自检结果、任务状态 |
+| 滚动条与高对比度 | `--scrollbar-thumb-*`、`--system-*` | 普通、悬停和拖动滑块，以及系统强制配色时的滑块、收藏复选框和焦点 |
+| 首页插画 | `--workbench-empty-image-filter`、`--workbench-empty-image-dark-filter` | 工作台空页插画的主题滤镜。插画和应用图标各自保留素材配色 |
+
+修改所有主题共用的基础色时，编辑 `colors.css` 中相应的 `light-dark(浅色值, 深色值)` 或派生变量。增加主题时，单独建一个 CSS 文件，用 `:root[data-theme="主题 ID"]` 覆盖需要变化的变量，并在主入口按基础配色、主题覆盖的顺序导入。需要跟随系统的主题继承基础文件的 `color-scheme: light dark`。 [全局配色](../src/theme/colors.css) · [窗口入口](../src/main.tsx)
+
+设置中可选的主题还需登记主题 ID 和中英文名称，并加入设置保存时允许的值。组件里的状态选择器负责切换语义变量，普通图标随所在控件的文字色变化。 [主题选项](../src/features/settings/appearance/section.tsx) · [可选值](../src/shared/settings.ts) · [设置校验](../src-tauri/src/settings.rs)
+
+输入框和下拉按钮的尺寸由 `--control-width` 与 `--control-height` 管理，默认宽 160px、高 36px。自绘滚动条的滑块为 2px，上下或左右各加 3px 操作区域。 [基础样式](../src/app.css) · [滚动条样式](../src/shared/ui/scrollbar.css)
 
 每层内容明确一个实际滚动视口。题目面板外壳负责裁切，题面、编辑器和运行结果各自负责内容滚动。长代码块和表格可以拥有独立的横向视口。验收时缩窄窗格并使用长题面、溢出的标签和编辑器弹层，确认滚轮、键盘和自绘滑块仍可操作，实际视口的 `scrollbar-width` 为 `none`。
 
-将侧栏与工作区的蓝色强调改为青绿色时，可在 [基础样式](../src/app.css) 的 `:root` 调整这两个共享变量。
+薄荷绿和雾紫主要覆盖底色、文字、强调色和编辑器选区。按钮悬停、导航指示条和分屏预览等派生色会随基础色计算。 [薄荷绿配色](../src/theme/mint.css) · [雾紫配色](../src/theme/lavender.css)
 
 ```css
-:root {
+:root[data-theme="mint"] {
   --accent-color: light-dark(#17645b, #86d8c9);
-  --navigation-selected: light-dark(#e0efeb, #293e3b);
+  --navigation-selected: light-dark(#cdebdc, #335448);
 }
 ```
 
-若同时调整导航轨的当前分类，可修改 `.workspace-rail button[aria-pressed="true"]` 的文字色。该按钮的选中底色会混入 18% 的 `currentColor`。修改后在浅色和深色下检查首页与设置页的选中态、活动标签、拖放预览和键盘焦点。
+导航轨当前分类的底色由 `--workspace-rail-selected-background` 控制，默认将工作台强调色按 11% 混入导航背景。修改后在浅色和深色下检查首页与设置页的选中态、活动标签、拖放预览和键盘焦点。
 
 ### 排版与间距
 
@@ -96,7 +93,7 @@
 
 | 场景 | 约定与判断依据 |
 | --- | --- |
-| 当前分类 | 点击导航轨按钮会展开对应侧栏。侧栏可见时，该分类设为 `aria-pressed="true"`，图标使用浅色主题的 `#103d66` 或深色主题的 `#b7e8ff`，底色在导航背景上混入 18% 图标色。收起侧栏后取消按下态。 |
+| 当前分类 | 点击导航轨按钮会展开对应侧栏。侧栏可见时，该分类设为 `aria-pressed="true"`，使用工作台强调色和导航轨选中底色。收起侧栏后取消按下态。 |
 | 分组与入口 | 分组用字重 600 和箭头方向表达展开状态，并同步 `aria-expanded`。侧栏用 `aria-current` 标记最近点选的入口，以选中底色配强调色文字。直接切换标签时，侧栏仍保留上次点选位置。 |
 | 活动标签与焦点窗格 | 各窗格的选中标签始终沿用内容底色。标题、图标和底线在焦点窗格使用强调色，在失焦窗格使用次要文字色。未选中标签沿用标签栏底色，隐藏底线。指示线绝对定位在标签底边，高 2px。键盘焦点保留独立轮廓。 |
 | 标签操作 | 左右方向键切换，Home / End 定位首尾，Delete 关闭，Shift + F10 打开操作菜单。关闭按钮在选中、悬停或焦点进入标签时出现，无悬停设备上常显。菜单中无可执行效果的操作保留位置并禁用。 |
@@ -121,6 +118,6 @@
 
 ## 实现依据
 
-- 全局主题、字体和间距见 [基础样式](../src/app.css)，工作台尺寸、局部颜色与状态样式见 [工作台样式](../src/workspace/workbench.css)。
+- 主题颜色、字体与间距、工作台状态样式分别见 [全局配色](../src/theme/colors.css) · [基础样式](../src/app.css) · [工作台样式](../src/workspace/workbench.css)。
 - 分类与侧栏行为见 [分类导航](../src/workspace/WorkspaceNavigator.tsx)、[侧栏菜单](../src/workspace/WorkspaceMenu.tsx)和[宽度控制](../src/workspace/useSidebarResize.ts)。
 - 视图接入和标签生命周期见 [视图注册](../src/workspace/views.ts)、[工作台组件](../src/workspace/Workbench.tsx)和[窗格布局](../src/workspace/layout.ts)。状态提示见 [StatusMessage](../src/shared/StatusMessage.tsx)。

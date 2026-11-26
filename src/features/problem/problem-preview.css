@@ -23,7 +23,6 @@
 .problem-detail {
   --problem-detail-gutter: min(var(--space-lg), 4%);
   --problem-detail-toolbar-height: 32px;
-  --problem-detail-toolbar-background: color-mix(in srgb, var(--sidebar-background) 62%, var(--window-background));
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   block-size: 100%;

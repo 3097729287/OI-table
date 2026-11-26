@@ -1,6 +1,4 @@
 .workbench {
-  --workbench-border: color-mix(in srgb, var(--text-color) 15%, transparent);
-  --workbench-accent: var(--accent-color);
   --workspace-rail-width: 52px;
   --workspace-motion: 180ms cubic-bezier(0.2, 0.75, 0.25, 1);
   display: grid;
@@ -37,7 +35,7 @@
   inset-inline-start: 0;
   inline-size: 3px;
   background: var(--workbench-accent);
-  box-shadow: 1px 0 8px color-mix(in srgb, var(--workbench-accent) 62%, transparent);
+  box-shadow: 1px 0 8px var(--workspace-rail-glow);
   content: "";
   opacity: 0;
   transform: translateX(-100%);
@@ -47,7 +45,7 @@
 
 .workspace-rail button[aria-pressed="true"] {
   color: var(--workbench-accent);
-  background: color-mix(in srgb, var(--workbench-accent) 11%, var(--navigation-background));
+  background: var(--workspace-rail-selected-background);
 }
 
 .workspace-rail button[aria-pressed="true"]::before {
@@ -253,23 +251,13 @@
 }
 
 .workbench-empty-image {
-  --workbench-empty-image-dark-filter: brightness(0.86) saturate(0.9);
   grid-column: 3;
   place-self: center;
   inline-size: min(100%, 640px);
   block-size: 100%;
   min-block-size: 0;
   object-fit: contain;
-}
-
-:root[data-theme="dark"] .workbench-empty-image {
-  filter: var(--workbench-empty-image-dark-filter);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .workbench-empty-image {
-    filter: var(--workbench-empty-image-dark-filter);
-  }
+  filter: var(--workbench-empty-image-filter);
 }
 
 :is(.workbench-pane, .workbench-dock-preview) {
@@ -298,7 +286,6 @@
 }
 
 .pane-toolbar {
-  --tab-strip-background: var(--navigation-background);
   --selected-tab-color: var(--muted-color);
   --selected-tab-indicator: var(--muted-color);
   display: flex;
@@ -306,7 +293,7 @@
   z-index: 1;
   min-inline-size: 0;
   border-inline-end: var(--pane-inline-divider-width) solid var(--workbench-border);
-  background: var(--tab-strip-background);
+  background: var(--navigation-background);
 }
 
 .pane-toolbar[data-focused="true"] {
@@ -434,7 +421,7 @@
 }
 
 .workbench-tab .workbench-tab__close:hover {
-  background: color-mix(in srgb, currentColor 20%, transparent);
+  background: var(--tab-close-hover-background);
   color: var(--text-color);
 }
 
@@ -451,13 +438,13 @@
 }
 
 .pane-tabs[data-drop-end="true"] {
-  background: color-mix(in srgb, var(--workbench-accent) 12%, var(--tab-strip-background));
+  background: var(--tab-drop-end-background);
 }
 
 .workbench-dock-preview {
   z-index: 2;
   border: 1px dashed var(--workbench-accent);
-  background: color-mix(in srgb, var(--workbench-accent) 14%, transparent);
+  background: var(--split-preview-background);
   pointer-events: none;
 }
 
