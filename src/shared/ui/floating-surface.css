@@ -1,5 +1,5 @@
 .floating-surface {
-  border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+  border: 1px solid var(--floating-surface-border);
   border-radius: 6px;
   background: var(--window-background);
   color: var(--text-color);
@@ -12,8 +12,7 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
-  box-shadow: 0 2px 5px color-mix(in srgb, black 8%, transparent),
-    0 8px 18px color-mix(in srgb, black 11%, transparent);
+  box-shadow: 0 2px 5px var(--popover-shadow-near-color), 0 8px 18px var(--popover-shadow-far-color);
   font-size: var(--ui-font-size-small);
 }
 

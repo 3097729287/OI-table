@@ -1,8 +1,4 @@
 .problem-debug__variables {
-  --debug-variable-string: light-dark(#76501f, #d9b47e);
-  --debug-variable-number: light-dark(#42674d, #adca9b);
-  --debug-variable-literal: light-dark(#695488, #ccb7e4);
-  --debug-variable-changed: light-dark(#854500, #ffd18c);
   padding-block-end: 4px;
 }
 
@@ -72,7 +68,7 @@
   min-inline-size: 0;
   margin-inline-start: min(6px, 5%);
   padding-inline-start: min(9px, 8%);
-  border-inline-start: 1px solid color-mix(in srgb, var(--muted-color) 30%, transparent);
+  border-inline-start: 1px solid var(--debug-variable-tree-line);
 }
 
 .problem-debug-variable__row {
@@ -148,7 +144,7 @@
 
 .problem-debug-variable__text[data-variable-change] > :is(.problem-debug-variable__value, .problem-debug-variable__name:only-child) {
   border-radius: 2px;
-  background: color-mix(in srgb, var(--debug-variable-changed) 16%, transparent);
+  background: var(--debug-variable-changed-background);
   color: var(--debug-variable-changed);
   font-weight: 600;
 }

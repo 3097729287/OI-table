@@ -56,8 +56,6 @@
 }
 
 .code-editor__surface [data-breakpoint-space] .cm-lineNumbers {
-  --breakpoint-color: light-dark(#ba3b36, #ff8379);
-  --debug-position-color: light-dark(#976212, #ffd278);
   --breakpoint-space: min(18px, calc(2ch + 4px));
   --breakpoint-radius: calc(var(--breakpoint-space) * 0.22);
   --debug-arrow-size: calc(var(--breakpoint-space) * 0.55);
@@ -94,7 +92,7 @@
 }
 
 .code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-gutterElement:not(.cm-debug-paused, .cm-debug-breakpoint):hover::before {
-  --breakpoint-dot: color-mix(in srgb, var(--breakpoint-color) 40%, transparent);
+  --breakpoint-dot: var(--breakpoint-hover-color);
 }
 
 .code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-debug-breakpoint::before {
@@ -122,7 +120,7 @@
 }
 
 .code-editor__surface .cm-editor .cm-line.cm-debug-current-line {
-  background-color: light-dark(#fbf1de, #443821);
+  background-color: var(--debug-current-line-background);
   background-clip: content-box;
 }
 
@@ -191,7 +189,7 @@
   inline-size: 6px;
   block-size: 6px;
   border-radius: 50%;
-  background: light-dark(#996511, #e3b766);
+  background: var(--editor-problems-indicator);
 }
 
 .code-editor__position {

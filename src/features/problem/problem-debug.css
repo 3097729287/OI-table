@@ -41,7 +41,7 @@
 }
 
 .problem-debug button.problem-debug__launch-button:enabled:hover {
-  background: color-mix(in srgb, var(--accent-color) 90%, var(--text-color));
+  background: var(--accent-hover);
   color: var(--window-background);
 }
 

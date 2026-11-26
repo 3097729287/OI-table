@@ -7,7 +7,6 @@
 }
 
 :root {
-  color-scheme: light dark;
   --font-system: "Segoe UI", "Microsoft YaHei", sans-serif;
   --font-yahei: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
   --font-serif: "SimSun", "Songti SC", "Noto Serif CJK SC", serif;
@@ -21,34 +20,12 @@
   --ui-font-size-small: calc(var(--ui-font-size) * 0.8125);
   --ui-font-size-control: calc(var(--ui-font-size) * 0.875);
   --ui-font-size-heading: calc(var(--ui-font-size) * 1.25);
-  --window-background: light-dark(#fff, #161b24);
-  --navigation-background: light-dark(#eceff2, #1b2028);
-  --sidebar-background: light-dark(#f7f8f9, #252b35);
-  --navigation-hover: light-dark(#e8ebef, #2a313c);
-  --navigation-selected: light-dark(#e2e9ed, #303d48);
-  --accent-color: light-dark(#235a78, #93c8e4);
   --sidebar-row-height: 26px;
-  --text-color: light-dark(#1b2534, #edf2f8);
-  --control-border: color-mix(in srgb, var(--text-color) 21%, transparent);
   --control-width: 160px;
   --control-height: 36px;
-  --muted-color: light-dark(#526070, #aab8c9);
-  --error-color: light-dark(#a1241c, #ff9a90);
-  --title-bar-color: var(--text-color);
-  --title-bar-hover: light-dark(#dfe5ed, #344155);
-  --title-bar-close-hover: #c42b1c;
-  --title-bar-close-color: #fff;
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 24px;
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
 }
 
 .workspace .status-message {

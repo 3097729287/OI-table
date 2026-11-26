@@ -1,5 +1,5 @@
 .problem-detail__controls .problem-collection-action[data-assigned] {
-  color: #facc15;
+  color: var(--favorite-star-color);
 }
 
 .problem-collections-popover {
@@ -71,7 +71,7 @@
 
 .problem-collections-popover__item:is(:hover, :has(input:focus-visible)),
 .problem-collections-popover__create:enabled:is(:hover, :focus-visible) {
-  background: color-mix(in srgb, var(--navigation-hover) 65%, transparent);
+  background: var(--favorite-row-hover);
 }
 
 .problem-collections-popover__checkbox,
@@ -106,7 +106,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--muted-color) 75%, var(--window-background));
+  border: 1px solid var(--favorite-checkbox-border);
   border-radius: 3px;
   pointer-events: none;
 }
@@ -133,17 +133,17 @@
 @media (forced-colors: active) {
   .problem-collections-popover__checkmark {
     forced-color-adjust: none;
-    border-color: ButtonText;
+    border-color: var(--system-control-text);
   }
 
   .problem-collections-popover__checkbox input:checked + .problem-collections-popover__checkmark {
-    border-color: Highlight;
-    background: Highlight;
-    color: HighlightText;
+    border-color: var(--system-highlight);
+    background: var(--system-highlight);
+    color: var(--system-highlight-text);
   }
 
   .problem-collections-popover__checkbox input:focus-visible + .problem-collections-popover__checkmark {
-    outline-color: Highlight;
+    outline-color: var(--system-highlight);
   }
 }
 
@@ -172,7 +172,7 @@
   content: "";
   display: block;
   margin: 0 var(--favorite-row-padding) 2px;
-  border-block-start: 1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+  border-block-start: 1px solid var(--favorite-popover-divider);
 }
 
 .problem-collections-popover__create {

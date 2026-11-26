@@ -1,0 +1,116 @@
+:root {
+  color-scheme: light dark;
+
+  /* 窗口、导航和侧栏底色，正文、状态文字与通用控件 */
+  --window-background: light-dark(#fff, #161b24);
+  --navigation-background: light-dark(#eceff2, #1b2028);
+  --sidebar-background: light-dark(#f7f8f9, #252b35);
+  --text-color: light-dark(#1b2534, #edf2f8);
+  --muted-color: light-dark(#526070, #aab8c9);
+  --accent-color: light-dark(#235a78, #93c8e4);
+  --error-color: light-dark(#a1241c, #ff9a90);
+  --success-color: light-dark(#285d42, #9ecab1);
+  --warning-color: light-dark(#795125, #e0be90);
+  --navigation-hover: light-dark(#e8ebef, #2a313c);
+  --navigation-selected: light-dark(#e2e9ed, #303d48);
+  --control-border: color-mix(in srgb, var(--text-color) 21%, transparent);
+  --accent-hover: color-mix(in srgb, var(--accent-color) 90%, var(--text-color));
+  --accent-pressed: color-mix(in srgb, var(--accent-color) 80%, var(--text-color));
+
+  /* 标题栏、导航轨、标签栏与分屏拖放预览 */
+  --title-bar-color: var(--text-color);
+  --title-bar-hover: light-dark(#dfe5ed, #344155);
+  --title-bar-close-hover: #c42b1c;
+  --title-bar-close-color: #fff;
+  --workbench-accent: var(--accent-color);
+  --workbench-border: color-mix(in srgb, var(--text-color) 15%, transparent);
+  --workspace-rail-glow: color-mix(in srgb, var(--workbench-accent) 62%, transparent);
+  --workspace-rail-selected-background: color-mix(in srgb, var(--workbench-accent) 11%, var(--navigation-background));
+  --tab-close-hover-background: color-mix(in srgb, currentColor 20%, transparent);
+  --tab-drop-end-background: color-mix(in srgb, var(--workbench-accent) 12%, var(--navigation-background));
+  --split-preview-background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+  --problem-toolbar-background: color-mix(in srgb, var(--sidebar-background) 62%, var(--window-background));
+
+  /* 工作台空页插画的明暗滤镜 */
+  --workbench-empty-image-filter: none;
+  --workbench-empty-image-dark-filter: brightness(0.86) saturate(0.9);
+
+  /* 滚动条各状态与系统高对比度颜色 */
+  --scrollbar-thumb-color: color-mix(in srgb, var(--muted-color) 44%, transparent);
+  --scrollbar-thumb-hover-color: color-mix(in srgb, var(--muted-color) 64%, transparent);
+  --scrollbar-thumb-active-color: color-mix(in srgb, var(--muted-color) 84%, transparent);
+  --system-control-text: ButtonText;
+  --system-highlight: Highlight;
+  --system-highlight-text: HighlightText;
+
+  /* 右键菜单、浮层和个人收藏弹窗 */
+  --floating-surface-border: var(--workbench-border);
+  --context-menu-pressed-background: color-mix(in srgb, var(--title-bar-hover) 90%, var(--text-color));
+  --popover-shadow-near-color: color-mix(in srgb, black 8%, transparent);
+  --popover-shadow-far-color: color-mix(in srgb, black 11%, transparent);
+  --personal-dialog-shadow-color: color-mix(in srgb, black 24%, transparent);
+  --personal-dialog-backdrop: rgb(0 0 0 / 35%);
+  --personal-dialog-primary-hover: color-mix(in srgb, var(--accent-color) 88%, var(--text-color));
+  --personal-dialog-danger-hover: color-mix(in srgb, var(--error-color) 12%, var(--window-background));
+
+  /* 题库导入、通知与收藏状态 */
+  --library-toast-shadow-color: light-dark(#1b253418, #0005);
+  --library-dialog-shadow-color: light-dark(#1b25342b, #0008);
+  --library-dialog-backdrop: light-dark(#10203455, #020509aa);
+  --library-drop-border: color-mix(in srgb, var(--accent-color) 45%, var(--control-border));
+  --library-import-selected-background: color-mix(in srgb, var(--accent-color) 12%, var(--window-background));
+  --library-import-error-background: color-mix(in srgb, var(--error-color) 8%, var(--window-background));
+  --favorite-star-color: #facc15;
+  --favorite-row-hover: color-mix(in srgb, var(--navigation-hover) 65%, transparent);
+  --favorite-checkbox-border: color-mix(in srgb, var(--muted-color) 75%, var(--window-background));
+  --favorite-popover-divider: color-mix(in srgb, var(--text-color) 9%, transparent);
+
+  /* 编辑器光标、选区、括号、补全、诊断和语法高亮 */
+  --code-editor-caret: light-dark(#214f6d, #eef5ff);
+  --editor-active-line-background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+  --editor-selection-background: var(--navigation-selected);
+  --editor-focused-selection-background: #d7d4f0;
+  --editor-matching-bracket-background: #328c8252;
+  --editor-nonmatching-bracket-background: #bb555544;
+  --editor-snippet-background: #0002;
+  --editor-snippet-position-color: #888;
+  --editor-completion-section-border: #c0c0c0;
+  --editor-diagnostic-warning-color: #ffa500;
+  --editor-active-diagnostic-background: #ffdd9980;
+  --code-syntax-keyword: light-dark(#784296, #d6a8ee);
+  --code-syntax-type: light-dark(#13687b, #81ced4);
+  --code-syntax-string: light-dark(#237343, #9bd6a7);
+  --code-syntax-number: light-dark(#945021, #efb081);
+  --code-syntax-function: light-dark(#245ca5, #9cbff7);
+  --code-syntax-comment: var(--muted-color);
+  --code-syntax-meta: var(--accent-color);
+  --editor-problems-indicator: light-dark(#996511, #e3b766);
+
+  /* 断点、暂停行、变量变化与运行调试自检 */
+  --breakpoint-color: light-dark(#ba3b36, #ff8379);
+  --breakpoint-hover-color: color-mix(in srgb, var(--breakpoint-color) 40%, transparent);
+  --debug-position-color: light-dark(#976212, #ffd278);
+  --debug-current-line-background: light-dark(#fbf1de, #443821);
+  --debug-variable-string: light-dark(#76501f, #d9b47e);
+  --debug-variable-number: light-dark(#42674d, #adca9b);
+  --debug-variable-literal: light-dark(#695488, #ccb7e4);
+  --debug-variable-changed: light-dark(#854500, #ffd18c);
+  --debug-variable-changed-background: color-mix(in srgb, var(--debug-variable-changed) 16%, transparent);
+  --debug-variable-tree-line: color-mix(in srgb, var(--muted-color) 30%, transparent);
+  --run-debug-badge-background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --workbench-empty-image-filter: var(--workbench-empty-image-dark-filter);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is(:not([data-theme]), [data-theme="system"]) {
+    --workbench-empty-image-filter: var(--workbench-empty-image-dark-filter);
+  }
+}
