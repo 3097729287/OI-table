@@ -26,6 +26,7 @@ export const workspaceView = {
   order: 60,
   singleton: true,
   sidebarTitle: false,
+  sidebarGroups: [{ id: "settings", title: "settings" }],
   variants: [
     { params: { group: "appearance" }, title: "appearance", icon: "settings", Section: AppearanceSection },
     { params: { group: "editor" }, title: "editor", icon: "editor", Section: EditorSection },

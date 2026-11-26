@@ -16,7 +16,6 @@ import problemLists from "./icons/problem-lists.svg?no-inline";
 import problems from "./icons/problems.svg?no-inline";
 import restore from "./icons/restore.svg?no-inline";
 import run from "./icons/run.svg?no-inline";
-import scratchPad from "./icons/scratch-pad.svg?no-inline";
 import settings from "./icons/settings.svg?no-inline";
 import sidebarHidden from "./icons/sidebar-hidden.svg?no-inline";
 import sidebarVisible from "./icons/sidebar-visible.svg?no-inline";
@@ -43,7 +42,6 @@ const sources = {
   problems,
   restore,
   run,
-  scratchPad,
   settings,
   sidebarHidden,
   sidebarVisible,

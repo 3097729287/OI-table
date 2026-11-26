@@ -252,7 +252,6 @@
   "problemRunStdout": "Standard output",
   "problemRunStderr": "Standard error",
   "editor": "Editor",
-  "scratchPad": "Session scratch pad",
   "collapseSidebar": "Collapse sidebar",
   "expandSidebar": "Expand sidebar",
   "resizeSidebar": "Resize sidebar",

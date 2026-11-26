@@ -413,28 +413,6 @@
   font-size: var(--ui-font-size-heading);
 }
 
-.editor-view__input {
-  --scrollbar-bottom-inset: 16px;
-  block-size: 10rem;
-  min-block-size: 10rem;
-  margin-block-start: var(--space-md);
-  overflow: hidden;
-  resize: vertical;
-}
-
-.editor-view textarea {
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-  padding: var(--space-sm);
-  border: 1px solid var(--workbench-border);
-  border-radius: 4px;
-  background: var(--window-background);
-  color: inherit;
-  font: var(--editor-font-size)/1.6 var(--editor-font-family);
-  resize: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .workbench {
     --workspace-motion: 0ms linear;
