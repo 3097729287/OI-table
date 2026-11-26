@@ -1,10 +1,11 @@
 import { isTauri } from "@tauri-apps/api/core";
-import { lazy, Suspense, useCallback, useContext, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LocaleContext, useMessages } from "../../i18n";
 import { Icon } from "../../shared/Icon";
 import { localizedLibraryText, type LibraryProblemDetail, type LocalizedProblemText } from "../../shared/problemLibrary";
 import { useSettings } from "../../shared/settings";
 import { StatusMessage } from "../../shared/StatusMessage";
+import type { ProblemMarkdownSampleActions } from "../../shared/ui/MarkdownViewer";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
 import { Select } from "../../shared/ui/Select";
 import type { CodeLanguage } from "../../shared/ui/codeLanguages";
@@ -53,10 +54,11 @@ function readTranslation(text: LocalizedProblemText, preferred: ContentLocale): 
   return { value: "", locale: preferred };
 }
 
-function ContentMarkdown({ content, preferred, empty }: {
+function ContentMarkdown({ content, preferred, empty, sampleActions }: {
   content: ReturnType<typeof readTranslation>;
   preferred: ContentLocale;
   empty: string;
+  sampleActions?: ProblemMarkdownSampleActions;
 }) {
   const messages = useMessages();
   if (!content.value) return <StatusMessage state="empty">{empty}</StatusMessage>;
@@ -70,7 +72,7 @@ function ContentMarkdown({ content, preferred, empty }: {
       )}
       <div lang={content.locale}>
         <Suspense fallback={<StatusMessage state="loading">{messages.problemLoading}</StatusMessage>}>
-          <MarkdownViewer source={content.value} />
+          <MarkdownViewer source={content.value} sampleActions={sampleActions} />
         </Suspense>
       </div>
     </>
@@ -109,10 +111,11 @@ function hasOpeningTitle(source: string, title: string) {
   return /^ {0,3}\S/.test(first) && /^ {0,3}(?:=+|-+)[ \t]*$/.test(second) && first.trim() === title.trim();
 }
 
-function ProblemStatement({ problem, locale, fallbackTitle }: {
+function ProblemStatement({ problem, locale, fallbackTitle, sampleActions }: {
   problem: LibraryProblemDetail;
   locale: ContentLocale;
   fallbackTitle: string;
+  sampleActions: ProblemMarkdownSampleActions;
 }) {
   const messages = useMessages();
   const statement = readTranslation(problem.statement, locale);
@@ -137,7 +140,7 @@ function ProblemStatement({ problem, locale, fallbackTitle }: {
             )}
           </div>
         )}
-        <ContentMarkdown content={statement} preferred={locale} empty={messages.problemStatementEmpty} />
+        <ContentMarkdown content={statement} preferred={locale} empty={messages.problemStatementEmpty} sampleActions={sampleActions} />
       </div>
     </ScrollArea>
   );
@@ -161,7 +164,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const [run, setRun] = useState<ProblemRunResult>();
   const [launchState, setLaunchState] = useState<"loading" | "empty" | "failed">();
   const [activate, setActivate] = useState<{ id: ProblemWorkspaceTabId; focus?: boolean }>();
-  const busy = useRef(false);
+  const busy = useRef<symbol | undefined>(undefined);
   const launchRequest = useRef<ReturnType<typeof loadProblemDraft> | undefined>(undefined);
   const launchAction = useRef<() => void>(() => {});
   const launch = useCallback(() => launchAction.current(), []);
@@ -172,14 +175,20 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const debugSessionId = debug?.sessionId;
   const debugStdout = debug?.stdout ?? "";
   const debugStderr = debug?.stderr || (debug?.error === "compile_failed" ? debug.errorDetail : undefined) || "";
-  const running = run?.state === "running";
+  const desktop = isTauri();
+  const debugging = isDebugActive(debug);
+  const running = run?.state === "running" || run?.state === "loading-draft";
   const launchDisabled = running || launchState === "loading";
-  const launchMessage = running ? messages.problemRunRunning
+  const launchMessage = run?.state === "loading-draft" ? messages.problemDraftLoading
+    : running ? messages.problemRunRunning
     : launchState === "loading" ? messages.problemDraftLoading
     : launchState === "empty" ? messages.problemDebugWriteCode
     : launchState === "failed" ? messages.problemDraftLoadFailed : undefined;
 
-  useLayoutEffect(() => () => releaseDebug?.(problem.id), [problem.id, releaseDebug]);
+  useLayoutEffect(() => () => {
+    busy.current = undefined;
+    releaseDebug?.(problem.id);
+  }, [problem.id, releaseDebug]);
 
   useLayoutEffect(() => {
     launchAction.current = () => { void startSavedDraft(); };
@@ -191,10 +200,10 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   }, [isDebugTarget]);
 
   useLayoutEffect(() => {
-    if (isDebugTarget && isTauri()) {
+    if (isDebugTarget && desktop) {
       return registerLaunch?.(problem.id, { start: launch, disabled: launchDisabled, message: launchMessage });
     }
-  }, [isDebugTarget, registerLaunch, problem.id, launch, launchDisabled, launchMessage]);
+  }, [isDebugTarget, desktop, registerLaunch, problem.id, launch, launchDisabled, launchMessage]);
 
   useLayoutEffect(() => {
     if (revealKey) setActivate({ id: "code", focus: false });
@@ -215,21 +224,58 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
     });
   }
 
-  async function runDraft(codeLanguage: CodeLanguage, source: string) {
-    if (busy.current) return;
+  const runDraft = useCallback(async ({ stdin, draft, expected }: {
+    stdin: string;
+    draft?: { language: CodeLanguage; source: string };
+    expected?: string;
+  }) => {
+    if (busy.current || debugging) return;
+    const request = Symbol();
+    busy.current = request;
     launchRequest.current = undefined;
     setLaunchState(undefined);
-    busy.current = true;
-    setRun({ state: "running", language: codeLanguage });
+    setRun({ state: draft ? "running" : "loading-draft" });
     setActivate({ id: "output" });
     try {
-      setRun(await runEditorCode(codeLanguage, source, input));
+      if (!draft) {
+        const saved = await loadProblemDraft(problem.id);
+        if (busy.current !== request) return;
+        if (!saved || !saved.drafts[saved.language].trim()) {
+          setRun({ state: "empty-draft" });
+          return;
+        }
+        draft = { language: saved.language, source: saved.drafts[saved.language] };
+        setRun({ state: "running" });
+      }
+      const result = await runEditorCode(draft.language, draft.source, stdin, expected);
+      if (busy.current === request) setRun(result);
+    } catch {
+      if (busy.current === request) setRun({ state: "failed-draft" });
     } finally {
-      busy.current = false;
+      if (busy.current === request) busy.current = undefined;
     }
-  }
+  }, [problem.id, debugging]);
+
+  const sampleActions = useMemo<ProblemMarkdownSampleActions>(() => ({
+    labels: {
+      run: messages.problemSampleRun,
+      copy: messages.problemSampleCopy,
+      fill: messages.problemSampleFill,
+      copied: messages.problemSampleCopied,
+      copyFailed: messages.problemSampleCopyFailed,
+    },
+    onRun: desktop ? ({ input, expectedOutput }) => {
+      if (expectedOutput !== undefined) void runDraft({ stdin: input, expected: expectedOutput });
+    } : undefined,
+    onFill: (sampleInput) => {
+      setInput(sampleInput);
+      setActivate({ id: "input" });
+    },
+    runDisabled: running || debugging,
+  }), [messages, desktop, running, debugging, runDraft]);
 
   function startDebug(codeLanguage: CodeLanguage, source: string, lines: number[]) {
+    if (busy.current) return;
     setLaunchState(undefined);
     debuggerWorkspace?.start(problem.id, codeLanguage, source, input, lines);
   }
@@ -275,7 +321,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const tabs: ProblemWorkspaceTab[] = [
     {
       id: "statement", label: messages.problemStatement,
-      content: <ProblemStatement problem={problem} locale={locale} fallbackTitle={title} />,
+      content: <ProblemStatement problem={problem} locale={locale} fallbackTitle={title} sampleActions={sampleActions} />,
     },
     {
       id: "solutions", label: messages.problemSolutions,
@@ -291,11 +337,12 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
       id: "code", label: messages.problemCodeTab, lazy: true,
       content: <div className="problem-detail__editor">
         <Suspense fallback={<StatusMessage state="loading">{messages.problemEditorLoading}</StatusMessage>}>
-          <CodeEditor problemId={problem.id} onRun={isTauri() ? runDraft : undefined} running={running}
+          <CodeEditor problemId={problem.id} running={running}
+            onRun={desktop ? (language, source) => void runDraft({ stdin: input, draft: { language, source } }) : undefined}
             breakpoints={breakpoints} onBreakpointsChange={updateBreakpoints}
-            debugReadOnly={isDebugActive(debug)} debugUnavailable={launchState === "loading" || (isDebugActive(session) && !debug)}
+            debugReadOnly={debugging} debugUnavailable={launchState === "loading" || (isDebugActive(session) && !debug)}
             debugLine={debug?.status === "paused" ? debug.line ?? undefined : undefined} debugRevealKey={revealKey}
-            onDebug={isTauri() && debuggerWorkspace ? startDebug : undefined} />
+            onDebug={desktop && debuggerWorkspace ? startDebug : undefined} />
         </Suspense>
       </div>,
     },
