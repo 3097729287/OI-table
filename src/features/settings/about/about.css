@@ -1,0 +1,83 @@
+.settings-about,
+.settings-about__credits {
+  display: grid;
+  gap: var(--space-md);
+  min-inline-size: 0;
+}
+
+.settings-about__product {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm) var(--space-md);
+  padding-block-end: var(--space-md);
+  border-block-end: 1px solid var(--control-border);
+}
+
+.settings-about__product h2 {
+  font-size: var(--ui-font-size-heading);
+  font-weight: 600;
+}
+
+.settings-about__product-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-md);
+  font-size: var(--ui-font-size-control);
+}
+
+.settings-about__product-details > div {
+  display: flex;
+  gap: 4px;
+}
+
+.settings-about__product-details dt {
+  color: var(--muted-color);
+}
+
+.settings-about__credits h2 {
+  font-size: var(--ui-font-size);
+  font-weight: 600;
+}
+
+.settings-about__table {
+  inline-size: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--ui-font-size-control);
+}
+
+.settings-about__table caption {
+  padding-block-end: 4px;
+  font-weight: 600;
+  text-align: start;
+}
+
+.settings-about__table :is(th, td) {
+  padding: 5px min(var(--space-sm), 1.5%);
+  border-block-end: 1px solid var(--control-border);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.settings-about__table tr > :first-child {
+  padding-inline-start: 0;
+}
+
+.settings-about__table thead th {
+  color: var(--muted-color);
+  font-weight: 500;
+}
+
+.settings-about__table thead th:nth-child(2) {
+  inline-size: 22%;
+}
+
+.settings-about__table thead th:nth-child(3) {
+  inline-size: 32%;
+}
+
+.settings-about__table tbody th {
+  font-weight: 500;
+}

@@ -335,5 +335,13 @@
   "settingsLoading": "Loading settings…",
   "settingsGroupEmpty": "No settings yet.",
   "settingsLoadFailed": "Could not load settings.",
-  "settingsSaveFailed": "Could not save settings."
+  "settingsSaveFailed": "Could not save settings.",
+  "settingsOther": "Other",
+  "about": "About",
+  "aboutVersion": "Version",
+  "aboutThirdParty": "Open source projects and licenses",
+  "aboutFrontend": "Interface and assets",
+  "aboutDesktop": "Desktop",
+  "aboutProject": "Project",
+  "aboutLicense": "License"
 }
