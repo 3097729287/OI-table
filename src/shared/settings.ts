@@ -8,7 +8,7 @@ import { defaultEditorFont, type FontPreset } from "./fonts";
 const legacyThemeKey = "oi-table.theme";
 const settingsChanged = "oi-table:settings-changed";
 
-export const themes = ["system", "light", "dark", "mint"] as const;
+export const themes = ["system", "light", "dark", "mint", "lavender"] as const;
 export type Theme = (typeof themes)[number];
 
 export interface AppSettings {

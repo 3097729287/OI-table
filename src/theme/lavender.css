@@ -1,0 +1,14 @@
+:root[data-theme="lavender"] {
+  /* 浅色用灰紫区分面板，深色用墨紫托起文字与选中态。 */
+  --window-background: light-dark(#fbf9ff, #1b1624);
+  --navigation-background: light-dark(#ece6f8, #261e33);
+  --sidebar-background: light-dark(#f4effa, #2e243d);
+  --text-color: light-dark(#2e2443, #f0e8fa);
+  --muted-color: light-dark(#645677, #c0b1d1);
+  --accent-color: light-dark(#62459b, #d0b2ff);
+  --navigation-hover: light-dark(#ebe2f6, #3a2d4d);
+  --navigation-selected: light-dark(#e4d8f4, #48365e);
+  --title-bar-hover: light-dark(#e2d5f3, #433356);
+  --code-editor-caret: light-dark(#5c3f94, #e6d5ff);
+  --editor-focused-selection-background: light-dark(#e1d3f5, #4b3862);
+}

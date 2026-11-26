@@ -36,7 +36,7 @@ const RULES: &[(&str, Rule)] = &[
         THEME_KEY,
         Rule::Choice {
             default: "system",
-            alternatives: &[&["light", "dark", "mint"]],
+            alternatives: &[&["light", "dark", "mint", "lavender"]],
         },
     ),
     (
@@ -306,6 +306,7 @@ mod tests {
             &storage,
             serde_json::from_value(json!({
                 "uiLanguage": "en",
+                "theme": "lavender",
                 "uiFont": "fira-code",
                 "uiFontSize": 20,
                 "editorFont": "interface",
@@ -317,6 +318,7 @@ mod tests {
             |log_limit| assert_eq!(log_limit, Some(12)),
         )?;
         let followed = read_settings(&storage, None, || unreachable!())?;
+        assert_eq!(followed[THEME_KEY], "lavender");
         assert_eq!(followed["uiFont"], "fira-code");
         assert_eq!(followed["editorFont"], "interface");
         assert_eq!(followed["editorFontSize"], 40);
@@ -338,7 +340,7 @@ mod tests {
         )?;
 
         let saved = storage.read::<Settings>(SETTINGS_FILE)?.unwrap();
-        assert_eq!(saved[THEME_KEY], "dark");
+        assert_eq!(saved[THEME_KEY], "lavender");
         assert_eq!(saved["uiLanguage"], "en");
         assert_eq!(saved["uiFont"], "fira-code");
         assert_eq!(saved["uiFontSize"], 16);
