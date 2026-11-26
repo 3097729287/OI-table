@@ -1,17 +1,25 @@
-import { useContext, useEffect, useMemo, useState } from "react";
-import { LocaleContext, useMessages } from "../../i18n";
-import { allFavoritesTarget } from "../personal/navigationTargets";
-import { getPersonalRevision, usePersonalRevision } from "../../shared/personalCollections";
+import { useContext, useEffect, useState } from "react";
+import { LocaleContext, useMessages } from "../i18n";
+import type { WorkspaceTarget } from "../workspace/layout";
+import { getPersonalRevision, usePersonalRevision } from "./personalCollections";
 import {
   getLibraryRevision, listLibraryProblems, localizedLibraryText, useLibraryRevision,
   type LibraryProblem, type LibraryProblemPage, type LibraryProblemQuery,
-} from "../../shared/problemLibrary";
-import { StatusMessage } from "../../shared/StatusMessage";
-import { Input } from "../../shared/ui/Fields";
-import { ScrollArea } from "../../shared/ui/ScrollArea";
-import type { WorkspaceViewProps } from "../../workspace/views";
-import { problemTarget } from "./navigationTargets";
+} from "./problemLibrary";
+import { problemTarget } from "./problemTarget";
+import { StatusMessage } from "./StatusMessage";
+import { Input } from "./ui/Fields";
+import { ScrollArea } from "./ui/ScrollArea";
 import "./problem-list.css";
+
+export type ProblemListFilters = Omit<LibraryProblemQuery, "keyword" | "after">;
+
+interface ProblemListPageProps {
+  title: string;
+  filters: ProblemListFilters;
+  open: (target: WorkspaceTarget) => void;
+  unavailable?: { message: string; actionLabel: string; target: WorkspaceTarget };
+}
 
 interface PageRequest {
   cursors: readonly (string | undefined)[];
@@ -31,7 +39,7 @@ function errorDetails(error: unknown) {
   }
 }
 
-function ProblemTable({ items, open }: { items: LibraryProblem[]; open: WorkspaceViewProps["open"] }) {
+function ProblemTable({ items, open }: { items: LibraryProblem[]; open: ProblemListPageProps["open"] }) {
   const locale = useContext(LocaleContext);
   const messages = useMessages();
   return (
@@ -68,9 +76,9 @@ function ProblemTable({ items, open }: { items: LibraryProblem[]; open: Workspac
 }
 
 function ProblemResults({ filters, keyword, open }: {
-  filters: LibraryProblemQuery;
+  filters: ProblemListFilters;
   keyword: string;
-  open: WorkspaceViewProps["open"];
+  open: ProblemListPageProps["open"];
 }) {
   const messages = useMessages();
   const revision = useLibraryRevision();
@@ -154,10 +162,7 @@ function ProblemResults({ filters, keyword, open }: {
   );
 }
 
-function ProblemListPage({ filters, title, open, missingFavoriteGroup }: Pick<WorkspaceViewProps, "title" | "open"> & {
-  filters: LibraryProblemQuery;
-  missingFavoriteGroup?: boolean;
-}) {
+function ProblemListContent({ filters, title, open, unavailable }: ProblemListPageProps) {
   const messages = useMessages();
   const [draft, setDraft] = useState("");
   const [search, setSearch] = useState({ keyword: "", submission: 0 });
@@ -166,7 +171,7 @@ function ProblemListPage({ filters, title, open, missingFavoriteGroup }: Pick<Wo
     <section className="workspace workbench-page problem-list-view">
       <header className="problem-list-view__header">
         <h1>{title}</h1>
-        {!missingFavoriteGroup && <form className="problem-list-view__search" role="search" onSubmit={(event) => {
+        {!unavailable && <form className="problem-list-view__search" role="search" onSubmit={(event) => {
           event.preventDefault();
           setSearch((current) => ({ keyword: draft.trim(), submission: current.submission + 1 }));
         }}>
@@ -176,11 +181,11 @@ function ProblemListPage({ filters, title, open, missingFavoriteGroup }: Pick<Wo
           <button type="submit" className="ui-field problem-list-view__action">{messages.search}</button>
         </form>}
       </header>
-      {missingFavoriteGroup ? (
+      {unavailable ? (
         <div className="problem-list-view__error-actions">
-          <StatusMessage state="empty">{messages.personalCollectionMissing}</StatusMessage>
-          <button type="button" className="ui-field problem-list-view__action" onClick={() => open(allFavoritesTarget)}>
-            {messages.allFavorites}
+          <StatusMessage state="empty">{unavailable.message}</StatusMessage>
+          <button type="button" className="ui-field problem-list-view__action" onClick={() => open(unavailable.target)}>
+            {unavailable.actionLabel}
           </button>
         </div>
       ) : <ProblemResults key={search.submission} filters={filters} keyword={search.keyword} open={open} />}
@@ -188,13 +193,6 @@ function ProblemListPage({ filters, title, open, missingFavoriteGroup }: Pick<Wo
   );
 }
 
-export function ProblemListView({ id, params, title, open, missingFavoriteGroup }: WorkspaceViewProps & { missingFavoriteGroup?: boolean }) {
-  const { libraryId, archiveId, tagId, untagged, groupId } = params;
-  const filters = useMemo<LibraryProblemQuery>(() => {
-    if (id === "favorites") return { personal: groupId ? { kind: "favorite", id: groupId } : { kind: "favorites" } };
-    return { libraryId, archiveId, includeDescendants: archiveId ? true : undefined, tagId, untagged: untagged === "true" || undefined };
-  }, [id, libraryId, archiveId, tagId, untagged, groupId]);
-
-  return <ProblemListPage key={JSON.stringify(filters)} filters={filters} title={title} open={open}
-    missingFavoriteGroup={missingFavoriteGroup} />;
+export function ProblemListPage(props: ProblemListPageProps) {
+  return <ProblemListContent key={JSON.stringify(props.filters)} {...props} />;
 }

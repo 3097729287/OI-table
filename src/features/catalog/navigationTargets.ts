@@ -27,7 +27,3 @@ export function libraryTarget(library: ProblemLibrary): WorkspaceTarget {
 export function archiveTarget(libraryId: string, archive: LibraryArchive): WorkspaceTarget {
   return { id: "catalog", params: { libraryId, archiveId: archive.id }, label: label(archive.name) };
 }
-
-export function problemTarget(id: string, title: LocalizedProblemText): WorkspaceTarget {
-  return { id: "problem", params: { problemId: id }, label: label(title) };
-}
