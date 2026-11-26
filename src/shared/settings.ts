@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type { UiLanguage } from "../i18n";
+import { defaultCodeLanguage, type CodeLanguage } from "./codeLanguages";
 import type { FontPreset } from "./fonts";
 
 const legacyThemeKey = "oi-table.theme";
@@ -15,6 +16,7 @@ export interface AppSettings {
   uiLanguage: UiLanguage;
   uiFont: FontPreset;
   uiFontSize: number;
+  editorDefaultLanguage: CodeLanguage;
   editorFont: FontPreset | "interface";
   editorFontSizeMode: "custom" | "interface";
   editorFontSize: number;
@@ -30,6 +32,7 @@ interface SettingsSnapshot {
 const initialSnapshot: SettingsSnapshot = { loadFailed: false };
 let snapshot = initialSnapshot;
 let initialization: Promise<void> | undefined;
+let pendingUpdate = Promise.resolve();
 let latestRead = 0;
 const subscribers = new Set<() => void>();
 
@@ -67,6 +70,7 @@ async function initializeSettings() {
         uiLanguage: "system",
         uiFont: "system",
         uiFontSize: 16,
+        editorDefaultLanguage: defaultCodeLanguage,
         editorFont: "monospace",
         editorFontSizeMode: "custom",
         editorFontSize: 13,
@@ -105,10 +109,14 @@ export function useSettings() {
   return useSyncExternalStore(subscribe, () => snapshot, () => initialSnapshot);
 }
 
-export async function updateSettings(changes: Partial<AppSettings>) {
-  if (!isTauri()) throw new Error("Settings can only be saved by the desktop app");
+export function updateSettings(changes: Partial<AppSettings>) {
+  const update = pendingUpdate.then(async () => {
+    if (!isTauri()) throw new Error("Settings can only be saved by the desktop app");
 
-  await (initialization ??= initializeSettings());
-  await invoke("update_settings", { changes });
-  await refreshSettings();
+    await (initialization ??= initializeSettings());
+    await invoke("update_settings", { changes });
+    await refreshSettings();
+  });
+  pendingUpdate = update.catch(() => {});
+  return update;
 }

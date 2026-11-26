@@ -18,6 +18,7 @@ type SelectProps<Value extends string> = Pick<
   value: Value;
   options: readonly SelectOption<Value>[];
   triggerLabel?: string;
+  notifyOnReselect?: boolean;
   onValueChange: (value: Value) => void;
 };
 
@@ -46,6 +47,7 @@ export function Select<Value extends string>({
   onValueChange,
   className,
   triggerLabel,
+  notifyOnReselect = false,
   id,
   disabled,
   ...accessibleProps
@@ -130,7 +132,7 @@ export function Select<Value extends string>({
   function select(option: SelectOption<Value> | undefined) {
     if (!option || option.disabled) return;
     setIsOpen(false);
-    if (option.value !== value) onValueChange(option.value);
+    if (notifyOnReselect || option.value !== value) onValueChange(option.value);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {

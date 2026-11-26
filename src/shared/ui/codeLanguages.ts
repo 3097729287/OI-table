@@ -5,12 +5,9 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import type { Diagnostic } from "@codemirror/lint";
 import type { EditorState, Extension } from "@codemirror/state";
 
-export type CodeLanguage = "cpp" | "python";
+import type { CodeLanguage } from "../codeLanguages";
 
-export const codeLanguageNames: Record<CodeLanguage, string> = {
-  cpp: "C++",
-  python: "Python",
-};
+export type { CodeLanguage } from "../codeLanguages";
 
 const cppKeywords = `alignas alignof asm auto bool break case catch char class concept const consteval constexpr constinit
   continue decltype default delete do double else enum explicit export extern false float for friend goto if inline int

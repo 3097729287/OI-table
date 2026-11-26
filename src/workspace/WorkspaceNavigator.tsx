@@ -22,6 +22,8 @@ export function WorkspaceNavigator({ showDebug, onShowDebug, onOpen, debug, debu
   const sidebar = useContext(WorkspaceSidebar);
   const [menuSection, setMenuSection] = useState<Exclude<WorkspaceSection, "debug">>("catalog");
   const section = showDebug ? "debug" : menuSection;
+  const [visitedSections, setVisitedSections] = useState<WorkspaceSection[]>([section]);
+  if (!visitedSections.includes(section)) setVisitedSections([...visitedSections, section]);
 
   return (
     <>
@@ -41,10 +43,14 @@ export function WorkspaceNavigator({ showDebug, onShowDebug, onOpen, debug, debu
           ))}
         </nav>
       </ScrollArea>
-      <ScrollArea as="aside" id="workspace-sidebar" className="workbench-sidebar" hidden={!sidebar.visible}>
-        <div hidden={showDebug}><WorkspaceMenu section={menuSection} onOpen={onOpen} /></div>
-        {showDebug && <ProblemDebugPanel state={debug} launch={debugLaunch} />}
-      </ScrollArea>
+      <aside id="workspace-sidebar" className="workbench-sidebar" hidden={!sidebar.visible}>
+        {visitedSections.map((id) => (
+          <ScrollArea key={id} hidden={id !== section}>
+            {id === "debug" ? <ProblemDebugPanel state={debug} launch={debugLaunch} />
+              : <WorkspaceMenu section={id} onOpen={onOpen} />}
+          </ScrollArea>
+        ))}
+      </aside>
     </>
   );
 }

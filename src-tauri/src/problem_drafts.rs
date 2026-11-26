@@ -14,7 +14,8 @@ pub(crate) struct ProblemDraftStorage(Arc<Storage>);
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ProblemDraft {
-    language: EditorLanguage,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<EditorLanguage>,
     drafts: DraftContents,
 }
 
@@ -139,8 +140,9 @@ pub(crate) async fn save_problem_draft(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::{json, Value};
 
-    fn draft(language: EditorLanguage, cpp: &str, python: &str) -> ProblemDraft {
+    fn draft(language: Option<EditorLanguage>, cpp: &str, python: &str) -> ProblemDraft {
         ProblemDraft {
             language,
             drafts: DraftContents {
@@ -161,25 +163,40 @@ mod tests {
         write_draft(
             &storage,
             &first,
-            &draft(EditorLanguage::Cpp, "int main() {}", ""),
+            &draft(Some(EditorLanguage::Cpp), "int main() {}", ""),
         )?;
-        write_draft(
-            &storage,
-            &second,
-            &draft(EditorLanguage::Python, "", "print(2)"),
-        )?;
-        let updated = draft(
-            EditorLanguage::Python,
-            "// 草稿\nint main() {}\n",
-            "print('草稿')\n",
-        );
+        let updated = draft(None, "// 草稿\nint main() {}\n", "print('草稿')\n");
         write_draft(&storage, &first, &updated)?;
+        storage
+            .write(
+                &second,
+                &json!({
+                    "language": "python",
+                    "drafts": { "cpp": "int main() {}", "python": "print(2)" },
+                }),
+            )
+            .unwrap();
 
         let reopened = Storage::new(directory);
         assert_eq!(read_draft(&reopened, &first)?, Some(updated));
         assert_eq!(
-            read_draft(&reopened, &second)?,
-            Some(draft(EditorLanguage::Python, "", "print(2)"))
+            reopened.read::<Value>(&first).unwrap(),
+            Some(
+                json!({ "drafts": { "cpp": "// 草稿\nint main() {}\n", "python": "print('草稿')\n" } })
+            )
+        );
+        let previous = read_draft(&reopened, &second)?.unwrap();
+        assert_eq!(
+            previous,
+            draft(Some(EditorLanguage::Python), "int main() {}", "print(2)")
+        );
+        write_draft(&reopened, &second, &previous)?;
+        assert_eq!(
+            reopened.read::<Value>(&second).unwrap(),
+            Some(json!({
+                "language": "python",
+                "drafts": { "cpp": "int main() {}", "python": "print(2)" },
+            }))
         );
         Ok(())
     }
@@ -203,14 +220,14 @@ mod tests {
         let storage = Storage::new(directory.path().to_owned());
         let name = file_name("sample:editor:1")?;
         let large = "a".repeat(MAX_DRAFT_BYTES);
-        let saved = draft(EditorLanguage::Cpp, &large, "print(1)");
+        let saved = draft(Some(EditorLanguage::Cpp), &large, "print(1)");
         write_draft(&storage, &name, &saved)?;
         let oversized = "界".repeat(MAX_DRAFT_BYTES / 3 + 1);
         assert_eq!(
             write_draft(
                 &storage,
                 &name,
-                &draft(EditorLanguage::Python, "", &oversized)
+                &draft(Some(EditorLanguage::Python), "", &oversized)
             )
             .unwrap_err()
             .code,
@@ -230,7 +247,7 @@ mod tests {
                 let (storage, name) = (&storage, &name);
                 scope.spawn(move || {
                     let code = index.to_string();
-                    let draft = draft(EditorLanguage::Cpp, &code, &code);
+                    let draft = draft(Some(EditorLanguage::Cpp), &code, &code);
                     write_draft(storage, name, &draft).unwrap();
                     let saved = read_draft(storage, name).unwrap().unwrap();
                     assert_eq!(saved.drafts.cpp, saved.drafts.python);

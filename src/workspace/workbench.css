@@ -47,6 +47,11 @@
   background: var(--sidebar-background);
 }
 
+.workbench-sidebar:not([hidden]) {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+
 .workbench-sidebar-resizer {
   justify-self: end;
   z-index: 1;

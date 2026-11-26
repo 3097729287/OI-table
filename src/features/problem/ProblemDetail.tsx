@@ -1,6 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { Suspense, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LocaleContext, useMessages } from "../../i18n";
+import { defaultCodeLanguage, type CodeLanguage } from "../../shared/codeLanguages";
 import { Icon } from "../../shared/Icon";
 import { localizedLibraryText, type LibraryProblemDetail, type LocalizedProblemText } from "../../shared/problemLibrary";
 import { useSettings } from "../../shared/settings";
@@ -8,7 +9,6 @@ import { DelayedLoadingMessage, StatusMessage } from "../../shared/StatusMessage
 import type { ProblemMarkdownSampleActions } from "../../shared/ui/MarkdownViewer";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
 import { Select } from "../../shared/ui/Select";
-import type { CodeLanguage } from "../../shared/ui/codeLanguages";
 import { loadProblemDraft } from "../../shared/ui/problemDrafts";
 import { isDebugActive, ProblemDebugContext } from "./localDebug";
 import { runEditorCode } from "./localRun";
@@ -175,6 +175,8 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const debugStderr = debug?.stderr || (debug?.error === "compile_failed" ? debug.errorDetail : undefined) || "";
   const desktop = isTauri();
   const debugging = isDebugActive(debug);
+  const codeLanguage = settings?.editorDefaultLanguage ?? defaultCodeLanguage;
+  const editorLanguage = debugging && debug ? debug.language : codeLanguage;
   const running = run?.state === "running" || run?.state === "loading-draft";
   const launchDisabled = running || launchState === "loading";
   const launchMessage = run?.state === "loading-draft" ? messages.problemDraftLoading
@@ -238,11 +240,12 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
       if (!draft) {
         const saved = await loadProblemDraft(problem.id);
         if (busy.current !== request) return;
-        if (!saved || !saved.drafts[saved.language].trim()) {
+        const source = saved?.drafts[codeLanguage];
+        if (!source?.trim()) {
           setRun({ state: "empty-draft" });
           return;
         }
-        draft = { language: saved.language, source: saved.drafts[saved.language] };
+        draft = { language: codeLanguage, source };
         setRun({ state: "running" });
       }
       const result = await runEditorCode(draft.language, draft.source, stdin, expected);
@@ -252,7 +255,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
     } finally {
       if (busy.current === request) busy.current = undefined;
     }
-  }, [problem.id, debugging]);
+  }, [problem.id, debugging, codeLanguage]);
 
   const sampleActions = useMemo<ProblemMarkdownSampleActions>(() => ({
     labels: {
@@ -287,14 +290,13 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
       const draft = await request;
       if (launchRequest.current !== request) return;
       setActivate({ id: "code", focus: false });
-      if (!draft || !draft.drafts[draft.language]) {
+      const source = draft?.drafts[codeLanguage];
+      if (!source) {
         setLaunchState("empty");
         return;
       }
-      const source = draft.drafts[draft.language];
       const lineCount = source.split("\n").length;
-      startDebug(draft.language, source,
-        breakpoints[draft.language].filter((line) => line <= lineCount));
+      startDebug(codeLanguage, source, breakpoints[codeLanguage].filter((line) => line <= lineCount));
     } catch {
       if (launchRequest.current !== request) return;
       setLaunchState("failed");
@@ -335,7 +337,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
       id: "code", label: messages.problemCodeTab, lazy: true,
       content: <div className="problem-detail__editor">
         <Suspense fallback={<DelayedLoadingMessage>{messages.problemEditorLoading}</DelayedLoadingMessage>}>
-          <CodeEditor problemId={problem.id} running={running}
+          <CodeEditor problemId={problem.id} preferredLanguage={editorLanguage} running={running}
             onRun={desktop ? (language, source) => void runDraft({ stdin: input, draft: { language, source } }) : undefined}
             breakpoints={breakpoints} onBreakpointsChange={updateBreakpoints}
             debugReadOnly={debugging} debugUnavailable={launchState === "loading" || (isDebugActive(session) && !debug)}

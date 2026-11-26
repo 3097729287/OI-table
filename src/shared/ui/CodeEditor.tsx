@@ -6,11 +6,14 @@ import {
 } from "@codemirror/lint";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
+import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMessages } from "../../i18n";
+import { codeLanguageOptions, type CodeLanguage } from "../codeLanguages";
 import { Icon } from "../Icon";
+import { updateSettings } from "../settings";
 import { DelayedLoadingMessage, StatusMessage } from "../StatusMessage";
-import { codeLanguageExtensions, codeLanguageNames, syntaxDiagnostics, type CodeLanguage } from "./codeLanguages";
+import { codeLanguageExtensions, syntaxDiagnostics } from "./codeLanguages";
 import { codeSyntaxHighlighting } from "./codeEditorTheme";
 import { breakpointLines, codeEditorBreakpointGutter, codeEditorDebugReadOnly, debugLine as debugLineField,
   normalizeBreakpointLines, sameBreakpointLines, setBreakpointLines, setDebugLine } from "./codeEditorDebug";
@@ -18,8 +21,6 @@ import { CodeEditorSurface, codeEditorContent, codeEditorDefaultKeymap, codeEdit
 import { flushProblemDraft, loadProblemDraft, problemDraftSaveStatus, queueProblemDraft, subscribeToProblemDraft } from "./problemDrafts";
 import { Select } from "./Select";
 
-const defaultLanguage: CodeLanguage = "cpp";
-const languages = (["cpp", "python"] as const).map((value) => ({ value, label: codeLanguageNames[value] }));
 const editorExtensions = [
   codeEditorSurfaceExtensions, indentOnInput(), indentUnit.of("    "),
   bracketMatching(), closeBrackets(), autocompletion(), codeSyntaxHighlighting,
@@ -49,6 +50,7 @@ function editorMetrics(state: EditorState) {
 
 interface CodeEditorProps {
   problemId: string;
+  preferredLanguage: CodeLanguage;
   onRun?: (language: CodeLanguage, source: string) => void;
   running?: boolean;
   onDebug?: (language: CodeLanguage, source: string, breakpoints: number[]) => void;
@@ -60,9 +62,13 @@ interface CodeEditorProps {
   debugUnavailable?: boolean;
 }
 
-export default function CodeEditor({ problemId, onRun, running = false, onDebug, breakpoints, onBreakpointsChange,
+export default function CodeEditor({ problemId, preferredLanguage, onRun, running = false, onDebug, breakpoints, onBreakpointsChange,
   debugLine, debugRevealKey, debugReadOnly = false, debugUnavailable = false }: CodeEditorProps) {
   const messages = useMessages();
+  const desktop = isTauri();
+  const preferredLanguageRef = useRef(preferredLanguage);
+  const activeLanguage = useRef(preferredLanguage);
+  const latestDefaultLanguageUpdate = useRef<Promise<void>>(undefined);
   const texts = useRef(messages);
   const debugEnabled = onDebug !== undefined;
   const debugBindings = useRef({ debugEnabled, debugReadOnly, breakpoints, onBreakpointsChange });
@@ -72,7 +78,8 @@ export default function CodeEditor({ problemId, onRun, running = false, onDebug,
   const sources = useRef({ cpp: "", python: "" });
   const [localization] = useState(() => new Compartment());
   const [editability] = useState(() => new Compartment());
-  const [language, setLanguage] = useState<CodeLanguage>(defaultLanguage);
+  const [language, setLanguage] = useState(preferredLanguage);
+  const [defaultLanguageSaveFailed, setDefaultLanguageSaveFailed] = useState(false);
   const [metrics, setMetrics] = useState({ line: 1, column: 1, problems: 0, length: 0 });
   const [mountedEditor, setMountedEditor] = useState<EditorView>();
   const [loadState, setLoadState] = useState<"loading" | "ready" | "failed">("loading");
@@ -115,16 +122,22 @@ export default function CodeEditor({ problemId, onRun, running = false, onDebug,
   }, [debugEnabled, debugReadOnly, breakpoints, onBreakpointsChange]);
 
   useLayoutEffect(() => {
+    preferredLanguageRef.current = preferredLanguage;
+    changeEditorLanguage(preferredLanguage);
+  }, [preferredLanguage]);
+
+  useLayoutEffect(() => {
     const parent = container.current;
     if (!parent) return;
     let active = true;
     void loadProblemDraft(problemId).then((saved) => {
       if (!active) return;
-      const selected = saved?.language ?? defaultLanguage;
+      const selected = preferredLanguageRef.current;
       sources.current = saved?.drafts ?? { cpp: "", python: "" };
       drafts.current.clear();
       const editor = new EditorView({ parent, state: createDraft(selected) });
       view.current = editor;
+      activeLanguage.current = selected;
       setMountedEditor(editor);
       setLanguage(selected);
       setMetrics(editorMetrics(editor.state));
@@ -175,20 +188,38 @@ export default function CodeEditor({ problemId, onRun, running = false, onDebug,
     ] });
   }, [debugLine, debugRevealKey, language, mountedEditor]);
 
-  function selectLanguage(next: CodeLanguage) {
+  function changeEditorLanguage(next: CodeLanguage) {
     const editor = view.current;
-    if (!editor || next === language || debugReadOnly) return;
-    drafts.current.set(language, { state: editor.state, scroll: editor.scrollSnapshot() });
+    const previous = activeLanguage.current;
+    if (!editor || next === previous) return;
+    drafts.current.set(previous, { state: editor.state, scroll: editor.scrollSnapshot() });
     const saved = drafts.current.get(next);
     editor.setState(saved?.state ?? createDraft(next));
     editor.dispatch({ effects: [
       localization.reconfigure(editorLocalization(texts.current, debugEnabled)),
+      editability.reconfigure(debugReadOnly ? codeEditorDebugReadOnly : []),
       ...(saved ? [saved.scroll] : []),
     ] });
+    activeLanguage.current = next;
     setLanguage(next);
     setMetrics(editorMetrics(editor.state));
     forceLinting(editor);
+  }
+
+  function selectLanguage(next: CodeLanguage) {
+    if (!view.current || debugReadOnly) return;
     queueProblemDraft(problemId, { language: next, drafts: sources.current });
+    if (!desktop) {
+      changeEditorLanguage(next);
+      return;
+    }
+
+    setDefaultLanguageSaveFailed(false);
+    const update = updateSettings({ editorDefaultLanguage: next });
+    latestDefaultLanguageUpdate.current = update;
+    void update.catch(() => {
+      if (latestDefaultLanguageUpdate.current === update) setDefaultLanguageSaveFailed(true);
+    });
   }
 
   const actionDisabled = loadState !== "ready" || running || debugReadOnly || metrics.length === 0;
@@ -196,8 +227,10 @@ export default function CodeEditor({ problemId, onRun, running = false, onDebug,
   return (
     <section className="code-editor" aria-label={messages.problemCodeDraft}>
       <header className="code-editor__bar">
-        <Select className="ui-select--quiet" aria-label={messages.problemEditorLanguage} title={messages.problemEditorLanguage}
-          disabled={loadState !== "ready" || debugReadOnly} value={language} options={languages} onValueChange={selectLanguage} />
+        <Select className="ui-select--quiet" aria-label={messages.problemEditorLanguage}
+          title={desktop ? messages.problemEditorLanguageHint : messages.problemEditorLanguage}
+          disabled={loadState !== "ready" || debugReadOnly} value={language} options={codeLanguageOptions}
+          notifyOnReselect={desktop} onValueChange={selectLanguage} />
         {(onRun || onDebug) && (
           <div className="code-editor__actions">
             {onRun && (
@@ -241,6 +274,9 @@ export default function CodeEditor({ problemId, onRun, running = false, onDebug,
             onClick={() => { if (view.current) openLintPanel(view.current); }}>
             <span className="code-editor__problem-dot" aria-hidden="true" />{metrics.problems}
           </button>
+        )}
+        {defaultLanguageSaveFailed && (
+          <span className="code-editor__settings-error" role="alert">{messages.settingsSaveFailed}</span>
         )}
         <span className="code-editor__position">
           {messages.problemEditorPosition.replace("{line}", String(metrics.line)).replace("{column}", String(metrics.column))}

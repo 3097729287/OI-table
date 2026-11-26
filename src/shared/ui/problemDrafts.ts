@@ -1,8 +1,8 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { CodeLanguage } from "./codeLanguages";
+import type { CodeLanguage } from "../codeLanguages";
 
 export interface ProblemDraft {
-  language: CodeLanguage;
+  language?: CodeLanguage;
   drafts: Record<CodeLanguage, string>;
 }
 
@@ -22,9 +22,9 @@ function readJournal(problemId: string): ProblemDraft | null {
     const stored = localStorage.getItem(storageKey(problemId));
     if (!stored) return null;
     const draft = JSON.parse(stored) as Partial<ProblemDraft> | null;
-    if ((draft?.language === "cpp" || draft?.language === "python") &&
-        typeof draft.drafts?.cpp === "string" && typeof draft.drafts.python === "string") {
-      return { language: draft.language, drafts: draft.drafts };
+    if (typeof draft?.drafts?.cpp === "string" && typeof draft.drafts.python === "string") {
+      const language = draft.language === "cpp" || draft.language === "python" ? draft.language : undefined;
+      return { language, drafts: draft.drafts };
     }
   } catch {
     // Storage can be unavailable in a browser; the desktop store still works.
