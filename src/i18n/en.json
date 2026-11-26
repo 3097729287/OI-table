@@ -317,6 +317,7 @@
   "fontYahei": "Microsoft YaHei",
   "fontSerif": "Serif",
   "fontMonospace": "Monospace",
+  "fontFiraCode": "Fira Code",
   "uiFontSize": "UI font size (px)",
   "uiFontSizeInvalid": "Enter a whole number from 12 to 20.",
   "followInterface": "Follow interface",

@@ -27,6 +27,7 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+/public/fonts/
 
 # Package manager logs
 npm-debug.log*

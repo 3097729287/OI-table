@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type { UiLanguage } from "../i18n";
 import { defaultCodeLanguage, type CodeLanguage } from "./codeLanguages";
-import type { FontPreset } from "./fonts";
+import { defaultEditorFont, type FontPreset } from "./fonts";
 
 const legacyThemeKey = "oi-table.theme";
 const settingsChanged = "oi-table:settings-changed";
@@ -71,7 +71,7 @@ async function initializeSettings() {
         uiFont: "system",
         uiFontSize: 16,
         editorDefaultLanguage: defaultCodeLanguage,
-        editorFont: "monospace",
+        editorFont: defaultEditorFont,
         editorFontSizeMode: "custom",
         editorFontSize: 13,
         problemDoubleColumn: false,

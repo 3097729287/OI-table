@@ -317,6 +317,7 @@
   "fontYahei": "微软雅黑",
   "fontSerif": "衬线字体",
   "fontMonospace": "等宽字体",
+  "fontFiraCode": "Fira Code",
   "uiFontSize": "界面字号（px）",
   "uiFontSizeInvalid": "请输入 12–20 的整数。",
   "followInterface": "跟随界面",

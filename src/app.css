@@ -1,12 +1,21 @@
+@font-face {
+  font-family: "Fira Code";
+  src: url("firacode/distr/woff2/FiraCode-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light dark;
   --font-system: "Segoe UI", "Microsoft YaHei", sans-serif;
   --font-yahei: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
   --font-serif: "SimSun", "Songti SC", "Noto Serif CJK SC", serif;
   --font-monospace: Consolas, monospace;
+  --font-fira-code: "Fira Code", var(--font-monospace);
   --ui-font-family: var(--font-system);
   --ui-font-size: 1rem;
-  --editor-font-family: var(--font-monospace);
+  --editor-font-family: var(--font-fira-code);
   --editor-font-size: 13px;
   --ui-font-size-caption: calc(var(--ui-font-size) * 0.75);
   --ui-font-size-small: calc(var(--ui-font-size) * 0.8125);
