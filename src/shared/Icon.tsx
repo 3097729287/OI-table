@@ -1,4 +1,5 @@
 import archive from "./icons/archive.svg?no-inline";
+import arrowLeft from "./icons/arrow-left.svg?no-inline";
 import catalog from "./icons/catalog.svg?no-inline";
 import check from "./icons/check.svg?no-inline";
 import chevronRight from "./icons/chevron-right.svg?no-inline";
@@ -6,6 +7,7 @@ import close from "./icons/close.svg?no-inline";
 import copy from "./icons/copy.svg?no-inline";
 import debug from "./icons/debug.svg?no-inline";
 import editor from "./icons/editor.svg?no-inline";
+import favoriteFilled from "./icons/favorite-filled.svg?no-inline";
 import favorites from "./icons/favorites.svg?no-inline";
 import fillInput from "./icons/fill-input.svg?no-inline";
 import maximize from "./icons/maximize.svg?no-inline";
@@ -24,6 +26,7 @@ import "./icons/icon.css";
 
 const sources = {
   archive,
+  arrowLeft,
   catalog,
   check,
   chevronRight,
@@ -31,6 +34,7 @@ const sources = {
   copy,
   debug,
   editor,
+  favoriteFilled,
   favorites,
   fillInput,
   maximize,

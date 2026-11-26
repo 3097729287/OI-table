@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use super::{
     package::{LocalizedText, Package, Problem},
-    LibraryError, Result,
+    personal, LibraryError, Result,
 };
 
 pub(super) const DATABASE_FILE: &str = "problem-library.sqlite3";
@@ -82,6 +82,7 @@ pub(super) fn open(path: &Path) -> Result<Connection> {
         }
         migration.commit()?;
     }
+    personal::merge_legacy_groups(&mut connection)?;
     Ok(connection)
 }
 

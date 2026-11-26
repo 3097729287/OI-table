@@ -18,13 +18,8 @@ interface SaveCollectionRequest {
   name: string;
 }
 
-const favoriteLabels = new Map<string, MessageKey>([
-  ["to-do", "favoriteToDo"], ["mistakes", "favoriteMistakes"], ["review", "favoriteReview"],
-]);
-
 export function collectionName(collection: PersonalCollection, messages: Record<MessageKey, string>) {
-  const label = collection.builtin ? favoriteLabels.get(collection.id) : undefined;
-  return label ? messages[label] : collection.name;
+  return collection.builtin ? messages.favoriteDefault : collection.name;
 }
 
 let revision = 0;

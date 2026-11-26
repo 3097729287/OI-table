@@ -1,44 +1,236 @@
 .problem-detail__controls .problem-collection-action[data-assigned] {
-  color: var(--accent-color);
+  color: #facc15;
 }
 
-.problem-collections-dialog__items {
+.problem-collections-popover {
+  --favorite-list-inset: 4px;
+  --favorite-row-padding: 6px;
+  --favorite-row-height: 28px;
+  --favorite-icon-size: 14px;
+}
+
+.problem-collections-popover__header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 2px var(--favorite-list-inset) 0 calc(var(--favorite-list-inset) + var(--favorite-row-padding));
+}
+
+.problem-collections-popover__header h2 {
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted-color);
+}
+
+.problem-collections-popover__header .ui-icon-button {
+  inline-size: 26px;
+  block-size: 26px;
+}
+
+.problem-collections-popover__body {
   min-block-size: 0;
+  max-block-size: calc(7 * var(--favorite-row-height) + 2px);
+}
+
+.problem-collections-popover__body .scroll-area__viewport {
+  padding: 0 var(--favorite-list-inset) 2px;
+  overscroll-behavior: contain;
+}
+
+.problem-collections-popover__body > .scrollbar[data-overflow="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.problem-collections-popover__body:has(> .scrollbar[data-overflow="true"]) > .scroll-area__viewport {
+  padding-inline-end: calc(var(--favorite-list-inset) + var(--scrollbar-hit-size));
+}
+
+.problem-collections-popover__items {
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
-.problem-collections-dialog__item {
+.problem-collections-popover__item,
+.problem-collections-popover__create {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  min-block-size: 34px;
-  padding: 4px 6px;
+  min-block-size: var(--favorite-row-height);
+  padding: 3px var(--favorite-row-padding);
   border-radius: 4px;
+}
+
+.problem-collections-popover__item,
+.problem-collections-popover__create:enabled {
   cursor: pointer;
 }
 
-.problem-collections-dialog__item:hover {
-  background: var(--navigation-hover);
+.problem-collections-popover__item:is(:hover, :has(input:focus-visible)),
+.problem-collections-popover__create:enabled:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--navigation-hover) 65%, transparent);
 }
 
-.problem-collections-dialog__item input {
-  margin: 0;
+.problem-collections-popover__checkbox,
+.problem-collections-popover__create span {
   flex: none;
-  accent-color: var(--accent-color);
+  inline-size: var(--favorite-icon-size);
+  block-size: var(--favorite-icon-size);
 }
 
-.problem-collections-dialog__item input[aria-disabled] {
+.problem-collections-popover__checkbox {
+  display: grid;
+}
+
+.problem-collections-popover__checkbox input,
+.problem-collections-popover__checkmark {
+  grid-area: 1 / 1;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.problem-collections-popover__checkbox input {
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.problem-collections-popover__checkbox input[aria-disabled] {
   cursor: progress;
 }
 
-.problem-collections-dialog__label {
+.problem-collections-popover__checkmark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--muted-color) 75%, var(--window-background));
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.problem-collections-popover__checkmark .app-icon {
+  opacity: 0;
+}
+
+.problem-collections-popover__checkbox input:checked + .problem-collections-popover__checkmark {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+  color: var(--window-background);
+}
+
+.problem-collections-popover__checkbox input:checked + .problem-collections-popover__checkmark .app-icon {
+  opacity: 1;
+}
+
+.problem-collections-popover__checkbox input:focus-visible + .problem-collections-popover__checkmark {
+  outline: 1px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .problem-collections-popover__checkmark {
+    forced-color-adjust: none;
+    border-color: ButtonText;
+  }
+
+  .problem-collections-popover__checkbox input:checked + .problem-collections-popover__checkmark {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .problem-collections-popover__checkbox input:focus-visible + .problem-collections-popover__checkmark {
+    outline-color: Highlight;
+  }
+}
+
+.problem-collections-popover__label {
   min-inline-size: 0;
   overflow-wrap: anywhere;
 }
 
-.problem-collections-dialog__error {
+.problem-collections-popover__error {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: var(--space-sm);
+}
+
+.problem-collections-popover .status-message {
+  margin: 2px var(--space-sm) 6px;
+}
+
+.problem-collections-popover__footer {
+  flex: none;
+  padding: 0 var(--favorite-list-inset) var(--favorite-list-inset);
+}
+
+.problem-collections-popover__footer::before {
+  content: "";
+  display: block;
+  margin: 0 var(--favorite-row-padding) 2px;
+  border-block-start: 1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+}
+
+.problem-collections-popover__create {
+  inline-size: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--muted-color);
+  font: inherit;
+  text-align: start;
+}
+
+.problem-collections-popover__create:enabled:is(:hover, :focus-visible) {
+  color: var(--text-color);
+}
+
+.problem-collections-popover__create span {
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.problem-collections-popover .personal-collection-inline {
+  min-block-size: 0;
+  overflow: auto;
+}
+
+.personal-collection-inline__body {
+  --control-height: var(--favorite-row-height);
+  display: grid;
+  gap: 4px;
+  padding: 4px var(--favorite-list-inset) 8px calc(var(--favorite-list-inset) + var(--favorite-row-padding));
+}
+
+.personal-collection-inline__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.personal-collection-inline__row .ui-input {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.personal-collection-inline__row .personal-collection-inline__submit {
+  inline-size: 26px;
+  block-size: 26px;
+}
+
+.personal-collection-inline__submit:enabled {
+  color: var(--accent-color);
+}
+
+.personal-collection-inline__submit:disabled {
+  opacity: 0.45;
+}
+
+.personal-collection-inline__body :is(.personal-dialog__error, .personal-dialog__status) {
+  font-size: inherit;
 }
