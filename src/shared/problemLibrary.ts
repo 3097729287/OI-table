@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useSyncExternalStore } from "react";
+import type { PersonalProblemScope } from "./personalCollections";
 
 export interface LocalizedProblemText {
   zhCN: string | null;
@@ -64,6 +65,7 @@ export interface LibraryProblemQuery {
   includeDescendants?: boolean;
   tagId?: string;
   untagged?: boolean;
+  personal?: PersonalProblemScope;
   keyword?: string;
   after?: string;
 }
@@ -77,6 +79,8 @@ export interface LibraryProblem {
   title: LocalizedProblemText;
   rating: number | null;
   archiveId: string | null;
+  removed?: boolean;
+  libraryStatus?: ProblemLibraryStatus;
 }
 
 export interface LibraryProblemDetail extends LibraryProblem {

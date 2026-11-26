@@ -2,6 +2,7 @@ mod db;
 #[cfg(desktop)]
 mod local_directory;
 mod package;
+mod personal;
 mod query;
 #[cfg(desktop)]
 mod zip_package;
@@ -17,6 +18,7 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 
 use db::{ImportSummary, LibraryInfo, LibraryStatus};
+use personal::{CollectionRequest, PersonalCollection, PersonalMemberships};
 use query::{ArchiveInfo, ProblemDetail, ProblemPage, ProblemQuery, SubmissionPage, TagGroup};
 
 type Result<T> = std::result::Result<T, LibraryError>;
@@ -273,6 +275,54 @@ pub(crate) async fn list_library_tag_groups(
 ) -> Result<Vec<TagGroup>> {
     run(app, move |path| {
         query::tag_groups(&db::open(path)?, library_id.as_deref())
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn list_personal_collections(app: AppHandle) -> Result<Vec<PersonalCollection>> {
+    run(app, |path| personal::list_collections(&db::open(path)?)).await
+}
+
+#[tauri::command]
+pub(crate) async fn save_personal_collection(
+    app: AppHandle,
+    request: CollectionRequest,
+) -> Result<PersonalCollection> {
+    run(app, move |path| {
+        personal::save_collection(&mut db::open(path)?, request)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn delete_personal_collection(app: AppHandle, id: String) -> Result<()> {
+    run(app, move |path| {
+        personal::delete_collection(&db::open(path)?, &id)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_personal_memberships(
+    app: AppHandle,
+    problem_id: String,
+) -> Result<PersonalMemberships> {
+    run(app, move |path| {
+        personal::memberships(&db::open(path)?, &problem_id)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn set_personal_membership(
+    app: AppHandle,
+    id: String,
+    problem_id: String,
+    included: bool,
+) -> Result<()> {
+    run(app, move |path| {
+        personal::set_membership(&mut db::open(path)?, &id, &problem_id, included)
     })
     .await
 }

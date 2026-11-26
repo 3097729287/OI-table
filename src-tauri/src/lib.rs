@@ -71,6 +71,11 @@ pub fn run() {
             problem_library::list_problem_submissions,
             problem_library::list_library_archive_children,
             problem_library::list_library_tag_groups,
+            problem_library::list_personal_collections,
+            problem_library::save_personal_collection,
+            problem_library::delete_personal_collection,
+            problem_library::get_personal_memberships,
+            problem_library::set_personal_membership,
             windowing::open_window,
             windowing::configure_main_window
         ])

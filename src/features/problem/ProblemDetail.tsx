@@ -12,6 +12,7 @@ import type { CodeLanguage } from "../../shared/ui/codeLanguages";
 import { loadProblemDraft } from "../../shared/ui/problemDrafts";
 import { isDebugActive, ProblemDebugContext } from "./localDebug";
 import { runEditorCode } from "./localRun";
+import { ProblemFavoriteAction } from "./ProblemFavoriteAction";
 import { ProblemRunResults, type ProblemRunResult } from "./ProblemRunPanels";
 import { ProblemSubmissions } from "./ProblemSubmissions";
 import { ProblemWorkspace, type ProblemWorkspaceTab, type ProblemWorkspaceTabId } from "./ProblemWorkspace";
@@ -361,6 +362,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
         labels={{ tabs: messages.problemWorkspaceArea, resizeWidth: messages.problemResizeColumns, resizeHeight: messages.resizePaneHeight }}
         actions={(
           <div className="problem-detail__controls">
+            {desktop && <ProblemFavoriteAction problemId={problem.id} />}
             <Select className="ui-select--quiet problem-detail__language" aria-label={messages.problemContentLanguage}
               title={messages.problemContentLanguage} triggerLabel={locale === "zh-CN" ? "简中" : "EN"}
               value={language} onValueChange={setLanguage} options={[

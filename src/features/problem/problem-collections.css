@@ -1,0 +1,44 @@
+.problem-detail__controls .problem-collection-action[data-assigned] {
+  color: var(--accent-color);
+}
+
+.problem-collections-dialog__items {
+  min-block-size: 0;
+  list-style: none;
+}
+
+.problem-collections-dialog__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-block-size: 34px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.problem-collections-dialog__item:hover {
+  background: var(--navigation-hover);
+}
+
+.problem-collections-dialog__item input {
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent-color);
+}
+
+.problem-collections-dialog__item input[aria-disabled] {
+  cursor: progress;
+}
+
+.problem-collections-dialog__label {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.problem-collections-dialog__error {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
