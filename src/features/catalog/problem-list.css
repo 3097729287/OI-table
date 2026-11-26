@@ -142,3 +142,10 @@
 .problem-list-view__title:hover {
   text-decoration: underline;
 }
+
+.problem-list-view__availability {
+  display: inline-block;
+  margin-inline-start: var(--space-sm);
+  color: var(--muted-color);
+  font-size: var(--ui-font-size-small);
+}

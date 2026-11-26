@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { LocaleContext, useMessages } from "../../i18n";
 import { Icon } from "../../shared/Icon";
+import { getPersonalRevision, usePersonalRevision } from "../../shared/personalCollections";
 import {
   getLibraryRevision, listLibraryProblems, localizedLibraryText, useLibraryRevision,
   type LibraryProblemPage, type LibraryProblemQuery,
@@ -8,7 +9,7 @@ import {
 import { workspaceTabId, type WorkspaceTarget } from "../../workspace/layout";
 import { problemTarget } from "./navigationTargets";
 
-type ProblemMenuQuery = Pick<LibraryProblemQuery, "libraryId" | "archiveId" | "tagId" | "untagged">;
+type ProblemMenuQuery = Pick<LibraryProblemQuery, "libraryId" | "archiveId" | "tagId" | "untagged" | "personal">;
 
 interface PageRequest {
   key: string;
@@ -26,10 +27,12 @@ interface PageResult {
 
 const emptyPage: LibraryProblemPage = { items: [], nextCursor: null };
 
-export function useProblemMenu({ libraryId, archiveId, tagId, untagged }: ProblemMenuQuery, expanded: boolean) {
+export function useProblemMenu({ libraryId, archiveId, tagId, untagged, personal }: ProblemMenuQuery, expanded: boolean) {
   const revision = useLibraryRevision();
-  const queryKey = JSON.stringify([libraryId, archiveId, tagId, untagged]);
-  const key = `${revision}:${queryKey}`;
+  const collectionRevision = usePersonalRevision();
+  const personalRevision = personal ? collectionRevision : undefined;
+  const queryKey = JSON.stringify([libraryId, archiveId, tagId, untagged, personal]);
+  const key = JSON.stringify([revision, personalRevision, queryKey]);
   const [request, setRequest] = useState<PageRequest>();
   const [result, setResult] = useState<PageResult>();
   const cached = result?.queryKey === queryKey ? result : undefined;
@@ -42,15 +45,17 @@ export function useProblemMenu({ libraryId, archiveId, tagId, untagged }: Proble
     if (!expanded || !loading) return;
 
     let active = true;
+    const isCurrent = () => active && revision === getLibraryRevision() &&
+      (personalRevision === undefined || personalRevision === getPersonalRevision());
     const after = currentRequest?.after;
-    const filters = { libraryId, archiveId, tagId, untagged };
+    const filters = { libraryId, archiveId, tagId, untagged, personal };
 
     async function readPages() {
       let page = await listLibraryProblems({ ...filters, after });
       let loaded = 1;
       const items = [...page.items];
       // On a library refresh, rebuild the visible pages using the new cursors.
-      while (active && revision === getLibraryRevision() && after === undefined && loaded < pageCount && page.nextCursor !== null) {
+      while (isCurrent() && after === undefined && loaded < pageCount && page.nextCursor !== null) {
         page = await listLibraryProblems({ ...filters, after: page.nextCursor });
         items.push(...page.items);
         loaded += 1;
@@ -60,7 +65,7 @@ export function useProblemMenu({ libraryId, archiveId, tagId, untagged }: Proble
 
     void readPages().then(
       ({ page, pageCount: loaded }) => {
-        if (!active || revision !== getLibraryRevision()) return;
+        if (!isCurrent()) return;
         setResult((previous) => {
           const append = after !== undefined && previous?.key === key;
           return {
@@ -71,7 +76,7 @@ export function useProblemMenu({ libraryId, archiveId, tagId, untagged }: Proble
         });
       },
       () => {
-        if (!active || revision !== getLibraryRevision()) return;
+        if (!isCurrent()) return;
         setResult((previous) => {
           const prior = previous?.queryKey === queryKey ? previous : undefined;
           return {
@@ -82,7 +87,8 @@ export function useProblemMenu({ libraryId, archiveId, tagId, untagged }: Proble
       },
     );
     return () => { active = false; };
-  }, [expanded, loading, key, queryKey, pageCount, currentRequest, libraryId, archiveId, tagId, untagged, revision]);
+  }, [expanded, loading, key, queryKey, pageCount, currentRequest, libraryId, archiveId, tagId, untagged,
+    personal, revision, personalRevision]);
 
   function loadPage() {
     if (!current || loading || (!current.failed && current.page.nextCursor === null)) return;

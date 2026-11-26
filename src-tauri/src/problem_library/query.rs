@@ -17,6 +17,14 @@ pub(crate) struct ProblemQuery {
     pub(super) untagged: bool,
     pub(super) keyword: Option<String>,
     pub(super) after: Option<String>,
+    pub(super) personal: Option<PersonalScope>,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase", deny_unknown_fields)]
+pub(super) enum PersonalScope {
+    Favorites,
+    Favorite { id: String },
 }
 
 #[derive(Debug, Serialize)]
@@ -30,6 +38,8 @@ pub(super) struct ProblemSummary {
     title: LocalizedText,
     rating: Option<u32>,
     archive_id: Option<String>,
+    removed: bool,
+    library_status: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -63,8 +73,6 @@ pub(crate) struct ProblemDetail {
     summary: ProblemSummary,
     statement: LocalizedText,
     author_name: Option<LocalizedText>,
-    removed: bool,
-    library_status: String,
     tags: Vec<TagInfo>,
     solutions: Vec<SolutionInfo>,
 }
@@ -118,6 +126,8 @@ fn problem_row(row: &Row<'_>) -> rusqlite::Result<ProblemSummary> {
         title: localized(row, 5)?,
         rating: row.get(7)?,
         archive_id: row.get(8)?,
+        removed: row.get(9)?,
+        library_status: row.get(10)?,
     })
 }
 
@@ -134,6 +144,10 @@ pub(super) fn list_problems(connection: &Connection, query: ProblemQuery) -> Res
             "Choose either a tag or untagged problems",
         ));
     }
+    let favorite_id = match &query.personal {
+        Some(PersonalScope::Favorite { id }) => Some(id.as_str()),
+        _ => None,
+    };
     let mut statement = connection.prepare(
         "WITH RECURSIVE archive_scope(id) AS (
              SELECT id FROM archives WHERE library_id = :library AND id = :archive AND removed = 0
@@ -143,11 +157,11 @@ pub(super) fn list_problems(connection: &Connection, query: ProblemQuery) -> Res
              WHERE :include_descendants
          )
          SELECT p.id, p.library_id, p.author_id, p.sequence, v.content_version, v.title_zh_cn, v.title_en,
-            v.rating, v.archive_id
+            v.rating, v.archive_id, p.removed, l.status
          FROM problems p
          JOIN libraries l ON l.id = p.library_id
          JOIN problem_versions v ON v.problem_id = p.id AND v.content_version = p.content_version
-         WHERE l.status = 'enabled' AND p.removed = 0 AND p.id > :after
+         WHERE p.id > :after AND (:personal OR (l.status = 'enabled' AND p.removed = 0))
            AND (:library IS NULL OR p.library_id = :library)
            AND (:archive IS NULL OR v.archive_id IN (SELECT id FROM archive_scope))
            AND (:tag IS NULL OR EXISTS (
@@ -158,6 +172,10 @@ pub(super) fn list_problems(connection: &Connection, query: ProblemQuery) -> Res
            AND (:untagged = 0 OR NOT EXISTS (
                 SELECT 1 FROM problem_tags pt
                 WHERE pt.problem_id = p.id AND pt.content_version = p.content_version
+           ))
+           AND (NOT :personal OR EXISTS (
+                SELECT 1 FROM favorites f
+                WHERE f.problem_id = p.id AND (:favorite_id IS NULL OR f.group_id = :favorite_id)
            ))
            AND (:keyword = '' OR p.id = :keyword OR instr(lower(v.title_zh_cn), lower(:keyword)) > 0
                 OR instr(lower(v.title_en), lower(:keyword)) > 0)
@@ -172,6 +190,8 @@ pub(super) fn list_problems(connection: &Connection, query: ProblemQuery) -> Res
                 ":include_descendants": query.include_descendants,
                 ":tag": query.tag_id,
                 ":untagged": query.untagged,
+                ":personal": query.personal.is_some(),
+                ":favorite_id": favorite_id,
                 ":keyword": query.keyword.as_deref().unwrap_or_default().trim(),
                 ":limit": (PAGE_SIZE + 1) as i64,
             },
@@ -244,21 +264,19 @@ pub(super) fn get_problem(
     let read = connection.unchecked_transaction()?;
     let mut detail = read.query_row(
         "SELECT p.id, p.library_id, p.author_id, p.sequence, v.content_version, v.title_zh_cn, v.title_en,
-            v.rating, v.archive_id, v.statement_zh_cn, v.statement_en,
-            v.author_name_zh_cn, v.author_name_en, p.removed, l.status
+            v.rating, v.archive_id, p.removed, l.status, v.statement_zh_cn, v.statement_en,
+            v.author_name_zh_cn, v.author_name_en
          FROM problems p
          JOIN libraries l ON l.id = p.library_id
          JOIN problem_versions v ON v.problem_id = p.id AND v.content_version = coalesce(?2, p.content_version)
          WHERE p.id = ?1",
         params![id, version],
         |row| {
-            let author = localized(row, 11)?;
+            let author = localized(row, 13)?;
             Ok(ProblemDetail {
             summary: problem_row(row)?,
-            statement: localized(row, 9)?,
+            statement: localized(row, 11)?,
             author_name: (author.zh_cn.is_some() || author.en.is_some()).then_some(author),
-            removed: row.get(13)?,
-            library_status: row.get(14)?,
             tags: Vec::new(),
             solutions: Vec::new(),
             })

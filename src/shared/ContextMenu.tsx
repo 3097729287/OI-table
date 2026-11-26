@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { ScrollArea } from "./ui/ScrollArea";
+import "./ui/floating-surface.css";
 import "./context-menu.css";
 
 export interface ContextMenuItem<Extra = unknown> {
@@ -86,7 +87,7 @@ export function ContextMenu<Extra>({ x, y, label, items, onDismiss }: ContextMen
   }
 
   return createPortal(
-    <ScrollArea ref={menu} className="context-menu" role="menu" aria-label={label} tabIndex={-1}
+    <ScrollArea ref={menu} className="floating-surface context-menu" role="menu" aria-label={label} tabIndex={-1}
       orientation="vertical" focusScrollbar={false} onKeyDown={handleKeyDown}>
       {items.map((item) => {
         const { id, label, enabled, shortcut, onSelect } = item;

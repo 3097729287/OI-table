@@ -1,0 +1,107 @@
+.personal-dialog {
+  inline-size: min(400px, calc(100% - 32px));
+  max-block-size: calc(100% - 32px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--window-background);
+  color: var(--text-color);
+  box-shadow: 0 8px 32px color-mix(in srgb, black 24%, transparent);
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.personal-dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.personal-dialog__header,
+.personal-dialog__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.personal-dialog__header {
+  justify-content: space-between;
+  border-block-end: 1px solid var(--control-border);
+}
+
+.personal-dialog__header h2 {
+  font-size: var(--ui-font-size-heading);
+  font-weight: 600;
+}
+
+.personal-dialog__body {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.personal-dialog__field {
+  display: grid;
+  gap: 4px;
+  min-inline-size: 0;
+  font-size: var(--ui-font-size-control);
+  font-weight: 500;
+}
+
+.personal-dialog__field .ui-field {
+  inline-size: 100%;
+}
+
+.personal-dialog__footer {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  border-block-start: 1px solid var(--control-border);
+}
+
+.personal-dialog__button {
+  inline-size: auto;
+  min-inline-size: 68px;
+  block-size: auto;
+  min-block-size: var(--control-height);
+}
+
+.personal-dialog__button:enabled:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+.personal-dialog__button:enabled:not([aria-disabled="true"]):hover {
+  background: var(--navigation-hover);
+}
+
+.personal-dialog__button[data-variant="primary"] {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+  color: var(--window-background);
+}
+
+.personal-dialog__button[data-variant="primary"]:enabled:not([aria-disabled="true"]):hover {
+  background: color-mix(in srgb, var(--accent-color) 88%, var(--text-color));
+}
+
+.personal-dialog__button[data-variant="danger"] {
+  border-color: var(--error-color);
+  color: var(--error-color);
+}
+
+.personal-dialog__button[data-variant="danger"]:enabled:not([aria-disabled="true"]):hover {
+  background: color-mix(in srgb, var(--error-color) 12%, var(--window-background));
+}
+
+.personal-dialog__status,
+.personal-dialog__error {
+  font-size: var(--ui-font-size-control);
+}
+
+.personal-dialog__status {
+  margin-inline-end: auto;
+  color: var(--muted-color);
+}
+
+.personal-dialog__error {
+  color: var(--error-color);
+}

@@ -10,7 +10,6 @@ export const workspaceView = {
   sidebarTitle: "allArchives",
   variants: [
     { params: { filter: "contests" }, title: "contestArchives" },
-    { params: { filter: "personal" }, title: "personalArchives" },
   ],
   order: 30,
 } satisfies WorkspaceViewOptions;

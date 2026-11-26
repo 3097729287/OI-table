@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { LocaleContext, useMessages } from "../../i18n";
 import { Icon } from "../../shared/Icon";
 import {
@@ -78,27 +78,49 @@ interface BranchRowProps extends NavigationProps {
   expanded: boolean;
   listId: string;
   onToggle: () => void;
+  onMenu?: (position: SidebarBranchMenuPosition) => void;
 }
 
-function BranchRow({ title, target, count, expanded, listId, onToggle, onOpen, selectedEntry }: BranchRowProps) {
+export interface SidebarBranchMenuPosition {
+  anchor: HTMLButtonElement;
+  x: number;
+  y: number;
+}
+
+function BranchRow({ title, target, count, expanded, listId, onToggle, onOpen, selectedEntry, onMenu }: BranchRowProps) {
   const messages = useMessages();
+  const openButton = useRef<HTMLButtonElement>(null);
   const selected = selectedEntry === workspaceTabId(target);
   const toggleLabel = messages.libraryNavigationToggle.replace("{title}", () => title);
 
   return (
-    <div className="library-navigation__row" data-current={selected || undefined}>
+    <div className="library-navigation__row" data-current={selected || undefined} onContextMenu={onMenu && ((event) => {
+      const anchor = openButton.current;
+      if (!anchor) return;
+      event.preventDefault();
+      onMenu({ anchor, x: event.clientX, y: event.clientY });
+    })}>
       <button type="button" className="library-navigation__toggle" aria-expanded={expanded}
         aria-controls={listId} aria-label={toggleLabel} title={toggleLabel} onClick={onToggle}>
         <Icon name="chevronRight" size={15} />
       </button>
-      <button type="button" className="library-navigation__open" aria-current={selected || undefined} title={title}
-        onClick={() => onOpen(target)}>
+      <button ref={openButton} type="button" className="library-navigation__open" aria-current={selected || undefined}
+        aria-haspopup={onMenu ? "menu" : undefined} title={title} onClick={() => onOpen(target)}
+        onKeyDown={onMenu && ((event) => {
+          if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+          event.preventDefault();
+          const anchor = event.currentTarget;
+          const { left, bottom } = anchor.getBoundingClientRect();
+          onMenu({ anchor, x: left, y: bottom });
+        })}>
         <span className="workbench-sidebar__label">{title}</span>
         {count !== undefined && <span className="library-navigation__count">{count}</span>}
       </button>
     </div>
   );
 }
+
+export { BranchRow as SidebarBranchRow, menuIndent as sidebarMenuIndent };
 
 function TagBranch({ group, ...navigation }: NavigationProps & { group: LibraryTagGroup }) {
   const locale = useContext(LocaleContext);

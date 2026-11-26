@@ -1,5 +1,6 @@
 import { useId, useState, type CSSProperties } from "react";
 import { ArchiveNavigation, CatalogNavigation } from "../features/catalog/LibraryNavigation";
+import { FavoritesNavigation } from "../features/personal/PersonalNavigation";
 import { useMessages, type MessageKey } from "../i18n";
 import { Icon, type IconName } from "../shared/Icon";
 import { workspaceTabId, type WorkspaceTarget } from "./layout";
@@ -89,6 +90,9 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
 
           if (item.id === "catalog") {
             return <CatalogNavigation key={item.id} onOpen={openEntry} selectedEntry={selectedEntry} />;
+          }
+          if (item.id === "favorites") {
+            return <FavoritesNavigation key={item.id} onOpen={openEntry} selectedEntry={selectedEntry} />;
           }
 
           return (

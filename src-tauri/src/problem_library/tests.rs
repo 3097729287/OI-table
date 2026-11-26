@@ -7,7 +7,8 @@ use tempfile::TempDir;
 use super::{
     db::{self, ImportSummary, LibraryStatus},
     package::{self, PackageFile},
-    query::{self, ProblemQuery},
+    personal::{self, CollectionRequest},
+    query::{self, PersonalScope, ProblemQuery},
     Result,
 };
 
@@ -832,4 +833,257 @@ fn rejects_an_unsupported_database_without_modifying_it() {
         .query_row("SELECT value FROM existing_data", [], |row| row.get(0))
         .unwrap();
     assert_eq!(value, "preserved");
+}
+
+fn collection_request(id: Option<&str>, name: &str) -> CollectionRequest {
+    CollectionRequest {
+        id: id.map(str::to_owned),
+        name: name.to_owned(),
+    }
+}
+
+fn personal_query(scope: PersonalScope) -> ProblemQuery {
+    ProblemQuery {
+        personal: Some(scope),
+        ..ProblemQuery::default()
+    }
+}
+
+#[test]
+fn personal_favorites_preserve_independent_idempotent_memberships() {
+    let (_directory, mut connection) = test_database();
+    install(&mut connection, fixture_files(BASICS)).unwrap();
+    let defaults = personal::list_collections(&connection).unwrap();
+    assert_eq!(
+        defaults
+            .iter()
+            .map(|group| group.id.as_str())
+            .collect::<Vec<_>>(),
+        ["default"]
+    );
+    assert!(defaults[0].builtin);
+    assert_eq!(defaults[0].name, "Default favorites");
+    assert_eq!(defaults[0].problem_count, 0);
+    assert_eq!(
+        personal::delete_collection(&connection, "default")
+            .unwrap_err()
+            .code,
+        "personal_builtin"
+    );
+    assert_eq!(
+        personal::save_collection(
+            &mut connection,
+            collection_request(Some("default"), "Renamed")
+        )
+        .unwrap_err()
+        .code,
+        "personal_builtin"
+    );
+    assert_eq!(
+        personal::save_collection(&mut connection, collection_request(None, " "))
+            .unwrap_err()
+            .code,
+        "personal_invalid_name"
+    );
+
+    let group =
+        personal::save_collection(&mut connection, collection_request(None, "  复盘  ")).unwrap();
+    assert_eq!(group.name, "复盘");
+    assert!(!group.builtin);
+    let late =
+        personal::save_collection(&mut connection, collection_request(None, "Zulu")).unwrap();
+    let early =
+        personal::save_collection(&mut connection, collection_request(None, "alpha")).unwrap();
+    connection
+        .execute(
+            "UPDATE personal_favorite_groups SET sort_order = -1 WHERE id = ?1",
+            [&group.id],
+        )
+        .unwrap();
+    assert_eq!(
+        personal::list_collections(&connection)
+            .unwrap()
+            .into_iter()
+            .map(|group| group.id)
+            .collect::<Vec<_>>(),
+        [
+            "default",
+            group.id.as_str(),
+            early.id.as_str(),
+            late.id.as_str()
+        ]
+    );
+    for id in ["default", "default", group.id.as_str()] {
+        personal::set_membership(&mut connection, id, RANGE_SUMS, true).unwrap();
+    }
+    assert_eq!(
+        personal::set_membership(&mut connection, "unknown-group", RANGE_SUMS, true)
+            .unwrap_err()
+            .code,
+        "personal_not_found"
+    );
+    assert_eq!(
+        listed_ids(&connection, personal_query(PersonalScope::Favorites)),
+        [RANGE_SUMS]
+    );
+    let renamed = personal::save_collection(
+        &mut connection,
+        collection_request(Some(&group.id), "Review later"),
+    )
+    .unwrap();
+    assert_eq!(renamed.problem_count, 1);
+    assert_eq!(renamed.id, group.id);
+    let mut memberships = [group.id.as_str(), "default"];
+    memberships.sort_unstable();
+    assert_eq!(
+        personal::memberships(&connection, RANGE_SUMS)
+            .unwrap()
+            .favorite_ids,
+        memberships
+    );
+
+    for _ in 0..2 {
+        personal::set_membership(&mut connection, "default", RANGE_SUMS, false).unwrap();
+    }
+    assert!(listed_ids(
+        &connection,
+        personal_query(PersonalScope::Favorite {
+            id: "default".to_owned()
+        }),
+    )
+    .is_empty());
+    assert_eq!(
+        listed_ids(&connection, personal_query(PersonalScope::Favorites)),
+        [RANGE_SUMS]
+    );
+    personal::delete_collection(&connection, &group.id).unwrap();
+    assert!(listed_ids(&connection, personal_query(PersonalScope::Favorites)).is_empty());
+    assert_eq!(listed_ids(&connection, ProblemQuery::default()).len(), 2);
+}
+
+#[test]
+fn personal_favorites_keep_unavailable_and_removed_problems_across_reopens() {
+    let (directory, mut connection) = test_database();
+    install(&mut connection, fixture_files(BASICS)).unwrap();
+    personal::set_membership(&mut connection, "default", PARENTHESIS_DEPTH, true).unwrap();
+    let default_favorites = || PersonalScope::Favorite {
+        id: "default".to_owned(),
+    };
+    let favorite_item = |connection: &Connection, scope| {
+        let page = query::list_problems(connection, personal_query(scope)).unwrap();
+        assert_eq!(page.items.len(), 1);
+        serde_json::to_value(&page.items[0]).unwrap()
+    };
+
+    db::set_library_status(&mut connection, BASICS, LibraryStatus::Disabled).unwrap();
+    assert_eq!(
+        favorite_item(&connection, PersonalScope::Favorites)["libraryStatus"],
+        "disabled"
+    );
+    db::set_library_status(&mut connection, BASICS, LibraryStatus::Uninstalled).unwrap();
+    let uninstalled = favorite_item(&connection, default_favorites());
+    assert_eq!(uninstalled["libraryStatus"], "uninstalled");
+    assert_eq!(uninstalled["removed"], false);
+    assert!(listed_ids(&connection, ProblemQuery::default()).is_empty());
+    install(
+        &mut connection,
+        single_problem_release(2, true, "Updated statement"),
+    )
+    .unwrap();
+    drop(connection);
+
+    let reopened = db::open(&directory.path().join(db::DATABASE_FILE)).unwrap();
+    let removed = favorite_item(&reopened, default_favorites());
+    assert_eq!(removed["id"], PARENTHESIS_DEPTH);
+    assert_eq!(removed["libraryStatus"], "enabled");
+    assert_eq!(removed["removed"], true);
+    assert_eq!(removed["contentVersion"], 1);
+    assert_eq!(favorite_item(&reopened, PersonalScope::Favorites), removed);
+    assert_eq!(listed_ids(&reopened, ProblemQuery::default()), [RANGE_SUMS]);
+}
+
+#[test]
+fn merges_legacy_favorite_groups_into_default_once_and_keeps_earliest_timestamps() {
+    let (directory, mut connection) = test_database();
+    install(&mut connection, fixture_files(BASICS)).unwrap();
+    install(&mut connection, fixture_files(GRAPHS)).unwrap();
+    connection
+        .execute_batch(
+            "INSERT INTO personal_favorite_groups (id, name) VALUES
+             ('to-do', 'To do'), ('mistakes', 'Mistakes'), ('review', 'To review'),
+             ('default', 'Default favorites'), ('saved', 'My favorites');
+         INSERT INTO favorites (group_id, problem_id, created_at) VALUES
+             ('to-do', 'example-basics:demo:1', 25),
+             ('mistakes', 'example-basics:demo:1', 30),
+             ('review', 'example-basics:demo:1', 15),
+             ('default', 'example-basics:demo:1', 40),
+             ('review', 'example-basics:demo:2', 9),
+             ('default', 'example-basics:demo:2', 2),
+             ('review', 'example-graphs:demo:1', 8),
+             ('saved', 'example-basics:demo:1', 50);",
+        )
+        .unwrap();
+    drop(connection);
+
+    let path = directory.path().join(db::DATABASE_FILE);
+    let mut reopened = db::open(&path).unwrap();
+    let groups = personal::list_collections(&reopened).unwrap();
+    assert_eq!(
+        groups
+            .iter()
+            .map(|group| (group.id.as_str(), group.problem_count))
+            .collect::<Vec<_>>(),
+        [("default", 3), ("saved", 1)]
+    );
+    {
+        let mut statement = reopened.prepare(
+            "SELECT group_id, problem_id, created_at FROM favorites ORDER BY group_id, problem_id",
+        ).unwrap();
+        let timestamps = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<(String, String, i64)>>>()
+            .unwrap();
+        assert_eq!(
+            timestamps
+                .iter()
+                .map(|(group, problem, time)| (group.as_str(), problem.as_str(), *time))
+                .collect::<Vec<_>>(),
+            [
+                ("default", RANGE_SUMS, 15),
+                ("default", PARENTHESIS_DEPTH, 2),
+                ("default", COMPONENTS, 8),
+                ("saved", RANGE_SUMS, 50),
+            ]
+        );
+    }
+    let default_favorites = || PersonalScope::Favorite {
+        id: "default".to_owned(),
+    };
+    assert_eq!(
+        listed_ids(&reopened, personal_query(default_favorites())),
+        [RANGE_SUMS, PARENTHESIS_DEPTH, COMPONENTS]
+    );
+    for _ in 0..2 {
+        personal::set_membership(&mut reopened, "default", RANGE_SUMS, false).unwrap();
+    }
+    assert_eq!(
+        personal::set_membership(&mut reopened, "review", RANGE_SUMS, true)
+            .unwrap_err()
+            .code,
+        "personal_not_found"
+    );
+    drop(reopened);
+
+    let reopened = db::open(&path).unwrap();
+    assert_eq!(
+        listed_ids(&reopened, personal_query(default_favorites())),
+        [PARENTHESIS_DEPTH, COMPONENTS]
+    );
+    assert_eq!(
+        personal::memberships(&reopened, RANGE_SUMS)
+            .unwrap()
+            .favorite_ids,
+        ["saved"]
+    );
 }
