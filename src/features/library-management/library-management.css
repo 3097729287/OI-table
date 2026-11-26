@@ -1,5 +1,5 @@
 .library-management {
-  --library-cell-gutter: 12px;
+  --library-cell-gutter: clamp(8px, 1.5cqi, 12px);
   container: library-management / inline-size;
   max-inline-size: 1040px;
   padding-inline: min(var(--space-lg), 4%);
@@ -52,7 +52,7 @@
   inline-size: 100%;
   border-block-start: 1px solid var(--workbench-border);
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .library-management__table thead {
@@ -72,19 +72,12 @@
   font-weight: 600;
 }
 
-.library-management__table thead th:nth-child(2) {
-  inline-size: 24%;
+.library-management__table thead .library-management__organizer-cell {
+  inline-size: clamp(11ch, 18cqi, 24ch);
 }
 
-.library-management__table thead th:nth-child(3) {
-  inline-size: 17%;
-}
-
-.library-management__table thead th:last-child {
-  inline-size: calc(var(--ui-font-size) * 12.5);
-}
-
-.library-management__table tr > :last-child {
+.library-management__table .library-management__action-cell,
+.library-management__table .library-management__count-cell {
   text-align: end;
 }
 
@@ -129,11 +122,17 @@
   white-space: nowrap;
 }
 
-.library-management__organizer {
+.library-management__organizer,
+.library-management__count {
   font-size: var(--ui-font-size-small);
 }
 
-.library-management__organizer-label {
+.library-management__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.library-management__organizer-label,
+.library-management__count-label {
   display: none;
 }
 
@@ -498,6 +497,18 @@ details.library-management__toast-details p {
   background: var(--sidebar-background);
 }
 
+@container library-management (inline-size >= 38em) {
+  .library-management__table :is(.library-management__count-cell, .library-management__status-cell, .library-management__action-cell) {
+    /* Keep these columns at their content width and give the remaining space to the library name. */
+    inline-size: 1%;
+    white-space: nowrap;
+  }
+
+  .library-management__actions {
+    flex-wrap: nowrap;
+  }
+}
+
 @container library-management (inline-size < 38em) {
   .library-management__table,
   .library-management__table tbody {
@@ -516,7 +527,7 @@ details.library-management__toast-details p {
   .library-management__row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) fit-content(45%);
-    grid-template-areas: "identity status" "organizer actions";
+    grid-template-areas: "identity status" "organizer count";
     align-items: center;
     gap: 6px var(--space-sm);
     padding: 10px var(--library-cell-gutter);
@@ -535,7 +546,10 @@ details.library-management__toast-details p {
     line-height: 1.4;
   }
 
-  .library-management__organizer-label {
+  .library-management__count-cell { grid-area: count; }
+
+  .library-management__organizer-label,
+  .library-management__count-label {
     display: inline;
     margin-inline-end: 5px;
     color: var(--muted-color);
@@ -548,7 +562,8 @@ details.library-management__toast-details p {
     justify-self: end;
   }
 
-  .library-management__action-cell { grid-area: actions; }
+  .library-management__action-cell { grid-column: 1 / -1; }
+  .library-management__action-cell:empty { display: none; }
 
   .library-management__actions { gap: 2px; }
 

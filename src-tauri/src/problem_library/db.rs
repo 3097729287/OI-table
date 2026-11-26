@@ -10,6 +10,10 @@ use super::{
 
 pub(super) const DATABASE_FILE: &str = "problem-library.sqlite3";
 const SCHEMA_VERSION: i64 = 1;
+const SELECT_LIBRARY: &str = "SELECT l.id, l.name_zh_cn, l.name_en, l.release_version, l.status,
+    l.author_id, l.author_name_zh_cn, l.author_name_en,
+    (SELECT count(*) FROM problems p WHERE p.library_id = l.id AND p.removed = 0)
+    FROM libraries l";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -38,6 +42,7 @@ pub(crate) struct LibraryInfo {
     pub(super) author_name: Option<LocalizedText>,
     pub(super) release_version: i64,
     pub(super) status: String,
+    pub(super) problem_count: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -106,14 +111,12 @@ fn library_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryInfo> {
             .then_some(author_name),
         release_version: row.get(3)?,
         status: row.get(4)?,
+        problem_count: row.get(8)?,
     })
 }
 
 pub(super) fn list_libraries(connection: &Connection) -> Result<Vec<LibraryInfo>> {
-    let mut query = connection.prepare(
-        "SELECT id, name_zh_cn, name_en, release_version, status,
-                author_id, author_name_zh_cn, author_name_en FROM libraries ORDER BY id",
-    )?;
+    let mut query = connection.prepare(&format!("{SELECT_LIBRARY} ORDER BY l.id"))?;
     let libraries = query
         .query_map([], library_row)?
         .collect::<rusqlite::Result<_>>()?;
@@ -123,8 +126,7 @@ pub(super) fn list_libraries(connection: &Connection) -> Result<Vec<LibraryInfo>
 fn get_library(connection: &Connection, id: &str) -> Result<LibraryInfo> {
     connection
         .query_row(
-            "SELECT id, name_zh_cn, name_en, release_version, status,
-                    author_id, author_name_zh_cn, author_name_en FROM libraries WHERE id = ?1",
+            &format!("{SELECT_LIBRARY} WHERE l.id = ?1"),
             [id],
             library_row,
         )
@@ -208,6 +210,7 @@ fn install_package(transaction: &Transaction<'_>, package: Package) -> Result<Im
             } else {
                 "enabled".to_owned()
             },
+            problem_count: 0,
         },
         inserted: 0,
         updated: 0,
@@ -242,6 +245,7 @@ fn install_package(transaction: &Transaction<'_>, package: Package) -> Result<Im
                     [&package.library_id],
                 )?;
             }
+            summary.library = get_library(transaction, &package.library_id)?;
             summary.unchanged = package.problems.len();
             summary.replayed = true;
             return Ok(summary);
@@ -277,6 +281,7 @@ fn install_package(transaction: &Transaction<'_>, package: Package) -> Result<Im
     for id in omitted {
         summary.removed += remove.execute([id])?;
     }
+    summary.library = get_library(transaction, &package.library_id)?;
     Ok(summary)
 }
 

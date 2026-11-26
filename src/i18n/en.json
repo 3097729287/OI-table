@@ -34,6 +34,7 @@
   "libraryManagementErrorDetails": "Error details",
   "libraryManagementColumnLibrary": "Library",
   "libraryManagementColumnOrganizer": "Organizer",
+  "libraryManagementColumnProblemCount": "Problems",
   "libraryManagementVersion": "Version {version}",
   "libraryManagementColumnStatus": "Status",
   "libraryManagementColumnActions": "Actions",

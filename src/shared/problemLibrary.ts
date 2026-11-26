@@ -46,6 +46,7 @@ export interface ProblemLibrary {
   authorId: string;
   authorName: LocalizedProblemText | null;
   releaseVersion: number;
+  problemCount: number;
   status: ProblemLibraryStatus;
 }
 

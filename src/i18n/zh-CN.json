@@ -34,6 +34,7 @@
   "libraryManagementErrorDetails": "错误详情",
   "libraryManagementColumnLibrary": "题库",
   "libraryManagementColumnOrganizer": "整理者",
+  "libraryManagementColumnProblemCount": "题目数量",
   "libraryManagementVersion": "版本 {version}",
   "libraryManagementColumnStatus": "状态",
   "libraryManagementColumnActions": "操作",
