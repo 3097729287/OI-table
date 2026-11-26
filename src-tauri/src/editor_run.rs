@@ -18,7 +18,7 @@ const COMPILE_TIMEOUT: Duration = Duration::from_secs(15);
 const RUN_TIMEOUT: Duration = Duration::from_secs(5);
 static RUNNING: Mutex<()> = Mutex::new(());
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum EditorLanguage {
     Cpp,

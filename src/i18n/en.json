@@ -3,6 +3,7 @@
   "emptyWorkspace": "No data yet.",
   "windowActionPending": "Applying window action…",
   "windowActionFailed": "The window action failed. Please try again.",
+  "windowDraftSaveFailed": "Drafts could not be saved. Resolve the unsaved drafts before closing the window.",
   "windowStateFailed": "Could not read the window state.",
   "windowControls": "Window controls",
   "minimize": "Minimize",

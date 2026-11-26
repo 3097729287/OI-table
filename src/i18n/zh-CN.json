@@ -3,6 +3,7 @@
   "emptyWorkspace": "暂无数据。",
   "windowActionPending": "正在执行窗口操作…",
   "windowActionFailed": "窗口操作失败，请重试。",
+  "windowDraftSaveFailed": "草稿保存失败。请处理未保存的草稿后再关闭窗口。",
   "windowStateFailed": "无法读取窗口状态。",
   "windowControls": "窗口控制",
   "minimize": "最小化",

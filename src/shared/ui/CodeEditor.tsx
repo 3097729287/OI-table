@@ -4,7 +4,7 @@ import { bracketMatching, indentOnInput, indentUnit } from "@codemirror/language
 import {
   diagnosticCount, forceLinting, linter, lintKeymap, openLintPanel,
 } from "@codemirror/lint";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Compartment, EditorState, type Text } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -18,7 +18,9 @@ import { codeSyntaxHighlighting } from "./codeEditorTheme";
 import { breakpointLines, codeEditorBreakpointGutter, codeEditorDebugReadOnly, debugLine as debugLineField,
   normalizeBreakpointLines, sameBreakpointLines, setBreakpointLines, setDebugLine } from "./codeEditorDebug";
 import { CodeEditorSurface, codeEditorContent, codeEditorDefaultKeymap, codeEditorSurfaceExtensions } from "./CodeEditorSurface";
-import { flushProblemDraft, loadProblemDraft, problemDraftSaveStatus, queueProblemDraft, subscribeToProblemDraft } from "./problemDrafts";
+import {
+  flushProblemDraft, loadProblemDraft, problemDraftSaveStatus, queueProblemDraft, subscribeToProblemDraft, type DraftOperation,
+} from "./problemDrafts";
 import { Select } from "./Select";
 
 const editorExtensions = [
@@ -75,7 +77,7 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   const container = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
   const drafts = useRef(new Map<CodeLanguage, SavedDraft>());
-  const sources = useRef({ cpp: "", python: "" });
+  const sources = useRef<Record<CodeLanguage, string | Text>>({ cpp: "", python: "" });
   const [localization] = useState(() => new Compartment());
   const [editability] = useState(() => new Compartment());
   const [language, setLanguage] = useState(preferredLanguage);
@@ -87,6 +89,14 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   const subscribe = useCallback((listener: () => void) => subscribeToProblemDraft(problemId, listener), [problemId]);
   const saveStatus = useSyncExternalStore(subscribe, () => problemDraftSaveStatus(problemId));
   const problemsLabel = messages.problemEditorProblems.replace("{count}", String(metrics.problems));
+
+  function queueDraftChange(change: DraftOperation) {
+    const contents = sources.current;
+    queueProblemDraft(problemId, change, () => ({
+      language: change.language,
+      drafts: { cpp: contents.cpp.toString(), python: contents.python.toString() },
+    }));
+  }
 
   function createDraft(codeLanguage: CodeLanguage) {
     return EditorState.create({ doc: sources.current[codeLanguage], extensions: [
@@ -102,8 +112,8 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
       }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
-          sources.current = { ...sources.current, [codeLanguage]: update.state.doc.toString() };
-          queueProblemDraft(problemId, { language: codeLanguage, drafts: sources.current });
+          sources.current = { ...sources.current, [codeLanguage]: update.state.doc };
+          queueDraftChange({ kind: "edit", language: codeLanguage, changes: update.changes });
         }
         const lines = update.state.field(breakpointLines);
         if (lines !== update.startState.field(breakpointLines) && !update.transactions.some((transaction) =>
@@ -208,7 +218,7 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
 
   function selectLanguage(next: CodeLanguage) {
     if (!view.current || debugReadOnly) return;
-    queueProblemDraft(problemId, { language: next, drafts: sources.current });
+    queueDraftChange({ kind: "language", language: next });
     if (!desktop) {
       changeEditorLanguage(next);
       return;
