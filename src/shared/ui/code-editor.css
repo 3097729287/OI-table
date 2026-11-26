@@ -24,12 +24,17 @@
   border-block-end: 1px solid var(--workbench-border, var(--control-border));
 }
 
-.code-editor__run {
+.code-editor__actions {
+  display: flex;
+  gap: 2px;
   margin-inline-start: auto;
+}
+
+.code-editor__action {
   color: var(--accent-color);
 }
 
-.code-editor__run:disabled {
+.code-editor__action:disabled {
   opacity: 0.5;
 }
 
@@ -48,6 +53,76 @@
 .code-editor__surface .cm-content:focus-visible {
   outline: none;
   box-shadow: none;
+}
+
+.code-editor__surface [data-breakpoint-space] .cm-lineNumbers {
+  --breakpoint-color: light-dark(#ba3b36, #ff8379);
+  --debug-position-color: light-dark(#976212, #ffd278);
+  --breakpoint-space: min(18px, calc(2ch + 4px));
+  --breakpoint-radius: calc(var(--breakpoint-space) * 0.22);
+  --debug-arrow-size: calc(var(--breakpoint-space) * 0.55);
+  --debug-marker-offset: var(--breakpoint-radius);
+}
+
+.code-editor__surface [data-breakpoint-space="compact"] .cm-lineNumbers {
+  --breakpoint-space: calc(1ch + 4px);
+}
+
+.code-editor__surface [data-breakpoint-space="minimal"] .cm-lineNumbers {
+  --breakpoint-space: 4px;
+  --breakpoint-radius: 1.5px;
+  --debug-arrow-size: 4px;
+  --debug-marker-offset: 0px;
+}
+
+.code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-gutterElement {
+  position: relative;
+  pointer-events: none;
+}
+
+.code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-gutterElement::before {
+  --breakpoint-dot: transparent;
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--breakpoint-space);
+  background-image: radial-gradient(circle, var(--breakpoint-dot) var(--breakpoint-radius), transparent calc(var(--breakpoint-radius) + 0.5px));
+  background-repeat: no-repeat;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-gutterElement:not(.cm-debug-paused, .cm-debug-breakpoint):hover::before {
+  --breakpoint-dot: color-mix(in srgb, var(--breakpoint-color) 40%, transparent);
+}
+
+.code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-debug-breakpoint::before {
+  --breakpoint-dot: var(--breakpoint-color);
+}
+
+.code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-debug-paused::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: calc((var(--breakpoint-space) - var(--debug-arrow-size)) / 2);
+  inline-size: var(--debug-arrow-size);
+  block-size: var(--debug-arrow-size);
+  background: var(--debug-position-color);
+  clip-path: polygon(0 27%, 48% 27%, 48% 0, 100% 50%, 48% 100%, 48% 73%, 0 73%);
+  transform: translateY(-50%);
+}
+
+.code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-debug-breakpoint.cm-debug-paused::before {
+  background-position-x: calc(-1 * var(--debug-marker-offset));
+}
+
+.code-editor__surface [data-breakpoint-space] .cm-lineNumbers .cm-debug-breakpoint.cm-debug-paused::after {
+  transform: translate(var(--debug-marker-offset), -50%);
+}
+
+.code-editor__surface .cm-editor .cm-line.cm-debug-current-line {
+  background: light-dark(#fbf1de, #443821);
 }
 
 .code-editor__surface .cm-scroller {

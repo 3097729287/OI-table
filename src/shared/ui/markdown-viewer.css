@@ -90,6 +90,65 @@
   background: var(--sidebar-background);
 }
 
+.markdown-viewer__sample {
+  --sample-action-size: 28px;
+  --sample-action-gap: 2px;
+  --sample-action-inset: 4px;
+  --sample-action-count: 1;
+  position: relative;
+  min-inline-size: 0;
+  min-block-size: calc(var(--sample-action-size) + 2 * var(--sample-action-inset));
+  padding-inline-end: calc(var(--sample-action-count) * (var(--sample-action-size) + var(--sample-action-gap))
+    - var(--sample-action-gap) + var(--sample-action-inset));
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  background: var(--sidebar-background);
+}
+
+.markdown-viewer__sample[data-sample-kind="input"] {
+  --sample-action-count: 2;
+}
+
+.markdown-viewer__sample:has(> .markdown-viewer__sample-actions > button:nth-of-type(3)) {
+  --sample-action-count: 3;
+}
+
+.markdown-viewer__sample-actions {
+  position: absolute;
+  z-index: 2;
+  inset-block-start: var(--sample-action-inset);
+  inset-inline-end: var(--sample-action-inset);
+  display: flex;
+  gap: var(--sample-action-gap);
+}
+
+.markdown-viewer__sample-actions .ui-icon-button {
+  inline-size: var(--sample-action-size);
+  block-size: var(--sample-action-size);
+}
+
+.markdown-viewer__sample-actions .ui-icon-button:enabled:hover {
+  background: var(--navigation-hover);
+}
+
+.markdown-viewer__sample-actions .ui-icon-button:disabled {
+  opacity: 0.55;
+}
+
+.markdown-viewer__sample-notice {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.markdown-viewer__sample > .markdown-viewer__overflow {
+  border: 0;
+  background: transparent;
+}
+
 .markdown-viewer pre {
   inline-size: max-content;
   min-inline-size: 100%;

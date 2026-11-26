@@ -1,7 +1,11 @@
+use tauri::Manager;
+
+mod editor_debug;
 mod editor_run;
 mod logging;
 mod problem_drafts;
 mod problem_library;
+mod run_debug_diagnostics;
 mod settings;
 mod storage;
 mod triggers;
@@ -18,6 +22,7 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_dialog::init());
 
     builder
+        .manage(editor_debug::EditorDebugState::default())
         .setup(|app| {
             storage::setup(app)?;
             problem_drafts::setup(app)?;
@@ -46,6 +51,12 @@ pub fn run() {
             settings::get_settings,
             settings::update_settings,
             editor_run::run_editor_code,
+            editor_debug::debug_start,
+            editor_debug::debug_step,
+            editor_debug::debug_inspect,
+            editor_debug::debug_variables,
+            editor_debug::debug_stop,
+            run_debug_diagnostics::check_run_debug_environment,
             problem_drafts::get_problem_draft,
             problem_drafts::save_problem_draft,
             triggers::get_trigger,
@@ -63,6 +74,11 @@ pub fn run() {
             windowing::open_window,
             windowing::configure_main_window
         ])
-        .run(tauri::generate_context!())
-        .expect("failed to run OI-table");
+        .build(tauri::generate_context!())
+        .expect("failed to build OI-table")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                app.state::<editor_debug::EditorDebugState>().cancel_all();
+            }
+        });
 }

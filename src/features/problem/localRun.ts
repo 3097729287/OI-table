@@ -12,17 +12,23 @@ export interface RunResult {
 }
 
 export type LocalRun =
-  | { state: "running"; language: CodeLanguage }
-  | { state: "complete"; language: CodeLanguage; result: RunResult }
-  | { state: "failed"; language: CodeLanguage; error: string };
+  | { state: "complete"; language: CodeLanguage; result: RunResult; sample?: { expected: string; matches: boolean } }
+  | { state: "failed"; error: string };
 
-export async function runEditorCode(language: CodeLanguage, source: string, input: string): Promise<LocalRun> {
+function normalizeSampleOutput(output: string) {
+  return output.replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").replace(/\n+$/, "");
+}
+
+export async function runEditorCode(language: CodeLanguage, source: string, input: string, expected?: string): Promise<LocalRun> {
   try {
     const result = await invoke<RunResult>("run_editor_code", { language, source, input });
-    return { state: "complete", language, result };
+    const sample = expected !== undefined && result.status === "success"
+      ? { expected, matches: normalizeSampleOutput(result.stdout) === normalizeSampleOutput(expected) }
+      : undefined;
+    return { state: "complete", language, result, sample };
   } catch (error) {
     const code = error && typeof error === "object" && "code" in error && typeof error.code === "string"
       ? error.code : "run_failed";
-    return { state: "failed", language, error: code };
+    return { state: "failed", error: code };
   }
 }

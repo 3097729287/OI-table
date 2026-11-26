@@ -8,6 +8,7 @@ export const workspaceSections = {
   archive: { title: "archive", icon: "archive" },
   favorites: { title: "favorites", icon: "favorites" },
   submissions: { title: "submissionHistory", icon: "submissions" },
+  debug: { title: "problemDebugSidebar", icon: "debug" },
   settings: { title: "settings", icon: "settings" },
 } satisfies Record<string, { title: MessageKey; icon: IconName }>;
 

@@ -48,8 +48,8 @@ pub(crate) struct RunResult {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct RunError {
-    code: &'static str,
-    message: String,
+    pub(crate) code: &'static str,
+    pub(crate) message: String,
 }
 
 impl RunError {
@@ -82,14 +82,9 @@ pub(crate) async fn run_editor_code(
         ));
     }
     validate_sizes(&source, &input)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let _running = RUNNING
-            .try_lock()
-            .map_err(|_| RunError::new("run_busy", "Another draft is already running"))?;
-        run_draft(language, &source, &input)
-    })
-    .await
-    .map_err(|error| RunError::new("run_failed", error.to_string()))?
+    tauri::async_runtime::spawn_blocking(move || run_exclusive(language, &source, &input))
+        .await
+        .map_err(|error| RunError::new("run_failed", error.to_string()))?
 }
 
 fn validate_sizes(source: &str, input: &str) -> Result<()> {
@@ -108,7 +103,7 @@ fn validate_sizes(source: &str, input: &str) -> Result<()> {
     Ok(())
 }
 
-fn find_program(name: &str) -> Option<PathBuf> {
+pub(crate) fn find_program(name: &str) -> Option<PathBuf> {
     let paths = env::var_os("PATH")?;
     let executable = format!("{name}{}", env::consts::EXE_SUFFIX);
     env::split_paths(&paths)
@@ -117,19 +112,89 @@ fn find_program(name: &str) -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
-fn find_cpp() -> Option<(&'static str, PathBuf)> {
+pub(crate) fn find_cpp() -> Option<(&'static str, PathBuf)> {
     ["g++", "clang++"]
         .into_iter()
         .find_map(|name| find_program(name).map(|path| (name, path)))
 }
 
-fn find_python() -> Option<PathBuf> {
+pub(crate) fn find_python() -> Option<PathBuf> {
     let names = if cfg!(windows) {
         ["python", "python3"]
     } else {
         ["python3", "python"]
     };
     names.into_iter().find_map(find_program)
+}
+
+fn run_exclusive(language: EditorLanguage, source: &str, input: &str) -> Result<RunResult> {
+    let _running = RUNNING
+        .try_lock()
+        .map_err(|_| RunError::new("run_busy", "Another draft is already running"))?;
+    run_draft(language, source, input)
+}
+
+pub(crate) fn verify_run_fixture(
+    language: EditorLanguage,
+    source: &str,
+    input: &str,
+    expected: &str,
+) -> Result<()> {
+    let result = run_exclusive(language, source, input)?;
+    let failure = match result.status {
+        RunStatus::Success if result.stdout.trim() == expected => return Ok(()),
+        RunStatus::Success => "The sample returned an unexpected result.",
+        RunStatus::CompileError => "The sample did not compile.",
+        RunStatus::RuntimeError => "The sample exited with an error.",
+        RunStatus::CompileTimeout => "The compiler did not finish in time.",
+        RunStatus::RuntimeTimeout => "The sample did not finish in time.",
+        RunStatus::OutputLimit => "The sample exceeded the output limit.",
+    };
+    let output = preferred_output(&result.stderr, &result.stdout);
+    let message = if output.is_empty() {
+        failure.into()
+    } else {
+        format!("{failure}\n{output}")
+    };
+    Err(RunError::new("run_failed", message))
+}
+
+pub(crate) fn probe_editor_tool(
+    executable: &Path,
+    arguments: &[&str],
+) -> std::result::Result<String, String> {
+    const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
+    let directory = tempfile::tempdir().map_err(|error| error.to_string())?;
+    let mut command = hidden_command(executable);
+    command.args(arguments).env("LC_ALL", "C");
+    let result = run_process(command, directory.path(), "", PROBE_TIMEOUT)
+        .map_err(|error| error.to_string())?;
+    let stdout = String::from_utf8_lossy(&result.stdout);
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    match result.finish {
+        ProcessFinish::Exited(status) if status.success() => {
+            Ok(preferred_output(&stdout, &stderr).into())
+        }
+        ProcessFinish::Exited(status) => {
+            let output = preferred_output(&stderr, &stdout);
+            if output.is_empty() {
+                Err(format!("The tool exited with {status}."))
+            } else {
+                Err(output.into())
+            }
+        }
+        ProcessFinish::TimedOut => Err("The tool did not respond within 3 seconds.".into()),
+        ProcessFinish::OutputLimit => Err("The tool exceeded the diagnostic output limit.".into()),
+    }
+}
+
+fn preferred_output<'a>(first: &'a str, fallback: &'a str) -> &'a str {
+    let first = first.trim();
+    if first.is_empty() {
+        fallback.trim()
+    } else {
+        first
+    }
 }
 
 fn run_draft(language: EditorLanguage, source: &str, input: &str) -> Result<RunResult> {
@@ -286,7 +351,7 @@ impl Capture {
     }
 }
 
-fn hidden_command(program: &Path) -> Command {
+pub(crate) fn hidden_command(program: &Path) -> Command {
     #[allow(unused_mut)]
     let mut command = Command::new(program);
     #[cfg(windows)]
@@ -305,7 +370,7 @@ fn hidden_command(program: &Path) -> Command {
     command
 }
 
-fn stop_child(child: &mut Child) {
+pub(crate) fn stop_child(child: &mut Child) {
     #[cfg(windows)]
     if let Some(root) = env::var_os("SystemRoot") {
         let taskkill = PathBuf::from(root).join("System32").join("taskkill.exe");
