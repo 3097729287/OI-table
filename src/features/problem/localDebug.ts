@@ -86,6 +86,7 @@ export interface ProblemDebugLaunch {
 
 export const ProblemDebugContext = createContext<(DebugWorkspace & {
   activeProblemId?: string;
+  launch?: ProblemDebugLaunch;
   registerLaunch(problemId: string, launch: ProblemDebugLaunch): () => void;
 }) | null>(null);
 

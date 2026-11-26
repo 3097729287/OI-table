@@ -6,14 +6,10 @@ export const workspaceView = {
   id: "submissions",
   title: "submissionHistory",
   icon: "submissions",
-  section: "submissions",
-  sidebarTitle: false,
-  sidebarGroups: [{ id: "records", title: "allSubmissions" }],
-  variants: [
-    { params: { filter: "local" }, title: "localSubmissionHistory" },
-    { params: { filter: "online" }, title: "onlineSubmissionHistory" },
-  ],
-  order: 50,
+  variants: {
+    local: { params: { filter: "local" }, title: "localSubmissionHistory" },
+    online: { params: { filter: "online" }, title: "onlineSubmissionHistory" },
+  },
 } satisfies WorkspaceViewOptions;
 
 export default function SubmissionsView({ title }: WorkspaceViewProps) {

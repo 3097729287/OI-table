@@ -7,14 +7,10 @@ export const workspaceView = {
   id: "archive",
   title: "archive",
   icon: "archive",
-  section: "archive",
-  sidebarTitle: false,
-  sidebarGroups: [{ id: "all-archives", title: "allArchives" }],
-  variants: [
-    { params: { filter: "contests" }, title: "contestArchives" },
-    { params: { filter: "libraries" }, title: "libraryArchives" },
-  ],
-  order: 30,
+  variants: {
+    contests: { params: { filter: "contests" }, title: "contestArchives" },
+    libraries: { params: { filter: "libraries" }, title: "libraryArchives" },
+  },
 } satisfies WorkspaceViewOptions;
 
 export default function ArchiveView(props: WorkspaceViewProps) {

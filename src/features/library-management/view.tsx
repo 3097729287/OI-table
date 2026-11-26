@@ -17,10 +17,7 @@ export const workspaceView = {
   id: "library-management",
   title: "libraryManagement",
   icon: "catalog",
-  section: "catalog",
-  sidebarGroups: [{ id: "problems", title: "catalog" }],
   singleton: true,
-  order: 11,
 } satisfies WorkspaceViewOptions;
 
 type RowAction = "enable" | "disable" | "uninstall";

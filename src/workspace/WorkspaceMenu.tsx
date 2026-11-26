@@ -1,54 +1,13 @@
 import { useId, useState, type CSSProperties } from "react";
-import { ArchiveNavigation, CatalogNavigation } from "../features/catalog/LibraryNavigation";
-import { FavoritesNavigation } from "../features/personal/PersonalNavigation";
-import { useMessages, type MessageKey } from "../i18n";
-import { Icon, type IconName } from "../shared/Icon";
+import { useMessages } from "../i18n";
+import { Icon } from "../shared/Icon";
 import { workspaceTabId, type WorkspaceTarget } from "./layout";
 import { SidebarDisclosure } from "./SidebarDisclosure";
-import { workspaceEntries, workspaceSections, workspaceViews, type WorkspaceSection } from "./views";
-
-interface MenuGroup {
-  kind: "group";
-  id: string;
-  title: MessageKey;
-  children: MenuItem[];
-}
-
-type MenuItem = MenuGroup | {
-  kind: "view";
-  id: string;
-  title: MessageKey;
-  icon: IconName;
-  target: WorkspaceTarget;
-};
-
-function buildMenu(section: WorkspaceSection) {
-  const items: MenuItem[] = [];
-
-  for (const view of workspaceViews) {
-    if (view.section !== section) continue;
-
-    for (const { sidebarGroups, ...entry } of workspaceEntries(view)) {
-      let children = items;
-      let groupPath: string = section;
-      for (const group of sidebarGroups) {
-        groupPath = `${groupPath}/${group.id}`;
-        let parent = children.find((item): item is MenuGroup => item.kind === "group" && item.id === groupPath);
-        if (!parent) {
-          parent = { kind: "group", id: groupPath, title: group.title, children: [] };
-          children.push(parent);
-        }
-        children = parent.children;
-      }
-      children.push({ kind: "view", id: workspaceTabId(entry.target), ...entry });
-    }
-  }
-
-  return items;
-}
+import type { SidebarMenuItem, SidebarMenuSection } from "./sidebarMenu";
+import { workspaceViews } from "./views";
 
 interface WorkspaceMenuProps {
-  section: WorkspaceSection;
+  section: SidebarMenuSection;
   onOpen: (target: WorkspaceTarget) => void;
 }
 
@@ -63,46 +22,48 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
     onOpen(target);
   }
 
-  function renderItems(items: readonly MenuItem[], depth = 0) {
+  function renderItems(items: readonly SidebarMenuItem[], parentId: string, depth = 0) {
     return (
       <ul className="workbench-sidebar__items" style={{ "--menu-indent": `${depth * 12}px` } as CSSProperties}>
         {items.map((item) => {
-          const title = messages[item.title];
           if (item.kind === "group") {
+            const title = messages[item.title];
+            const groupId = `${parentId}/${item.id}`;
             const defaultExpanded = depth === 0;
-            const expanded = expandedGroups[item.id] ?? defaultExpanded;
-            const listId = `${menuId}${item.id}`;
+            const expanded = expandedGroups[groupId] ?? defaultExpanded;
+            const listId = `${menuId}${groupId}`;
             return (
               <li key={`group:${item.id}`}>
                 <button type="button" aria-expanded={expanded} aria-controls={listId} title={title}
                   onClick={() => setExpandedGroups((groups) => ({
                     ...groups,
-                    [item.id]: !(groups[item.id] ?? defaultExpanded),
+                    [groupId]: !(groups[groupId] ?? defaultExpanded),
                   }))}>
                   <Icon name="chevronRight" size={15} />
                   <span className="workbench-sidebar__label">{title}</span>
                 </button>
-                <SidebarDisclosure id={listId} expanded={expanded}>{renderItems(item.children, depth + 1)}</SidebarDisclosure>
+                <SidebarDisclosure id={listId} expanded={expanded}>{renderItems(item.children, groupId, depth + 1)}</SidebarDisclosure>
               </li>
             );
           }
 
-          if (item.id === "catalog") {
-            return <CatalogNavigation key={item.id} onOpen={openEntry} selectedEntry={selectedEntry} />;
-          }
-          if (item.id === "favorites") {
-            return <FavoritesNavigation key={item.id} depth={depth} onOpen={openEntry} selectedEntry={selectedEntry} />;
-          }
-          if (item.target.id === "archive") {
-            return <ArchiveNavigation key={item.id} title={title} target={item.target} depth={depth}
+          const view = workspaceViews.get(item.viewId);
+          if (!view) return null;
+          const variant = item.variant === undefined ? undefined : view.variants?.[item.variant];
+          if (item.variant !== undefined && !variant) return null;
+          const title = messages[item.title ?? variant?.title ?? view.title];
+          const target = { id: view.id, params: variant?.params ?? {} };
+          const id = workspaceTabId(target);
+          if (item.Row) {
+            return <item.Row key={id} title={title} target={target} depth={depth}
               onOpen={openEntry} selectedEntry={selectedEntry} />;
           }
 
           return (
-            <li key={item.id}>
-              <button type="button" aria-current={selectedEntry === item.id || undefined} title={title}
-                onClick={() => openEntry(item.target)}>
-                <Icon name={item.icon} size={15} />
+            <li key={id}>
+              <button type="button" aria-current={selectedEntry === id || undefined} title={title}
+                onClick={() => openEntry(target)}>
+                <Icon name={variant?.icon ?? view.icon} size={15} />
                 <span className="workbench-sidebar__label">{title}</span>
               </button>
             </li>
@@ -112,5 +73,5 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
     );
   }
 
-  return <nav aria-label={messages[workspaceSections[section].title]}>{renderItems(buildMenu(section))}</nav>;
+  return <nav aria-label={messages[section.title]}>{renderItems(section.children, section.id)}</nav>;
 }

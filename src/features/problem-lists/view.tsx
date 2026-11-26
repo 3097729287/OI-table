@@ -6,10 +6,6 @@ export const workspaceView = {
   id: "problem-lists",
   title: "problemLists",
   icon: "problemLists",
-  section: "catalog",
-  sidebarTitle: "allProblemLists",
-  sidebarGroups: [{ id: "problem-lists", title: "problemLists" }],
-  order: 15,
 } satisfies WorkspaceViewOptions;
 
 export default function ProblemListsView() {

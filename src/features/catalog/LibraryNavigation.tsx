@@ -7,8 +7,9 @@ import {
 } from "../../shared/problemLibrary";
 import { workspaceTabId, type WorkspaceTarget } from "../../workspace/layout";
 import { SidebarDisclosure } from "../../workspace/SidebarDisclosure";
+import type { SidebarRowProps } from "../../workspace/sidebarMenu";
 import { ProblemMenuItems, useProblemMenu } from "./ProblemMenuItems";
-import { allProblemsTarget, archiveTarget, libraryTarget, tagGroupTarget } from "./navigationTargets";
+import { archiveTarget, libraryTarget, tagGroupTarget } from "./navigationTargets";
 import "./library-navigation.css";
 
 interface NavigationProps {
@@ -143,7 +144,7 @@ function TagBranch({ group, ...navigation }: NavigationProps & { group: LibraryT
   );
 }
 
-export function CatalogNavigation(navigation: NavigationProps) {
+export function CatalogNavigation({ depth, title, target, ...navigation }: SidebarRowProps) {
   const messages = useMessages();
   const [expanded, setExpanded] = useState(false);
   const listId = useId();
@@ -151,10 +152,10 @@ export function CatalogNavigation(navigation: NavigationProps) {
 
   return (
     <li>
-      <BranchRow {...navigation} title={messages.allProblems} target={allProblemsTarget()}
+      <BranchRow {...navigation} title={title} target={target}
         expanded={expanded} listId={listId} onToggle={() => setExpanded((open) => !open)} />
       <SidebarDisclosure id={listId} expanded={expanded} loading={groups.loading}>
-        <ul className="workbench-sidebar__items" style={menuIndent(2)}>
+        <ul className="workbench-sidebar__items" style={menuIndent(depth + 1)}>
           <NavigationResults {...groups} empty={messages.emptyWorkspace}
             render={(group) => <TagBranch {...navigation} key={group.id ?? ""} group={group} />} />
         </ul>
@@ -204,11 +205,7 @@ async function listEnabledLibraries() {
   return (await listProblemLibraries()).filter((library) => library.status === "enabled");
 }
 
-export function ArchiveNavigation({ depth, title, target, ...navigation }: NavigationProps & {
-  depth: number;
-  title: string;
-  target: WorkspaceTarget;
-}) {
+export function ArchiveNavigation({ depth, title, target, ...navigation }: SidebarRowProps) {
   const messages = useMessages();
   const [expanded, setExpanded] = useState(false);
   const listId = useId();

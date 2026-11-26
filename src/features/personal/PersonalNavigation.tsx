@@ -5,9 +5,10 @@ import { collectionName, usePersonalCollections, type PersonalCollection } from 
 import type { LibraryProblemQuery } from "../../shared/problemLibrary";
 import type { WorkspaceTarget } from "../../workspace/layout";
 import { SidebarDisclosure } from "../../workspace/SidebarDisclosure";
+import type { SidebarRowProps } from "../../workspace/sidebarMenu";
 import { SidebarBranchRow, sidebarMenuIndent, type SidebarBranchMenuPosition } from "../catalog/LibraryNavigation";
 import { ProblemMenuItems, useProblemMenu } from "../catalog/ProblemMenuItems";
-import { allFavoritesTarget, favoriteGroupTarget } from "./navigationTargets";
+import { favoriteGroupTarget } from "./navigationTargets";
 import { PersonalCollectionDialog } from "./PersonalCollectionDialog";
 
 interface NavigationProps {
@@ -62,7 +63,7 @@ function FavoriteGroup({ collection, depth, onMenu, ...navigation }: NavigationP
   );
 }
 
-export function FavoritesNavigation({ depth, ...navigation }: NavigationProps & { depth: number }) {
+export function FavoritesNavigation({ depth, title, target, ...navigation }: SidebarRowProps) {
   const messages = useMessages();
   const [expanded, setExpanded] = useState(false);
   const { collections, loading, failed, retry } = usePersonalCollections();
@@ -77,7 +78,7 @@ export function FavoritesNavigation({ depth, ...navigation }: NavigationProps & 
 
   return (
     <>
-      <CollectionBranch {...navigation} title={messages.allFavorites} target={allFavoritesTarget}
+      <CollectionBranch {...navigation} title={title} target={target}
         depth={depth} expanded={expanded} onToggle={() => setExpanded((open) => !open)} loading={loading && !collections}
         onMenu={setMenu}>
         {collections?.map((collection) => <FavoriteGroup {...navigation} key={collection.id} collection={collection} depth={depth + 1}

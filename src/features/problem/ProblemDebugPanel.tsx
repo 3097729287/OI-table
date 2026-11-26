@@ -1,8 +1,8 @@
-import { useId } from "react";
+import { useContext, useId } from "react";
 import { useMessages, type MessageKey } from "../../i18n";
 import { debugTimeoutMessages } from "../../shared/debugDiagnostics";
 import { Icon } from "../../shared/Icon";
-import { isDebugActive, type DebugAction, type LocalDebug, type ProblemDebugLaunch } from "./localDebug";
+import { isDebugActive, ProblemDebugContext, type DebugAction, type LocalDebug, type ProblemDebugLaunch } from "./localDebug";
 import { ProblemDebugVariables } from "./ProblemDebugVariables";
 import "./problem-debug.css";
 
@@ -76,7 +76,10 @@ function DebugLaunch({ launch }: { launch?: ProblemDebugLaunch }) {
   );
 }
 
-export function ProblemDebugPanel({ state, launch }: { state?: LocalDebug; launch?: ProblemDebugLaunch }) {
+export function ProblemDebugPanel() {
+  const debug = useContext(ProblemDebugContext);
+  const state = debug?.state;
+  const launch = debug?.launch;
   const messages = useMessages();
   const titleId = useId();
   if (!state) return (

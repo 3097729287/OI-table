@@ -6,10 +6,6 @@ function label(text: LocalizedProblemText): WorkspaceTarget["label"] {
   return { "zh-CN": text.zhCN ?? undefined, en: text.en ?? undefined };
 }
 
-export function allProblemsTarget(): WorkspaceTarget {
-  return { id: "catalog", params: {} };
-}
-
 export function tagGroupTarget(group: LibraryTagGroup): WorkspaceTarget & {
   label: Record<"zh-CN" | "en", string>;
 } {

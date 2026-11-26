@@ -6,10 +6,6 @@ export const workspaceView = {
   id: "favorites",
   title: "allFavorites",
   icon: "favorites",
-  section: "favorites",
-  sidebarTitle: "allFavorites",
-  sidebarGroups: [{ id: "favorites", title: "favorites" }],
-  order: 40,
 } satisfies WorkspaceViewOptions;
 
 function FavoriteGroupView(props: WorkspaceViewProps) {
