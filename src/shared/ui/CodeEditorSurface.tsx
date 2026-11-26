@@ -1,4 +1,4 @@
-import { history } from "@codemirror/commands";
+import { defaultKeymap, history, toggleTabFocusMode } from "@codemirror/commands";
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, lineNumbers } from "@codemirror/view";
 import type { ReactNode, RefObject } from "react";
 import { CodeEditorScrollbars } from "./CodeEditorScrollbars";
@@ -6,7 +6,14 @@ import { codeEditorTheme } from "./codeEditorTheme";
 import "./code-editor.css";
 
 export const codeEditorSurfaceExtensions = [
+  EditorView.cspNonce.of(document.head.querySelector<HTMLMetaElement>('meta[name="csp-style-nonce"]')?.nonce ?? ""),
   lineNumbers(), highlightActiveLine(), highlightActiveLineGutter(), drawSelection(), history(), codeEditorTheme,
+];
+
+export const codeEditorDefaultKeymap = [
+  ...defaultKeymap.filter(({ run }) => run !== toggleTabFocusMode),
+  // An unhandled Escape would temporarily put CodeMirror into Tab-to-focus mode.
+  { key: "Escape", preventDefault: true },
 ];
 
 export function codeEditorContent(label: string) {

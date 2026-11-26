@@ -89,9 +89,19 @@
 }
 
 .problem-list-view__rows {
+  --scrollbar-hit-padding: 5px;
+  --scrollbar-hit-size: calc(var(--scrollbar-line) + 2 * var(--scrollbar-hit-padding));
   flex: 1;
+  grid-template-columns: minmax(0, 1fr) var(--scrollbar-hit-size);
   min-block-size: 6rem;
-  --scrollbar-end-inset: 1px;
+}
+
+.problem-list-view__rows > .scrollbar[data-orientation="vertical"] {
+  inset-block: 4px;
+}
+
+.problem-list-view__rows > .scrollbar .scrollbar__thumb::after {
+  border-radius: 999px;
 }
 
 .problem-list-view__table {
@@ -121,7 +131,6 @@
 
 .problem-list-view__table :is(th, td):last-child {
   inline-size: 1%;
-  padding-inline-end: var(--space-md);
   text-align: end;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

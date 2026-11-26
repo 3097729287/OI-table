@@ -5,9 +5,11 @@ const fontLabels = {
   yahei: "fontYahei",
   serif: "fontSerif",
   monospace: "fontMonospace",
+  "fira-code": "fontFiraCode",
 } satisfies Record<string, MessageKey>;
 
 export type FontPreset = keyof typeof fontLabels;
+export const defaultEditorFont = "fira-code" satisfies FontPreset;
 
 export function useFontOptions() {
   const messages = useMessages();

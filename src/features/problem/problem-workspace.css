@@ -162,15 +162,6 @@
   position: relative;
 }
 
-.problem-workspace__body[data-drop-target="true"]::after {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  box-shadow: inset 0 0 0 2px var(--accent-color);
-  pointer-events: none;
-  content: "";
-}
-
 .problem-workspace__host {
   display: contents;
 }
@@ -227,7 +218,7 @@
 .problem-workspace__preview {
   position: absolute;
   z-index: 3;
-  border: 1px solid var(--accent-color);
+  border: 1px dashed var(--accent-color);
   background: color-mix(in srgb, var(--accent-color) 14%, transparent);
   pointer-events: none;
 }

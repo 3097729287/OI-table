@@ -120,23 +120,16 @@ fn listed_ids(connection: &Connection, filters: ProblemQuery) -> Vec<String> {
 #[test]
 fn installs_two_bilingual_libraries_with_independent_releases() {
     let (_directory, mut connection) = test_database();
-    assert_eq!(
-        install(&mut connection, fixture_files(BASICS))
-            .unwrap()
-            .inserted,
-        2
-    );
-    assert_eq!(
-        install(&mut connection, graph_fixture_with_sequences_archive())
-            .unwrap()
-            .inserted,
-        1
-    );
+    let basics = install(&mut connection, fixture_files(BASICS)).unwrap();
+    assert_eq!((basics.inserted, basics.library.problem_count), (2, 2));
+    let graphs = install(&mut connection, graph_fixture_with_sequences_archive()).unwrap();
+    assert_eq!((graphs.inserted, graphs.library.problem_count), (1, 1));
 
     let mut reordered = fixture_files(BASICS);
     reordered.reverse();
     let replay = install(&mut connection, reordered).unwrap();
     assert!(replay.replayed);
+    assert_eq!(replay.library.problem_count, 2);
     assert_eq!(
         (replay.inserted, replay.updated, replay.unchanged),
         (0, 0, 2)
@@ -146,12 +139,18 @@ fn installs_two_bilingual_libraries_with_independent_releases() {
     assert_eq!(
         libraries
             .iter()
-            .map(|entry| (entry.id.as_str(), entry.release_version))
+            .map(|entry| (
+                entry.id.as_str(),
+                entry.release_version,
+                entry.problem_count
+            ))
             .collect::<Vec<_>>(),
-        [(BASICS, 1), (GRAPHS, 7)]
+        [(BASICS, 1, 2), (GRAPHS, 7, 1)]
     );
+    let serialized = serde_json::to_value(&libraries[0]).unwrap();
+    assert_eq!(serialized["problemCount"], 2);
     assert_eq!(
-        serde_json::to_value(&libraries[0]).unwrap()["name"],
+        serialized["name"],
         json!({
             "zhCN": "基础算法示例库", "en": "Basic Algorithms Example Library"
         })
@@ -347,8 +346,10 @@ fn records_the_organizer_in_an_empty_library_release() {
     .unwrap();
     assert_eq!(imported.inserted, 0);
     assert_eq!(imported.library.author_id, "demo");
+    assert_eq!(imported.library.problem_count, 0);
 
     let listed = db::list_libraries(&connection).unwrap();
+    assert_eq!(listed[0].problem_count, 0);
     let name = listed[0].author_name.as_ref().unwrap();
     assert_eq!(name.zh_cn.as_deref(), Some("示例作者"));
     assert_eq!(name.en.as_deref(), Some("Example Author"));
@@ -403,6 +404,10 @@ fn only_complete_releases_remove_omitted_problems_and_later_releases_can_restore
     let revised = "Return the inclusive sum for each query.";
     let partial = install(&mut connection, single_problem_release(2, false, revised)).unwrap();
     assert_eq!((partial.updated, partial.removed), (1, 0));
+    assert_eq!(partial.library.problem_count, 2);
+    let replay = install(&mut connection, single_problem_release(2, false, revised)).unwrap();
+    assert!(replay.replayed);
+    assert_eq!(replay.library.problem_count, 2);
     assert_eq!(
         detail(&connection, RANGE_SUMS, None)["statement"]["en"],
         revised
@@ -418,6 +423,7 @@ fn only_complete_releases_remove_omitted_problems_and_later_releases_can_restore
 
     let full = install(&mut connection, single_problem_release(3, true, revised)).unwrap();
     assert_eq!((full.unchanged, full.removed), (1, 1));
+    assert_eq!(full.library.problem_count, 1);
     assert_eq!(detail(&connection, RANGE_SUMS, None)["contentVersion"], 2);
     assert_eq!(
         detail(&connection, PARENTHESIS_DEPTH, None)["removed"],
@@ -438,6 +444,7 @@ fn only_complete_releases_remove_omitted_problems_and_later_releases_can_restore
     });
     replace_text(&mut restored_files, "range-sums/statement.en.md", revised);
     let restored = install(&mut connection, restored_files).unwrap();
+    assert_eq!(restored.library.problem_count, 2);
     assert_eq!(
         (restored.updated, restored.restored, restored.inserted),
         (0, 1, 0)
@@ -726,7 +733,9 @@ fn disable_and_uninstall_hide_problems_but_reinstall_keeps_saved_references() {
              VALUES ('entry', 'example-basics:demo:1', 1, 'int main() {}', 'cpp', 1, 'accepted');",
     ).unwrap();
 
-    db::set_library_status(&mut connection, BASICS, LibraryStatus::Disabled).unwrap();
+    let disabled =
+        db::set_library_status(&mut connection, BASICS, LibraryStatus::Disabled).unwrap();
+    assert_eq!(disabled.problem_count, 2);
     assert_eq!(
         listed_ids(&connection, ProblemQuery::default()),
         [COMPONENTS]
@@ -740,13 +749,17 @@ fn disable_and_uninstall_hide_problems_but_reinstall_keeps_saved_references() {
     );
     let replay = install(&mut connection, fixture_files(BASICS)).unwrap();
     assert_eq!(replay.library.status, "disabled");
+    assert_eq!(replay.library.problem_count, 2);
 
     db::set_library_status(&mut connection, BASICS, LibraryStatus::Enabled).unwrap();
     assert_eq!(
         listed_ids(&connection, ProblemQuery::default()),
         [RANGE_SUMS, PARENTHESIS_DEPTH, COMPONENTS]
     );
-    db::set_library_status(&mut connection, BASICS, LibraryStatus::Uninstalled).unwrap();
+    let uninstalled =
+        db::set_library_status(&mut connection, BASICS, LibraryStatus::Uninstalled).unwrap();
+    assert_eq!(uninstalled.problem_count, 2);
+    assert_eq!(db::list_libraries(&connection).unwrap()[0].problem_count, 2);
     assert_eq!(
         listed_ids(&connection, ProblemQuery::default()),
         [COMPONENTS]
@@ -759,6 +772,7 @@ fn disable_and_uninstall_hide_problems_but_reinstall_keeps_saved_references() {
     let reinstalled = install(&mut connection, fixture_files(BASICS)).unwrap();
     assert!(reinstalled.replayed);
     assert_eq!(reinstalled.library.status, "enabled");
+    assert_eq!(reinstalled.library.problem_count, 2);
     assert_eq!(detail(&connection, RANGE_SUMS, None)["id"], RANGE_SUMS);
     let referenced_version: i64 = connection
         .query_row(

@@ -184,9 +184,10 @@ export function ProblemWorkspace({ tabs, enabled, labels, actions, activate, onS
     }
   }
 
-  const drag = useProblemTabDrag(frameByPane, (action) => docking ? previewBounds(layout, action, size) : undefined, dropTab);
-  const placed = drag.drop && "intoBody" in drag.drop ? drag.drop : undefined;
-  const preview = drag.drop && "bounds" in drag.drop ? drag.drop.bounds : undefined;
+  const drag = useProblemTabDrag(frameByPane,
+    (action, bounds) => docking ? previewBounds(layout, action, size, bounds) : undefined, dropTab);
+  const placed = drag.drop?.kind === "strip" ? drag.drop.action.destination : undefined;
+  const preview = drag.drop?.kind === "body" ? drag.drop.bounds : undefined;
 
   function moveTab(event: KeyboardEvent<HTMLButtonElement>, pane: Pane, index: number) {
     const count = pane.tabs.length;
@@ -208,20 +209,19 @@ export function ProblemWorkspace({ tabs, enabled, labels, actions, activate, onS
       onPointerDownCapture={drag.onPointerDownCapture} onClickCapture={drag.onClickCapture}
       onPointerMove={drag.track} onPointerUp={drag.finish} onPointerCancel={drag.cancel} onLostPointerCapture={drag.cancel}>
       {frames.map(({ pane, bounds }, index) => {
-        const target = placed?.action.destination.pane === pane.id ? placed : undefined;
+        const target = placed?.pane === pane.id ? placed : undefined;
         return (
           <section key={pane.id} className="problem-workspace__pane" style={split ? position(bounds) : undefined}>
             <div className="problem-workspace__bar">
               <WorkspaceTabs id={stripId(pane.id)} pane={pane.id}
                 label={frames.length > 1 ? `${labels.tabs} ${index + 1}` : labels.tabs}
-                dropEnd={target && !target.intoBody && target.action.destination.anchor === null}>
+                dropEnd={target && target.anchor === null}>
                 {pane.tabs.map((tab, tabIndex) => {
                   const item = tabById.get(tab);
                   if (!item) return null;
                   const selected = tab === pane.active;
-                  const destination = target?.action.destination;
-                  const edge = destination?.anchor === tab && tab !== drag.dragged
-                    ? destination.after ? "after" : "before" : undefined;
+                  const edge = target?.anchor === tab && tab !== drag.dragged
+                    ? target.after ? "after" : "before" : undefined;
                   return <button key={tab} id={tabId(tab)} className="problem-workspace__tab" type="button" role="tab"
                     data-problem-tab={tab} data-dragged={drag.dragged === tab} data-drop-edge={edge}
                     aria-selected={selected} aria-controls={panelId(tab)} tabIndex={selected ? 0 : -1}
@@ -232,7 +232,6 @@ export function ProblemWorkspace({ tabs, enabled, labels, actions, activate, onS
               {index === 0 && actions && <div className="problem-workspace__actions">{actions}</div>}
             </div>
             <div id={bodyId(pane.id)} className="problem-workspace__body" data-problem-drop-body={pane.id}
-              data-drop-target={target?.intoBody}
               onFocusCapture={() => { if (docking) dispatch({ type: "focus", pane: pane.id }); }}
               onPointerDown={() => { if (docking) dispatch({ type: "focus", pane: pane.id }); }} />
           </section>

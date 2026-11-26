@@ -1,8 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { updateSettings, useSettings, type AppSettings } from "../../shared/settings";
 
-let pendingUpdate = Promise.resolve();
-
 export function useSettingsForm() {
   const { settings, loadFailed } = useSettings();
   const [saving, setSaving] = useState(false);
@@ -13,8 +11,7 @@ export function useSettingsForm() {
     setSaving(true);
     setSaveFailed(false);
 
-    const update = pendingUpdate.then(() => updateSettings(changes));
-    pendingUpdate = update.catch(() => {});
+    const update = updateSettings(changes);
     latestUpdate.current = update;
 
     try {

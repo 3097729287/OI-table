@@ -39,8 +39,9 @@ function CollectionBranch({ title, target, count, depth, loading, expanded, onTo
   );
 }
 
-function FavoriteGroup({ collection, onMenu, ...navigation }: NavigationProps & {
+function FavoriteGroup({ collection, depth, onMenu, ...navigation }: NavigationProps & {
   collection: PersonalCollection;
+  depth: number;
   onMenu(position: SidebarBranchMenuPosition): void;
 }) {
   const messages = useMessages();
@@ -51,7 +52,7 @@ function FavoriteGroup({ collection, onMenu, ...navigation }: NavigationProps & 
 
   return (
     <CollectionBranch {...navigation} title={collectionName(collection, messages)} target={favoriteGroupTarget(collection)}
-      count={problemCount} depth={1} expanded={expanded} onToggle={() => setExpanded((open) => !open)}
+      count={problemCount} depth={depth} expanded={expanded} onToggle={() => setExpanded((open) => !open)}
       loading={menu.initialLoading} onMenu={collection.builtin ? undefined : onMenu}>
       {menu.page.items.length === 0 && !menu.failed && !menu.initialLoading && (
         <li className="library-navigation__status">{messages.problemListEmpty}</li>
@@ -61,7 +62,7 @@ function FavoriteGroup({ collection, onMenu, ...navigation }: NavigationProps & 
   );
 }
 
-export function FavoritesNavigation(navigation: NavigationProps) {
+export function FavoritesNavigation({ depth, ...navigation }: NavigationProps & { depth: number }) {
   const messages = useMessages();
   const [expanded, setExpanded] = useState(false);
   const { collections, loading, failed, retry } = usePersonalCollections();
@@ -77,9 +78,9 @@ export function FavoritesNavigation(navigation: NavigationProps) {
   return (
     <>
       <CollectionBranch {...navigation} title={messages.allFavorites} target={allFavoritesTarget}
-        depth={0} expanded={expanded} onToggle={() => setExpanded((open) => !open)} loading={loading && !collections}
+        depth={depth} expanded={expanded} onToggle={() => setExpanded((open) => !open)} loading={loading && !collections}
         onMenu={setMenu}>
-        {collections?.map((collection) => <FavoriteGroup {...navigation} key={collection.id} collection={collection}
+        {collections?.map((collection) => <FavoriteGroup {...navigation} key={collection.id} collection={collection} depth={depth + 1}
           onMenu={(position) => setMenu({ ...position, current: collection })} />)}
         {failed && <li><button type="button" onClick={retry}>{messages.personalCollectionLoadFailed} · {messages.retry}</button></li>}
         {!failed && collections?.length === 0 && <li className="library-navigation__status">{messages.personalCollectionEmpty}</li>}

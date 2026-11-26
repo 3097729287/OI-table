@@ -9,8 +9,9 @@ const SETTINGS_FILE: &str = "settings.json";
 const SETTINGS_CHANGED: &str = "oi-table:settings-changed";
 const THEME_KEY: &str = "theme";
 const LOG_MAX_SIZE_KEY: &str = "logMaxSizeMib";
+const EDITOR_DEFAULT_LANGUAGE_KEY: &str = "editorDefaultLanguage";
 const PROBLEM_DOUBLE_COLUMN_KEY: &str = "problemDoubleColumn";
-const FONT_PRESETS: &[&str] = &["system", "yahei", "serif", "monospace"];
+const FONT_PRESETS: &[&str] = &["system", "yahei", "serif", "monospace", "fira-code"];
 pub const DEFAULT_LOG_MAX_SIZE_MIB: u32 = 5;
 
 type Settings = Map<String, Value>;
@@ -63,7 +64,7 @@ const RULES: &[(&str, Rule)] = &[
     (
         "editorFont",
         Rule::Choice {
-            default: "monospace",
+            default: "fira-code",
             alternatives: &[FONT_PRESETS, &["interface"]],
         },
     ),
@@ -80,6 +81,13 @@ const RULES: &[(&str, Rule)] = &[
         Rule::Choice {
             default: "custom",
             alternatives: &[&["interface"]],
+        },
+    ),
+    (
+        EDITOR_DEFAULT_LANGUAGE_KEY,
+        Rule::Choice {
+            default: "cpp",
+            alternatives: &[&["python"]],
         },
     ),
     (PROBLEM_DOUBLE_COLUMN_KEY, Rule::Boolean { default: false }),
@@ -240,6 +248,7 @@ mod tests {
                 "uiLanguage": "zh-CN",
                 "uiFont": "monospace",
                 "editorFont": "monospace",
+                "editorDefaultLanguage": "python",
                 "problemDoubleColumn": true,
                 "editorPrefs": { "wordWrap": true, "extra": null },
             }))?,
@@ -258,6 +267,7 @@ mod tests {
         assert_eq!(settings["uiFont"], "monospace");
         assert_eq!(settings["editorFont"], "monospace");
         assert_eq!(settings["uiFontSize"], 18);
+        assert_eq!(settings[EDITOR_DEFAULT_LANGUAGE_KEY], "python");
         assert_eq!(settings[PROBLEM_DOUBLE_COLUMN_KEY], true);
         assert_eq!(
             settings["editorPrefs"],
@@ -272,16 +282,23 @@ mod tests {
         let storage = Storage::new(directory.path().to_owned());
         storage.write(
             SETTINGS_FILE,
-            &json!({ "theme": "dark", "uiLanguage": false, "uiFontSize": 17.5, "logMaxSizeMib": -1 }),
+            &json!({
+                "theme": "dark",
+                "uiLanguage": false,
+                "uiFont": "interface",
+                "uiFontSize": 17.5,
+                "logMaxSizeMib": -1,
+            }),
         )?;
         let loaded = read_settings(&storage, None, || unreachable!())?;
         assert_eq!(loaded[THEME_KEY], "dark");
         assert_eq!(loaded["uiLanguage"], "system");
         assert_eq!(loaded["uiFont"], "system");
         assert_eq!(loaded["uiFontSize"], 16);
-        assert_eq!(loaded["editorFont"], "monospace");
+        assert_eq!(loaded["editorFont"], "fira-code");
         assert_eq!(loaded["editorFontSize"], 13);
         assert_eq!(loaded["editorFontSizeMode"], "custom");
+        assert_eq!(loaded[EDITOR_DEFAULT_LANGUAGE_KEY], "cpp");
         assert_eq!(loaded[PROBLEM_DOUBLE_COLUMN_KEY], false);
         assert_eq!(log_max_size(&loaded), DEFAULT_LOG_MAX_SIZE_MIB);
 
@@ -289,19 +306,22 @@ mod tests {
             &storage,
             serde_json::from_value(json!({
                 "uiLanguage": "en",
-                "uiFont": "yahei",
+                "uiFont": "fira-code",
                 "uiFontSize": 20,
                 "editorFont": "interface",
                 "editorFontSize": 40,
                 "editorFontSizeMode": "interface",
+                "editorDefaultLanguage": "python",
                 "logMaxSizeMib": 12,
             }))?,
             |log_limit| assert_eq!(log_limit, Some(12)),
         )?;
         let followed = read_settings(&storage, None, || unreachable!())?;
+        assert_eq!(followed["uiFont"], "fira-code");
         assert_eq!(followed["editorFont"], "interface");
         assert_eq!(followed["editorFontSize"], 40);
         assert_eq!(followed["editorFontSizeMode"], "interface");
+        assert_eq!(followed[EDITOR_DEFAULT_LANGUAGE_KEY], "python");
 
         save_settings(
             &storage,
@@ -310,6 +330,7 @@ mod tests {
                 "editorFont": "invalid-preset",
                 "editorFontSize": 41,
                 "editorFontSizeMode": false,
+                "editorDefaultLanguage": "javascript",
                 "problemDoubleColumn": "true",
                 "logMaxSizeMib": "12",
             }))?,
@@ -319,11 +340,12 @@ mod tests {
         let saved = storage.read::<Settings>(SETTINGS_FILE)?.unwrap();
         assert_eq!(saved[THEME_KEY], "dark");
         assert_eq!(saved["uiLanguage"], "en");
-        assert_eq!(saved["uiFont"], "yahei");
+        assert_eq!(saved["uiFont"], "fira-code");
         assert_eq!(saved["uiFontSize"], 16);
-        assert_eq!(saved["editorFont"], "monospace");
+        assert_eq!(saved["editorFont"], "fira-code");
         assert_eq!(saved["editorFontSize"], 13);
         assert_eq!(saved["editorFontSizeMode"], "custom");
+        assert_eq!(saved[EDITOR_DEFAULT_LANGUAGE_KEY], "cpp");
         assert_eq!(saved[PROBLEM_DOUBLE_COLUMN_KEY], false);
         assert_eq!(saved[LOG_MAX_SIZE_KEY], DEFAULT_LOG_MAX_SIZE_MIB);
         Ok(())

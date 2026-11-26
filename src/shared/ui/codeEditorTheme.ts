@@ -19,7 +19,9 @@ export const codeEditorTheme = EditorView.theme({
   },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "var(--editor-font-family)", fontSize: "var(--editor-font-size)", lineHeight: "1.6" },
-  ".cm-content": { padding: "var(--space-sm) 0", caretColor: "var(--code-editor-caret)" },
+  ".cm-content": {
+    padding: "var(--space-sm) 0", caretColor: "var(--code-editor-caret)", fontVariantLigatures: "contextual",
+  },
   "&.cm-editor .cm-cursorLayer .cm-cursor, &.cm-editor .cm-dropCursor": {
     borderLeft: "2px solid var(--code-editor-caret)", marginLeft: "-1px",
   },

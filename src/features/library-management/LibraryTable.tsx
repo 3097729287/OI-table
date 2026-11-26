@@ -13,6 +13,7 @@ interface LibraryTableProps {
 export function LibraryTable({ libraries, pending, onSetEnabled, onUninstall }: LibraryTableProps) {
   const locale = useContext(LocaleContext);
   const messages = getMessages(locale);
+  const formatCount = new Intl.NumberFormat(locale);
   const idPrefix = useId();
   const statusLabels = {
     enabled: messages.libraryManagementEnabled,
@@ -30,9 +31,10 @@ export function LibraryTable({ libraries, pending, onSetEnabled, onUninstall }: 
       <thead role="rowgroup">
         <tr role="row">
           <th scope="col" role="columnheader">{messages.libraryManagementColumnLibrary}</th>
-          <th scope="col" role="columnheader">{messages.libraryManagementColumnOrganizer}</th>
-          <th scope="col" role="columnheader">{messages.libraryManagementColumnStatus}</th>
-          <th scope="col" role="columnheader">{messages.libraryManagementColumnActions}</th>
+          <th scope="col" className="library-management__organizer-cell" role="columnheader">{messages.libraryManagementColumnOrganizer}</th>
+          <th scope="col" className="library-management__count-cell" role="columnheader">{messages.libraryManagementColumnProblemCount}</th>
+          <th scope="col" className="library-management__status-cell" role="columnheader">{messages.libraryManagementColumnStatus}</th>
+          <th scope="col" className="library-management__action-cell" role="columnheader">{messages.libraryManagementColumnActions}</th>
         </tr>
       </thead>
       <tbody role="rowgroup">
@@ -67,6 +69,10 @@ export function LibraryTable({ libraries, pending, onSetEnabled, onUninstall }: 
                 <span className="library-management__organizer" data-selectable title={library.authorId}>
                   {organizer}
                 </span>
+              </td>
+              <td className="library-management__count-cell" role="cell">
+                <span className="library-management__count-label" aria-hidden="true">{messages.libraryManagementColumnProblemCount}</span>
+                <span className="library-management__count">{formatCount.format(library.problemCount)}</span>
               </td>
               <td className="library-management__status-cell" role="cell">
                 <span className="library-management__status" data-status={library.status}>

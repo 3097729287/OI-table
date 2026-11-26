@@ -113,7 +113,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
   const listId = `workbench-tabs-${pane}`;
   const label = messages.editorPane.replace("{number}", String(number));
   const tabOffsets = useRef(new Map<string, number>());
-  const destination = drag.destination?.type === "place" && drag.destination.region === "tabs" &&
+  const destination = drag.destination?.type === "place" &&
     drag.destination.placement.pane === pane ? drag.destination.placement : null;
 
   useLayoutEffect(() => {
@@ -328,13 +328,12 @@ export function Workbench() {
   }, []);
   const launch = !isTauri() ? { message: messages.problemDebugDesktop }
     : registeredLaunch?.problemId === activeProblemId ? registeredLaunch?.launch : undefined;
-  const previewSplit = useCallback((action: Extract<LayoutAction, { type: "split" }>) =>
-    previewBounds(layout, action, size), [layout, size]);
+  const previewSplit = useCallback((action: Extract<LayoutAction, { type: "split" }>, bounds: PaneBounds) =>
+    previewBounds(layout, action, size, bounds), [layout, size]);
   const drag = useTabDrag(dispatchDrag, frameByPane, previewSplit);
-  const contentDropPane = drag.destination?.type === "place" && drag.destination.region === "content"
-    ? drag.destination.placement.pane
-    : undefined;
-  const splitPreview = drag.destination?.type === "split" ? drag.destination.bounds : undefined;
+  const destination = drag.destination;
+  const dockPreview = destination?.type === "split" ? destination.bounds
+    : destination?.type === "content" ? frameByPane.get(destination.pane)?.bounds : undefined;
   const sidebar = useContext(WorkspaceSidebar);
   const sidebarResize = useSidebarResize(sidebar.visible);
   const tabMenuPane = tabMenu ? frameByPane.get(tabMenu.pane)?.pane : undefined;
@@ -421,7 +420,7 @@ export function Workbench() {
             return (
               <PanePanelHost key={id} pane={pane.id}>
                 <ScrollArea as="section" id={`workbench-panel-${id}`} className="workbench-panel"
-                  data-drop-pane={pane.id} data-drop-target={contentDropPane === pane.id}
+                  data-drop-pane={pane.id}
                   role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                   hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                   onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
@@ -436,8 +435,8 @@ export function Workbench() {
             <PaneSeparator key={`${split.id}:${split.primaryPane}`} frame={split} controls={`workbench-tabs-${split.primaryPane}`}
               onResize={(ratio) => dispatch({ type: "resize", frame: split, ratio })} />
           ))}
-          {splitPreview && (
-            <div className="workbench-dock-preview" style={position(splitPreview, size)}
+          {dockPreview && (
+            <div className="workbench-dock-preview" style={position(dockPreview, size)}
               aria-hidden="true" />
           )}
         </div>

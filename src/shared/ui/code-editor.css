@@ -206,6 +206,10 @@
   white-space: nowrap;
 }
 
+.code-editor__settings-error {
+  color: var(--error-color);
+}
+
 .code-editor__save-retry {
   padding: 2px 4px;
   border: 0;

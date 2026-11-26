@@ -1,10 +1,10 @@
-import { defaultKeymap, historyKeymap, insertNewline } from "@codemirror/commands";
+import { historyKeymap, insertNewline } from "@codemirror/commands";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useLayoutEffect, useRef, useState } from "react";
-import { CodeEditorSurface, codeEditorContent, codeEditorSurfaceExtensions } from "./CodeEditorSurface";
+import { CodeEditorSurface, codeEditorContent, codeEditorDefaultKeymap, codeEditorSurfaceExtensions } from "./CodeEditorSurface";
 
-const plainTextKeys = keymap.of([{ key: "Enter", run: insertNewline }, ...defaultKeymap, ...historyKeymap]);
+const plainTextKeys = keymap.of([{ key: "Enter", run: insertNewline }, ...codeEditorDefaultKeymap, ...historyKeymap]);
 
 interface PlainTextEditorProps {
   label: string;

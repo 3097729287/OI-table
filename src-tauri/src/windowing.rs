@@ -132,6 +132,11 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
             .permission("core:window:allow-toggle-maximize")
             .permission("core:window:allow-close"),
     )?;
+    app.add_capability(
+        CapabilityBuilder::new("save-drafts-on-close")
+            .window(MAIN_WINDOW)
+            .permission("core:window:allow-destroy"),
+    )?;
     let main_window = build_window(
         app.handle(),
         MAIN_WINDOW,

@@ -1,4 +1,5 @@
 import { useMessages } from "../../../i18n";
+import { codeLanguageOptions } from "../../../shared/codeLanguages";
 import { useFontOptions } from "../../../shared/fonts";
 import { Select } from "../../../shared/ui/Fields";
 import { NumberSetting } from "../NumberSetting";
@@ -18,6 +19,14 @@ export default function EditorSection({ settings, saving, saveChanges }: Setting
 
   return (
     <>
+      <div className="settings-row">
+        <label id="settings-editor-language-label" htmlFor="settings-editor-language">
+          {messages.editorDefaultLanguage}
+        </label>
+        <Select id="settings-editor-language" aria-labelledby="settings-editor-language-label"
+          value={settings.editorDefaultLanguage} options={codeLanguageOptions} disabled={saving}
+          onValueChange={(editorDefaultLanguage) => void saveChanges({ editorDefaultLanguage })} />
+      </div>
       <div className="settings-row">
         <label id="settings-editor-font-label" htmlFor="settings-editor-font">{messages.editorFont}</label>
         <Select id="settings-editor-font" aria-labelledby="settings-editor-font-label"

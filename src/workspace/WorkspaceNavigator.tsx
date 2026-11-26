@@ -22,6 +22,8 @@ export function WorkspaceNavigator({ showDebug, onShowDebug, onOpen, debug, debu
   const sidebar = useContext(WorkspaceSidebar);
   const [menuSection, setMenuSection] = useState<Exclude<WorkspaceSection, "debug">>("catalog");
   const section = showDebug ? "debug" : menuSection;
+  const [visitedSections, setVisitedSections] = useState<WorkspaceSection[]>([section]);
+  if (!visitedSections.includes(section)) setVisitedSections([...visitedSections, section]);
 
   return (
     <>
@@ -32,6 +34,10 @@ export function WorkspaceNavigator({ showDebug, onShowDebug, onOpen, debug, debu
               aria-controls="workspace-sidebar" aria-pressed={sidebar.visible && section === id}
               onClick={() => {
                 const selected = id as WorkspaceSection;
+                if (sidebar.visible && section === selected) {
+                  sidebar.toggle();
+                  return;
+                }
                 if (selected !== "debug") setMenuSection(selected);
                 onShowDebug(selected === "debug");
                 sidebar.show();
@@ -41,10 +47,14 @@ export function WorkspaceNavigator({ showDebug, onShowDebug, onOpen, debug, debu
           ))}
         </nav>
       </ScrollArea>
-      <ScrollArea as="aside" id="workspace-sidebar" className="workbench-sidebar" hidden={!sidebar.visible}>
-        <div hidden={showDebug}><WorkspaceMenu section={menuSection} onOpen={onOpen} /></div>
-        {showDebug && <ProblemDebugPanel state={debug} launch={debugLaunch} />}
-      </ScrollArea>
+      <aside id="workspace-sidebar" className="workbench-sidebar" hidden={!sidebar.visible}>
+        {visitedSections.map((id) => (
+          <ScrollArea key={id} hidden={id !== section}>
+            {id === "debug" ? <ProblemDebugPanel state={debug} launch={debugLaunch} />
+              : <WorkspaceMenu section={id} onOpen={onOpen} />}
+          </ScrollArea>
+        ))}
+      </aside>
     </>
   );
 }
