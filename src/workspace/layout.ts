@@ -79,7 +79,7 @@ export interface SplitFrame {
 
 export type LayoutAction =
   | { type: "open"; view: string; target: WorkspaceTarget }
-  | { type: "select"; pane: PaneId; view: string }
+  | { type: "select"; pane?: PaneId; view: string }
   | { type: "focus"; pane: PaneId }
   | { type: "close"; pane: PaneId; view: string; scope?: TabCloseScope }
   | { type: "place"; from: PaneId; view: string; destination: TabDestination }
@@ -349,7 +349,8 @@ export function workspaceReducer(layout: Layout, action: LayoutAction): Layout {
       return { ...layout, root: nextRoot, focused: pane.id, targets };
     }
     case "select": {
-      const pane = paneById(action.pane);
+      const pane = action.pane === undefined ? findPane(root, (candidate) => candidate.tabs.includes(action.view))
+        : paneById(action.pane);
       if (!pane?.tabs.includes(action.view)) return layout;
       const nextRoot = pane.active === action.view ? root
         : replaceNode(root, pane.id, { ...pane, active: action.view });
