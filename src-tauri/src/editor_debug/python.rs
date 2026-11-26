@@ -26,7 +26,7 @@ impl Debugger {
         command
             .current_dir(root)
             .args(["-I", "-B", "-u", "-X", "utf8", "debugger.py"]);
-        let mut debugger = Self(Transport::spawn(command, root)?);
+        let mut debugger = Self(Transport::spawn(command, Some(root))?);
         let location = debugger.request(
             json!({ "breakpoints": breakpoints }),
             active,

@@ -51,6 +51,7 @@ pub fn run() {
             settings::get_settings,
             settings::update_settings,
             editor_run::run_editor_code,
+            editor_debug::warm_cpp_debugger,
             editor_debug::debug_start,
             editor_debug::debug_step,
             editor_debug::debug_inspect,
