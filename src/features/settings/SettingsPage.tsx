@@ -7,7 +7,7 @@ import "./settings.css";
 interface SettingsPageProps {
   title: string;
   children: ReactNode;
-  form: Pick<ReturnType<typeof useSettingsForm>, "settings" | "loadFailed" | "saveFailed">;
+  form?: Pick<ReturnType<typeof useSettingsForm>, "settings" | "loadFailed" | "saveFailed">;
 }
 
 export function SettingsPage({ title, children, form }: SettingsPageProps) {
@@ -16,11 +16,11 @@ export function SettingsPage({ title, children, form }: SettingsPageProps) {
     <section className="workspace workbench-page settings-view">
       <h1>{title}</h1>
       {children}
-      {!form.settings && !form.loadFailed && (
+      {form && !form.settings && !form.loadFailed && (
         <StatusMessage state="loading">{messages.settingsLoading}</StatusMessage>
       )}
-      {form.loadFailed && <StatusMessage state="error">{messages.settingsLoadFailed}</StatusMessage>}
-      {form.saveFailed && <StatusMessage state="error">{messages.settingsSaveFailed}</StatusMessage>}
+      {form?.loadFailed && <StatusMessage state="error">{messages.settingsLoadFailed}</StatusMessage>}
+      {form?.saveFailed && <StatusMessage state="error">{messages.settingsSaveFailed}</StatusMessage>}
     </section>
   );
 }

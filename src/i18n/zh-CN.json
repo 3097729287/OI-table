@@ -335,5 +335,13 @@
   "settingsLoading": "正在加载设置…",
   "settingsGroupEmpty": "暂无可配置项。",
   "settingsLoadFailed": "无法读取设置。",
-  "settingsSaveFailed": "无法保存设置。"
+  "settingsSaveFailed": "无法保存设置。",
+  "settingsOther": "其他",
+  "about": "关于",
+  "aboutVersion": "版本",
+  "aboutThirdParty": "开源项目与许可证",
+  "aboutFrontend": "界面与资源",
+  "aboutDesktop": "桌面端",
+  "aboutProject": "项目",
+  "aboutLicense": "许可证"
 }

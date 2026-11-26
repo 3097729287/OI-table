@@ -28,19 +28,18 @@ function buildMenu(section: WorkspaceSection) {
   for (const view of workspaceViews) {
     if (view.section !== section) continue;
 
-    let children = items;
-    let groupPath: string = section;
-    for (const group of view.sidebarGroups ?? []) {
-      groupPath = `${groupPath}/${group.id}`;
-      let entry = children.find((item): item is MenuGroup => item.kind === "group" && item.id === groupPath);
-      if (!entry) {
-        entry = { kind: "group", id: groupPath, title: group.title, children: [] };
-        children.push(entry);
+    for (const { sidebarGroups, ...entry } of workspaceEntries(view)) {
+      let children = items;
+      let groupPath: string = section;
+      for (const group of sidebarGroups) {
+        groupPath = `${groupPath}/${group.id}`;
+        let parent = children.find((item): item is MenuGroup => item.kind === "group" && item.id === groupPath);
+        if (!parent) {
+          parent = { kind: "group", id: groupPath, title: group.title, children: [] };
+          children.push(parent);
+        }
+        children = parent.children;
       }
-      children = entry.children;
-    }
-
-    for (const entry of workspaceEntries(view)) {
       children.push({ kind: "view", id: workspaceTabId(entry.target), ...entry });
     }
   }

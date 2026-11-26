@@ -23,6 +23,7 @@ export interface WorkspaceViewVariant {
   params: WorkspaceParams;
   title: MessageKey;
   icon?: IconName;
+  sidebarGroups?: readonly SidebarGroup[];
 }
 
 export interface WorkspaceViewOptions<Variant extends WorkspaceViewVariant = WorkspaceViewVariant> {
@@ -56,15 +57,17 @@ export const workspaceViews = Object.values(modules)
 export type WorkspaceView = (typeof workspaceViews)[number];
 
 export function workspaceEntries(view: WorkspaceView) {
-  const entries: { target: WorkspaceTarget; title: MessageKey; icon: IconName }[] = [];
+  const entries: { target: WorkspaceTarget; title: MessageKey; icon: IconName; sidebarGroups: readonly SidebarGroup[] }[] = [];
+  const groups = view.sidebarGroups ?? [];
   if (view.sidebarTitle !== false) {
-    entries.push({ target: { id: view.id, params: {} }, title: view.sidebarTitle ?? view.title, icon: view.icon });
+    entries.push({ target: { id: view.id, params: {} }, title: view.sidebarTitle ?? view.title, icon: view.icon, sidebarGroups: groups });
   }
   for (const variant of view.variants ?? []) {
     entries.push({
       target: { id: view.id, params: variant.params },
       title: variant.title,
       icon: variant.icon ?? view.icon,
+      sidebarGroups: variant.sidebarGroups ?? groups,
     });
   }
   return entries;
