@@ -64,8 +64,8 @@ export function ContextMenu<Extra>({ x, y, label, items, onDismiss }: ContextMen
   }, [onDismiss]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Escape" || event.key === "Tab") {
-      if (event.key === "Escape") event.preventDefault();
+    if (event.key === "Escape") {
+      event.preventDefault();
       onDismiss(true);
       return;
     }

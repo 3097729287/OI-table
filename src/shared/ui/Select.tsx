@@ -169,9 +169,6 @@ export function Select<Value extends string>({
           setIsOpen(false);
         }
         break;
-      case "Tab":
-        setIsOpen(false);
-        break;
     }
   }
 

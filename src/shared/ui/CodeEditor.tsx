@@ -1,5 +1,5 @@
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
-import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentOnInput, indentUnit } from "@codemirror/language";
 import {
   diagnosticCount, forceLinting, linter, lintKeymap, openLintPanel,
@@ -14,7 +14,7 @@ import { codeLanguageExtensions, codeLanguageNames, syntaxDiagnostics, type Code
 import { codeSyntaxHighlighting } from "./codeEditorTheme";
 import { breakpointLines, codeEditorBreakpointGutter, codeEditorDebugReadOnly, debugLine as debugLineField,
   normalizeBreakpointLines, sameBreakpointLines, setBreakpointLines, setDebugLine } from "./codeEditorDebug";
-import { CodeEditorSurface, codeEditorContent, codeEditorSurfaceExtensions } from "./CodeEditorSurface";
+import { CodeEditorSurface, codeEditorContent, codeEditorDefaultKeymap, codeEditorSurfaceExtensions } from "./CodeEditorSurface";
 import { flushProblemDraft, loadProblemDraft, problemDraftSaveStatus, queueProblemDraft, subscribeToProblemDraft } from "./problemDrafts";
 import { Select } from "./Select";
 
@@ -23,7 +23,7 @@ const languages = (["cpp", "python"] as const).map((value) => ({ value, label: c
 const editorExtensions = [
   codeEditorSurfaceExtensions, indentOnInput(), indentUnit.of("    "),
   bracketMatching(), closeBrackets(), autocompletion(), codeSyntaxHighlighting,
-  keymap.of([...closeBracketsKeymap, ...completionKeymap, ...historyKeymap, ...defaultKeymap, ...lintKeymap, indentWithTab]),
+  keymap.of([...closeBracketsKeymap, ...completionKeymap, ...historyKeymap, ...codeEditorDefaultKeymap, ...lintKeymap, indentWithTab]),
 ];
 
 type Messages = ReturnType<typeof useMessages>;
