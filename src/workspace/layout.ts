@@ -287,7 +287,7 @@ export function collectWorkspaceFrames(root: PaneNode | null, size: PaneSize): {
 }
 
 export function previewBounds(
-  layout: Layout, action: Extract<LayoutAction, { type: "split" }>, size: PaneSize,
+  layout: Layout, action: Extract<LayoutAction, { type: "split" }>, size: PaneSize, targetBounds: PaneBounds,
 ): PaneBounds | undefined {
   const next = workspaceReducer(layout, action);
   if (next === layout) return;
@@ -295,7 +295,12 @@ export function previewBounds(
   const { panes } = collectWorkspaceFrames(next.root, size);
   const fits = panes.every(({ bounds }) => bounds.width >= minimumPaneSize.width - 1e-6 &&
     bounds.height >= minimumPaneSize.height - 1e-6);
-  if (fits) return panes.find(({ pane }) => pane.id === next.focused)?.bounds;
+  if (!fits) return;
+
+  const { axis, leading } = splitDirection(action.edge);
+  const [dimension, origin] = axis === "horizontal" ? ["width", "x"] as const : ["height", "y"] as const;
+  const half = targetBounds[dimension] / 2;
+  return { ...targetBounds, [origin]: targetBounds[origin] + (leading ? 0 : half), [dimension]: half };
 }
 
 function sameTarget(current: WorkspaceTarget | undefined, next: WorkspaceTarget): boolean {

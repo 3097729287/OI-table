@@ -3,7 +3,9 @@ import type { LayoutAction, PaneBounds, PaneFrame, PaneId } from "../../workspac
 
 type SplitAction = Extract<LayoutAction, { type: "split" }>;
 type PlaceAction = Extract<LayoutAction, { type: "place" }>;
-type Drop = { action: SplitAction; bounds: PaneBounds } | { action: PlaceAction; intoBody: boolean };
+type Drop =
+  | { kind: "strip"; action: PlaceAction }
+  | { kind: "body"; bounds: PaneBounds; action?: SplitAction | PlaceAction };
 
 interface Point {
   clientX: number;
@@ -27,7 +29,7 @@ function hitAt(container: HTMLDivElement, { clientX, clientY }: Point) {
 }
 
 export function useProblemTabDrag(frames: ReadonlyMap<PaneId, PaneFrame>,
-  previewSplit: (action: SplitAction) => PaneBounds | undefined,
+  previewSplit: (action: SplitAction, targetBounds: PaneBounds) => PaneBounds | undefined,
   onDrop: (action: SplitAction | PlaceAction) => void) {
   const session = useRef<Session>(undefined);
   const suppressClick = useRef(false);
@@ -96,7 +98,7 @@ export function useProblemTabDrag(frames: ReadonlyMap<PaneId, PaneFrame>,
         place.destination.anchor = tab.dataset.problemTab ?? null;
         place.destination.after = point.clientX >= rect.left + rect.width / 2;
       }
-      return { action: place, intoBody: false };
+      return { kind: "strip", action: place };
     }
 
     if (active.from !== pane || frame.pane.tabs.length > 1) {
@@ -109,15 +111,15 @@ export function useProblemTabDrag(frames: ReadonlyMap<PaneId, PaneFrame>,
       for (const edge of ["left", "right", "top", "bottom"] as const) {
         if (distances[edge] >= nearest) continue;
         const action: SplitAction = { type: "split", from: active.from, target: pane, view: active.id, edge };
-        const preview = previewSplit(action);
+        const preview = previewSplit(action, frame.bounds);
         if (!preview) continue;
         nearest = distances[edge];
-        split = { action, bounds: preview };
+        split = { kind: "body", action, bounds: preview };
       }
       if (split) return split;
     }
 
-    return active.from === pane ? undefined : { action: place, intoBody: true };
+    return { kind: "body", bounds: frame.bounds, action: active.from === pane ? undefined : place };
   }
 
   function start(event: PointerEvent<HTMLButtonElement>, from: PaneId, id: string) {
@@ -135,7 +137,9 @@ export function useProblemTabDrag(frames: ReadonlyMap<PaneId, PaneFrame>,
       setDragged(active.id);
     }
     active.latest = { container: event.currentTarget, clientX: event.clientX, clientY: event.clientY };
-    setDrop(locate(event.currentTarget, event, active));
+    const destination = locate(event.currentTarget, event, active);
+    setDrop((previous) => previous?.kind === "body" && destination?.kind === "body" && previous.bounds === destination.bounds
+      ? previous : destination);
   }
 
   function finish(event: PointerEvent<HTMLDivElement>) {
@@ -145,7 +149,7 @@ export function useProblemTabDrag(frames: ReadonlyMap<PaneId, PaneFrame>,
     if (!active.moved) return;
     suppressClick.current = true;
     const destination = locate(event.currentTarget, event, active);
-    if (destination) onDrop(destination.action);
+    if (destination?.action) onDrop(destination.action);
   }
 
   function cancel(event: PointerEvent<HTMLDivElement>) {

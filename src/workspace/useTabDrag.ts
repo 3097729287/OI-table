@@ -2,10 +2,11 @@ import { useLayoutEffect, useRef, useState, type Dispatch, type MouseEvent, type
 import type { LayoutAction, PaneBounds, PaneFrame, PaneId, SplitEdge, TabDestination } from "./layout";
 
 type SplitAction = Extract<LayoutAction, { type: "split" }>;
-type PreviewSplit = (action: SplitAction) => PaneBounds | undefined;
+type PreviewSplit = (action: SplitAction, targetBounds: PaneBounds) => PaneBounds | undefined;
 
 type DragDestination =
-  | { type: "place"; placement: TabDestination; region: "tabs" | "content" }
+  | { type: "place"; placement: TabDestination }
+  | { type: "content"; pane: PaneId }
   | { type: "split"; pane: PaneId; edge: SplitEdge; bounds: PaneBounds };
 
 interface DragPoint {
@@ -60,6 +61,7 @@ function edgeScrollAt(hit: DropHit | null, { clientX, clientY }: DragPoint) {
 function splitAt(
   rect: DOMRect,
   { clientX, clientY }: DragPoint,
+  targetBounds: PaneBounds,
   action: Omit<SplitAction, "edge">,
   previewSplit: PreviewSplit,
 ): Extract<DragDestination, { type: "split" }> | undefined {
@@ -70,7 +72,7 @@ function splitAt(
   let threshold = 0.24;
   for (const edge of ["left", "right", "top", "bottom"] as const) {
     if (distances[edge] < threshold) {
-      const bounds = previewSplit({ ...action, edge });
+      const bounds = previewSplit({ ...action, edge }, targetBounds);
       if (bounds) {
         threshold = distances[edge];
         closest = { type: "split", pane: action.target, edge, bounds };
@@ -98,7 +100,6 @@ function destinationAt(
     const bounds = tab?.getBoundingClientRect();
     return {
       type: "place",
-      region: "tabs",
       placement: {
         pane,
         anchor: tab?.dataset.tabView ?? null,
@@ -108,14 +109,12 @@ function destinationAt(
   }
 
   if (pane !== drag.from || frame.pane.tabs.length > 1) {
-    const split = splitAt(region.getBoundingClientRect(), point, {
+    const split = splitAt(region.getBoundingClientRect(), point, frame.bounds, {
       type: "split", from: drag.from, target: pane, view: drag.view,
     }, previewSplit);
     if (split) return split;
   }
-  return pane !== drag.from
-    ? { type: "place", region: "content", placement: { pane, anchor: null, after: false } }
-    : null;
+  return { type: "content", pane };
 }
 
 function sameDestination(a: DragDestination | null, b: DragDestination | null) {
@@ -124,8 +123,9 @@ function sameDestination(a: DragDestination | null, b: DragDestination | null) {
     return a.pane === b.pane && a.edge === b.edge && a.bounds.x === b.bounds.x && a.bounds.y === b.bounds.y &&
       a.bounds.width === b.bounds.width && a.bounds.height === b.bounds.height;
   }
+  if (a.type === "content" && b.type === "content") return a.pane === b.pane;
   if (a.type !== "place" || b.type !== "place") return false;
-  return a.region === b.region && a.placement.pane === b.placement.pane &&
+  return a.placement.pane === b.placement.pane &&
     a.placement.anchor === b.placement.anchor && a.placement.after === b.placement.after;
 }
 
@@ -245,6 +245,9 @@ export function useTabDrag(dispatch: Dispatch<LayoutAction>, frames: Map<PaneId,
       dispatch({ type: "split", from: drag.from, target: target.pane, view: drag.view, edge: target.edge });
     } else if (target?.type === "place") {
       dispatch({ type: "place", from: drag.from, view: drag.view, destination: target.placement });
+    } else if (target?.type === "content" && target.pane !== drag.from) {
+      dispatch({ type: "place", from: drag.from, view: drag.view,
+        destination: { pane: target.pane, anchor: null, after: false } });
     }
   }
 
