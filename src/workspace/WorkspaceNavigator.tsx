@@ -34,6 +34,10 @@ export function WorkspaceNavigator({ showDebug, onShowDebug, onOpen, debug, debu
               aria-controls="workspace-sidebar" aria-pressed={sidebar.visible && section === id}
               onClick={() => {
                 const selected = id as WorkspaceSection;
+                if (sidebar.visible && section === selected) {
+                  sidebar.toggle();
+                  return;
+                }
                 if (selected !== "debug") setMenuSection(selected);
                 onShowDebug(selected === "debug");
                 sidebar.show();

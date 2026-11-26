@@ -28,6 +28,10 @@ export function WindowShell() {
   const Page = currentWindow?.Page;
   const startupSettled = configuration !== undefined && (settings !== undefined || loadFailed);
 
+  function toggleSidebar() {
+    setSidebarVisible((visible) => !visible);
+  }
+
   useLayoutEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
@@ -127,7 +131,7 @@ export function WindowShell() {
           title={currentWindow?.title ?? "OI-table"}
           sidebar={isMainWindow ? {
             visible: sidebarVisible,
-            toggle: () => setSidebarVisible((visible) => !visible),
+            toggle: toggleSidebar,
           } : undefined}
           feedback={windowClosing ? {
             state: "loading",
@@ -142,7 +146,7 @@ export function WindowShell() {
         />
         <ScrollArea className="window-content" inert={windowClosing}>
           {Page ? (
-            <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true) }}>
+            <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true), toggle: toggleSidebar }}>
               <Page />
             </WorkspaceSidebar.Provider>
           ) : (
