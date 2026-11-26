@@ -36,7 +36,7 @@ const RULES: &[(&str, Rule)] = &[
         THEME_KEY,
         Rule::Choice {
             default: "system",
-            alternatives: &[&["light", "dark"]],
+            alternatives: &[&["light", "dark", "mint"]],
         },
     ),
     (
@@ -256,13 +256,13 @@ mod tests {
         )?;
         save_settings(
             &storage,
-            serde_json::from_value(json!({ "theme": "light", "uiFontSize": 18 }))?,
+            serde_json::from_value(json!({ "theme": "mint", "uiFontSize": 18 }))?,
             |log_limit| assert_eq!(log_limit, None),
         )?;
 
         let reopened = Storage::new(directory.path().to_owned());
         let settings = read_settings(&reopened, Some("dark".into()), || unreachable!())?;
-        assert_eq!(settings[THEME_KEY], "light");
+        assert_eq!(settings[THEME_KEY], "mint");
         assert_eq!(settings["uiLanguage"], "zh-CN");
         assert_eq!(settings["uiFont"], "monospace");
         assert_eq!(settings["editorFont"], "monospace");

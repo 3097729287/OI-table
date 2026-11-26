@@ -47,7 +47,7 @@
 
 ## 主题配色与自定义
 
-应用的主题颜色在窗口入口统一加载。默认值和派生色集中定义在全局 `:root`，组件通过 CSS 变量取色。窗口把「跟随系统 / 浅色 / 深色」写入根元素的 `data-theme`，由 `color-scheme` 选择 `light-dark()` 对应的颜色。 [全局配色](../src/theme/colors.css)
+应用的浅色和深色基础值、派生色一起定义在全局 `:root`，组件通过 CSS 变量取色。窗口将主题写到根元素的 `data-theme`。浅色和深色选项固定 `color-scheme`，跟随系统与薄荷绿按系统模式选择 `light-dark()` 中的对应值。 [全局配色](../src/theme/colors.css)
 
 | 区域 | 颜色变量 | 使用位置 |
 | --- | --- | --- |
@@ -64,18 +64,20 @@
 | 滚动条与高对比度 | `--scrollbar-thumb-*`、`--system-*` | 普通、悬停和拖动滑块，以及系统强制配色时的滑块、收藏复选框和焦点 |
 | 首页插画 | `--workbench-empty-image-filter`、`--workbench-empty-image-dark-filter` | 工作台空页插画的主题滤镜。插画和应用图标各自保留素材配色 |
 
-增加主题时，在全局配色文件中为新 `data-theme` 声明 `color-scheme` 和需要覆盖的变量，再将主题名接入设置。组件里的状态选择器只负责切换所用的语义变量。普通图标使用 `currentColor`，随所在控件的文字色变化。
+修改所有主题共用的基础色时，编辑 `colors.css` 中相应的 `light-dark(浅色值, 深色值)` 或派生变量。增加主题时，单独建一个 CSS 文件，用 `:root[data-theme="主题 ID"]` 覆盖需要变化的变量，并在主入口按基础配色、主题覆盖的顺序导入。需要跟随系统的主题继承基础文件的 `color-scheme: light dark`。 [全局配色](../src/theme/colors.css) · [窗口入口](../src/main.tsx)
+
+设置中可选的主题还需登记主题 ID 和中英文名称，并加入设置保存时允许的值。组件里的状态选择器负责切换语义变量，普通图标随所在控件的文字色变化。 [主题选项](../src/features/settings/appearance/section.tsx) · [可选值](../src/shared/settings.ts) · [设置校验](../src-tauri/src/settings.rs)
 
 输入框和下拉按钮的尺寸由 `--control-width` 与 `--control-height` 管理，默认宽 160px、高 36px。自绘滚动条的滑块为 2px，上下或左右各加 3px 操作区域。 [基础样式](../src/app.css) · [滚动条样式](../src/shared/ui/scrollbar.css)
 
 每层内容明确一个实际滚动视口。题目面板外壳负责裁切，题面、编辑器和运行结果各自负责内容滚动。长代码块和表格可以拥有独立的横向视口。验收时缩窄窗格并使用长题面、溢出的标签和编辑器弹层，确认滚轮、键盘和自绘滑块仍可操作，实际视口的 `scrollbar-width` 为 `none`。
 
-将侧栏与工作区的蓝色强调改为青绿色时，可以调整全局配色里的两个共享变量。 [全局配色](../src/theme/colors.css)
+薄荷绿主要覆盖底色、文字、强调色和编辑器选区。按钮悬停、导航指示条和分屏预览等派生色会随基础色计算。下面是主题覆盖的写法。 [薄荷绿配色](../src/theme/mint.css)
 
 ```css
-:root {
+:root[data-theme="mint"] {
   --accent-color: light-dark(#17645b, #86d8c9);
-  --navigation-selected: light-dark(#e0efeb, #293e3b);
+  --navigation-selected: light-dark(#cdebdc, #335448);
 }
 ```
 

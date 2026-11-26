@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./theme/colors.css";
+import "./theme/mint.css";
 import "./app.css";
 import { WindowShell } from "./windowing/WindowShell";
 

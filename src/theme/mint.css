@@ -1,0 +1,14 @@
+:root[data-theme="mint"] {
+  /* 按系统明暗模式选择薄荷绿配色。 */
+  --window-background: light-dark(#f9fdfb, #131f1a);
+  --navigation-background: light-dark(#e3f3eb, #192e26);
+  --sidebar-background: light-dark(#eef8f2, #22382e);
+  --text-color: light-dark(#18382c, #e5f5ec);
+  --muted-color: light-dark(#496b5d, #aacbc0);
+  --accent-color: light-dark(#17645b, #86d8c9);
+  --navigation-hover: light-dark(#dcf0e5, #2a493d);
+  --navigation-selected: light-dark(#cdebdc, #335448);
+  --title-bar-hover: light-dark(#cfeadd, #2d4d41);
+  --code-editor-caret: light-dark(#185b45, #bbf3df);
+  --editor-focused-selection-background: light-dark(#c2e7d5, #395d4f);
+}
