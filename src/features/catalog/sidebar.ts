@@ -1,5 +1,5 @@
 import type { SidebarSection } from "../../workspace/sidebarMenu";
-import { CatalogNavigation } from "./LibraryNavigation";
+import { CatalogNavigation } from "./CatalogNavigation";
 
 export default {
   id: "catalog",

@@ -1,5 +1,5 @@
 import type { SidebarSection } from "../../workspace/sidebarMenu";
-import { ArchiveNavigation } from "../catalog/LibraryNavigation";
+import { ArchiveNavigation } from "./ArchiveNavigation";
 
 export default {
   id: "archive",
