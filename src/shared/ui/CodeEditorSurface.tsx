@@ -6,6 +6,7 @@ import { codeEditorTheme } from "./codeEditorTheme";
 import "./code-editor.css";
 
 export const codeEditorSurfaceExtensions = [
+  EditorView.cspNonce.of(document.head.querySelector<HTMLMetaElement>('meta[name="csp-style-nonce"]')?.nonce ?? ""),
   lineNumbers(), highlightActiveLine(), highlightActiveLineGutter(), drawSelection(), history(), codeEditorTheme,
 ];
 

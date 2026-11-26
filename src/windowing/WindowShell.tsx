@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
+import { scheduleProblemComponentsPreload } from "../features/problem/problemComponents";
 import { useSettings } from "../shared/settings";
 import { getMessages, LocaleContext, useLocale } from "../i18n";
 import { StatusMessage } from "../shared/StatusMessage";
@@ -9,12 +10,13 @@ import { TitleBar } from "./TitleBar";
 import "./window-shell.css";
 
 export function WindowShell() {
-  const { settings } = useSettings();
+  const { settings, loadFailed } = useSettings();
   const locale = useLocale(settings?.uiLanguage);
   const messages = getMessages(locale);
-  const [configurationFailed, setConfigurationFailed] = useState(false);
+  const [configuration, setConfiguration] = useState<"ready" | "failed">();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const Page = currentWindow?.Page;
+  const startupSettled = configuration !== undefined && (settings !== undefined || loadFailed);
 
   useLayoutEffect(() => {
     document.documentElement.lang = locale;
@@ -36,11 +38,16 @@ export function WindowShell() {
 
   useEffect(() => {
     let active = true;
-    void applyMainWindowOptions().catch(() => {
-      if (active) setConfigurationFailed(true);
-    });
+    void applyMainWindowOptions().then(
+      () => { if (active) setConfiguration("ready"); },
+      () => { if (active) setConfiguration("failed"); },
+    );
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (isMainWindow && startupSettled) return scheduleProblemComponentsPreload();
+  }, [startupSettled]);
 
   return (
     <LocaleContext value={locale}>
@@ -51,7 +58,7 @@ export function WindowShell() {
             visible: sidebarVisible,
             toggle: () => setSidebarVisible((visible) => !visible),
           } : undefined}
-          feedback={configurationFailed ? {
+          feedback={configuration === "failed" ? {
             state: "error",
             message: messages.windowConfigurationFailed,
           } : undefined}

@@ -9,7 +9,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMessages } from "../../i18n";
 import { Icon } from "../Icon";
-import { StatusMessage } from "../StatusMessage";
+import { DelayedLoadingMessage, StatusMessage } from "../StatusMessage";
 import { codeLanguageExtensions, codeLanguageNames, syntaxDiagnostics, type CodeLanguage } from "./codeLanguages";
 import { codeSyntaxHighlighting } from "./codeEditorTheme";
 import { breakpointLines, codeEditorBreakpointGutter, codeEditorDebugReadOnly, debugLine as debugLineField,
@@ -223,7 +223,7 @@ export default function CodeEditor({ problemId, onRun, running = false, onDebug,
       <CodeEditorSurface mount={container} editor={mountedEditor}>
         {loadState !== "ready" && (
           <div className="code-editor__draft-load">
-            {loadState === "loading" ? <StatusMessage state="loading">{messages.problemDraftLoading}</StatusMessage> : (
+            {loadState === "loading" ? <DelayedLoadingMessage>{messages.problemDraftLoading}</DelayedLoadingMessage> : (
               <>
                 <StatusMessage state="error">{messages.problemDraftLoadFailed}</StatusMessage>
                 <button type="button" className="ui-field code-editor__draft-retry" onClick={() => {

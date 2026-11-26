@@ -3,7 +3,7 @@ import { useMessages } from "../../i18n";
 import {
   getLibraryProblem, getLibraryRevision, useLibraryRevision, type LibraryProblemDetail,
 } from "../../shared/problemLibrary";
-import { StatusMessage } from "../../shared/StatusMessage";
+import { DelayedLoadingMessage, StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
 import { ProblemDetail } from "./ProblemDetail";
 import "./problem-preview.css";
@@ -54,7 +54,7 @@ export default function ProblemView({ params, title }: WorkspaceViewProps) {
           )}
         </>
       )}
-      {problemId && problem === undefined && <StatusMessage state="loading">{messages.problemLoading}</StatusMessage>}
+      {problemId && problem === undefined && <DelayedLoadingMessage>{messages.problemLoading}</DelayedLoadingMessage>}
     </section>
   );
 }
