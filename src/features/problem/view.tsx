@@ -12,9 +12,6 @@ export const workspaceView = {
   id: "problem",
   title: "problem",
   icon: "problems",
-  section: "catalog",
-  sidebarTitle: false,
-  order: 16,
 } satisfies WorkspaceViewOptions;
 
 export default function ProblemView({ params, title }: WorkspaceViewProps) {

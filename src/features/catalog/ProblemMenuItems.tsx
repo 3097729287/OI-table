@@ -6,8 +6,8 @@ import {
   getLibraryRevision, listLibraryProblems, localizedLibraryText, useLibraryRevision,
   type LibraryProblemPage, type LibraryProblemQuery,
 } from "../../shared/problemLibrary";
+import { problemTarget } from "../../shared/problemTarget";
 import { workspaceTabId, type WorkspaceTarget } from "../../workspace/layout";
-import { problemTarget } from "./navigationTargets";
 
 type ProblemMenuQuery = Pick<LibraryProblemQuery, "libraryId" | "archiveId" | "tagId" | "untagged" | "personal">;
 

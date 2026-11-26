@@ -120,7 +120,7 @@
   "untaggedProblems": "Untagged",
   "libraryNavigationLoading": "Loading…",
   "libraryNavigationLoadFailed": "Could not load. Retry",
-  "libraryNavigationToggle": "Toggle {title}",
+  "sidebarToggleBranch": "Toggle {title}",
   "noEnabledLibraries": "No enabled problem libraries",
   "noLibraryArchives": "No archive folders",
   "moreProblems": "Load more problems",

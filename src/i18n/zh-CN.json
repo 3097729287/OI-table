@@ -120,7 +120,7 @@
   "untaggedProblems": "无标签",
   "libraryNavigationLoading": "正在加载…",
   "libraryNavigationLoadFailed": "加载失败，重试",
-  "libraryNavigationToggle": "展开或折叠{title}",
+  "sidebarToggleBranch": "展开或折叠{title}",
   "noEnabledLibraries": "没有已启用的题库",
   "noLibraryArchives": "没有归档文件夹",
   "moreProblems": "加载更多题目",

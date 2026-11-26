@@ -15,13 +15,13 @@ import {
 } from "./layout";
 import { PaneSeparator } from "./PaneSeparator";
 import { WorkspaceSidebar } from "./sidebar";
+import { workspaceSections } from "./sidebarMenu";
 import { useSidebarResize } from "./useSidebarResize";
 import { useTabDrag } from "./useTabDrag";
 import { workspaceViews, type WorkspaceView } from "./views";
 import { WorkspaceNavigator } from "./WorkspaceNavigator";
 import "./workbench.css";
 
-const viewsById = new Map(workspaceViews.map((view) => [view.id, view]));
 const tabCloseActions: ReadonlyArray<{ scope: TabCloseScope; label: MessageKey }> = [
   { scope: "current", label: "closeTab" },
   { scope: "right", label: "closeTabsToRight" },
@@ -70,7 +70,7 @@ function revealTab(view: string) {
 
 function tabDetails(view: WorkspaceView, target: WorkspaceTarget, messages: ReturnType<typeof useMessages>,
   locale: "en" | "zh-CN") {
-  const variant = view.singleton ? undefined : view.variants?.find(({ params }) =>
+  const variant = view.singleton ? undefined : Object.values(view.variants ?? {}).find(({ params }) =>
     workspaceTabId({ id: view.id, params }) === workspaceTabId(target));
   const title = target.label?.[locale] ?? target.label?.en ?? target.label?.["zh-CN"]
     ?? messages[variant?.title ?? view.title];
@@ -222,7 +222,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
         <div ref={row} className="pane-tab-row" role="presentation">
           {group.tabs.map((id, index) => {
             const target = targets.get(id);
-            const view = target && viewsById.get(target.id);
+            const view = target && workspaceViews.get(target.id);
             if (!target || !view) return null;
             const { title, icon } = tabDetails(view, target, messages, locale);
             const closeLabel = messages.closeView.replace("{title}", () => title);
@@ -279,7 +279,7 @@ export function Workbench() {
   const messages = useMessages();
   const locale = useContext(LocaleContext);
   const [layout, dispatch] = useReducer(workspaceReducer, initialLayout);
-  const [showDebug, setShowDebug] = useState(false);
+  const [sidebarSection, setSidebarSection] = useState<string | undefined>(workspaceSections[0]?.id);
   const [registeredLaunch, setRegisteredLaunch] = useState<{ problemId: string; launch: ProblemDebugLaunch }>();
   const [tabMenu, setTabMenu] = useState<TabMenuAnchor | null>(null);
   const canvas = useRef<HTMLDivElement>(null);
@@ -346,12 +346,13 @@ export function Workbench() {
     };
   }, [frameByView]);
   const debug = useLocalDebug(() => {
-    setShowDebug(true);
+    setSidebarSection("debug");
     sidebar.show();
   }, (problemId) => revealDebugProblem.current(problemId));
+  const debugWorkspace = { ...debug, activeProblemId, registerLaunch, launch };
 
   function openTarget(target: WorkspaceTarget) {
-    const view = viewsById.get(target.id);
+    const view = workspaceViews.get(target.id);
     if (!view) return;
     const id = workspaceTabId(target, view.singleton);
     revealTab(id);
@@ -386,8 +387,9 @@ export function Workbench() {
     <main ref={sidebarResize.workbench} className="workbench"
       data-sidebar-resizing={sidebarResize.resizing}
       style={{ "--sidebar-width": `${sidebar.visible ? sidebarResize.width : 0}px` } as CSSProperties}>
-      <WorkspaceNavigator showDebug={showDebug} onShowDebug={setShowDebug} onOpen={openTarget}
-        debug={debug.state} debugLaunch={launch} />
+      <ProblemDebugContext value={debugWorkspace}>
+        <WorkspaceNavigator sectionId={sidebarSection} onSelectSection={setSidebarSection} onOpen={openTarget} />
+      </ProblemDebugContext>
       {sidebar.visible && (
         <div className="workbench-sidebar-resizer" role="separator" tabIndex={0}
           aria-orientation="vertical" aria-controls="workspace-sidebar" aria-label={messages.resizeSidebar}
@@ -413,7 +415,7 @@ export function Workbench() {
           ))}
           {Array.from(layout.targets, ([id, target]) => {
             const frame = frameByView.get(id);
-            const view = viewsById.get(target.id);
+            const view = workspaceViews.get(target.id);
             if (!frame || !view) return null;
             const { pane } = frame;
             const { Page } = view;
@@ -424,7 +426,7 @@ export function Workbench() {
                   role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                   hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                   onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
-                  <ProblemDebugContext value={{ ...debug, activeProblemId, registerLaunch }}>
+                  <ProblemDebugContext value={debugWorkspace}>
                     <Page {...target} title={tabDetails(view, target, messages, locale).title} open={openTarget} />
                   </ProblemDebugContext>
                 </ScrollArea>

@@ -1,29 +1,27 @@
 import { useMessages } from "../../i18n";
+import { ProblemListPage, type ProblemListFilters } from "../../shared/ProblemListPage";
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
-import { ProblemListView } from "../catalog/ProblemListView";
 
 export const workspaceView = {
   id: "archive",
   title: "archive",
   icon: "archive",
-  section: "archive",
-  sidebarTitle: false,
-  sidebarGroups: [{ id: "all-archives", title: "allArchives" }],
-  variants: [
-    { params: { filter: "contests" }, title: "contestArchives" },
-    { params: { filter: "libraries" }, title: "libraryArchives" },
-  ],
-  order: 30,
+  variants: {
+    contests: { params: { filter: "contests" }, title: "contestArchives" },
+    libraries: { params: { filter: "libraries" }, title: "libraryArchives" },
+  },
 } satisfies WorkspaceViewOptions;
 
-export default function ArchiveView(props: WorkspaceViewProps) {
+const libraryArchiveFilters: ProblemListFilters = {};
+
+export default function ArchiveView({ params, title, open }: WorkspaceViewProps) {
   const messages = useMessages();
-  if (props.params.filter === "libraries") return <ProblemListView {...props} />;
+  if (params.filter === "libraries") return <ProblemListPage title={title} open={open} filters={libraryArchiveFilters} />;
 
   return (
     <section className="workspace workbench-page">
-      <h1>{props.title}</h1>
+      <h1>{title}</h1>
       <StatusMessage state="empty">{messages.emptyWorkspace}</StatusMessage>
     </section>
   );

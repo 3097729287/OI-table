@@ -14,7 +14,7 @@ export type SettingsSectionProps = Pick<ReturnType<typeof useSettingsForm>, "sav
   settings: AppSettings;
 };
 
-type SettingsGroup = WorkspaceViewVariant & { params: { group: string } } &
+type SettingsVariant = WorkspaceViewVariant & { params: { group: string } } &
   ({ Section: ComponentType<SettingsSectionProps> } | { Page: ComponentType });
 
 const AboutSection = lazy(() => import("./about/section"));
@@ -23,42 +23,37 @@ export const workspaceView = {
   id: "settings",
   title: "settings",
   icon: "settings",
-  section: "settings",
-  order: 60,
   singleton: true,
-  sidebarTitle: false,
-  sidebarGroups: [{ id: "settings", title: "settings" }],
-  variants: [
-    { params: { group: "appearance" }, title: "appearance", icon: "settings", Section: AppearanceSection },
-    { params: { group: "editor" }, title: "editor", icon: "editor", Section: EditorSection },
-    { params: { group: "run-debug" }, title: "runAndDebug", icon: "run", Section: RunDebugSection },
-    { params: { group: "diagnostics" }, title: "dataAndDiagnostics", icon: "submissions", Section: DiagnosticsSection },
-    { params: { group: "about" }, title: "about", icon: "catalog", Page: AboutSection,
-      sidebarGroups: [{ id: "other", title: "settingsOther" }] },
-  ],
-} satisfies WorkspaceViewOptions<SettingsGroup>;
+  variants: {
+    appearance: { params: { group: "appearance" }, title: "appearance", icon: "settings", Section: AppearanceSection },
+    editor: { params: { group: "editor" }, title: "editor", icon: "editor", Section: EditorSection },
+    runDebug: { params: { group: "run-debug" }, title: "runAndDebug", icon: "run", Section: RunDebugSection },
+    diagnostics: { params: { group: "diagnostics" }, title: "dataAndDiagnostics", icon: "submissions", Section: DiagnosticsSection },
+    about: { params: { group: "about" }, title: "about", icon: "catalog", Page: AboutSection },
+  },
+} satisfies WorkspaceViewOptions<SettingsVariant>;
 
 export default function SettingsView({ params }: WorkspaceViewProps) {
   const messages = useMessages();
   const form = useSettingsForm();
   const { settings, saving, saveChanges } = form;
-  const groups = workspaceView.variants;
-  const group = groups.find((entry) => entry.params.group === params.group) ?? groups[0];
-  if (group.Page) {
-    const Page = group.Page;
+  const { variants } = workspaceView;
+  const variant = Object.values(variants).find((entry) => entry.params.group === params.group) ?? variants.appearance;
+  if ("Page" in variant) {
+    const Page = variant.Page;
     return (
-      <SettingsPage title={messages[group.title]}>
+      <SettingsPage title={messages[variant.title]}>
         <Suspense fallback={<DelayedLoadingMessage>{messages.settingsLoading}</DelayedLoadingMessage>}>
           <Page />
         </Suspense>
       </SettingsPage>
     );
   }
-  const { Section, title } = group;
+  const { Section, title } = variant;
 
   return (
     <SettingsPage title={messages[title]} form={form}>
-      {settings && <Section key={group.params.group} settings={settings} saving={saving} saveChanges={saveChanges} />}
+      {settings && <Section key={variant.params.group} settings={settings} saving={saving} saveChanges={saveChanges} />}
     </SettingsPage>
   );
 }
