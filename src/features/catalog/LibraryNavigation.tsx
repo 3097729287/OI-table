@@ -204,23 +204,28 @@ async function listEnabledLibraries() {
   return (await listProblemLibraries()).filter((library) => library.status === "enabled");
 }
 
-export function ArchiveNavigation(navigation: NavigationProps) {
+export function ArchiveNavigation({ depth, title, target, ...navigation }: NavigationProps & {
+  depth: number;
+  title: string;
+  target: WorkspaceTarget;
+}) {
   const messages = useMessages();
   const [expanded, setExpanded] = useState(false);
   const listId = useId();
-  const libraries = useNavigationRows(listEnabledLibraries, expanded);
+  const libraryArchives = target.params.filter === "libraries";
+  const libraries = useNavigationRows(listEnabledLibraries, libraryArchives && expanded);
+  const childDepth = depth + 1;
 
   return (
     <li>
-      <button type="button" aria-expanded={expanded} aria-controls={listId}
-        title={messages.libraryArchives} onClick={() => setExpanded((open) => !open)}>
-        <Icon name="chevronRight" size={15} />
-        <span className="workbench-sidebar__label">{messages.libraryArchives}</span>
-      </button>
-      <SidebarDisclosure id={listId} expanded={expanded} loading={libraries.loading}>
-        <ul className="workbench-sidebar__items" style={menuIndent(1)}>
-          <NavigationResults {...libraries} empty={messages.noEnabledLibraries}
-            render={(library) => <ArchiveBranch {...navigation} key={library.id} library={library} depth={1} />} />
+      <BranchRow {...navigation} title={title} target={target} expanded={expanded}
+        listId={listId} onToggle={() => setExpanded((open) => !open)} />
+      <SidebarDisclosure id={listId} expanded={expanded} loading={libraryArchives && libraries.loading}>
+        <ul className="workbench-sidebar__items" style={menuIndent(childDepth)}>
+          {libraryArchives ? (
+            <NavigationResults {...libraries} empty={messages.noEnabledLibraries}
+              render={(library) => <ArchiveBranch {...navigation} key={library.id} library={library} depth={childDepth} />} />
+          ) : <li className="library-navigation__status">{messages.emptyWorkspace}</li>}
         </ul>
       </SidebarDisclosure>
     </li>

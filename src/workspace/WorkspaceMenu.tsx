@@ -94,6 +94,10 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
           if (item.id === "favorites") {
             return <FavoritesNavigation key={item.id} onOpen={openEntry} selectedEntry={selectedEntry} />;
           }
+          if (item.target.id === "archive") {
+            return <ArchiveNavigation key={item.id} title={title} target={item.target} depth={depth}
+              onOpen={openEntry} selectedEntry={selectedEntry} />;
+          }
 
           return (
             <li key={item.id}>
@@ -105,8 +109,6 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
             </li>
           );
         })}
-        {depth === 0 && section === "archive" &&
-          <ArchiveNavigation onOpen={openEntry} selectedEntry={selectedEntry} />}
       </ul>
     );
   }
