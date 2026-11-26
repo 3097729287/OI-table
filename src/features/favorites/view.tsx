@@ -8,6 +8,7 @@ export const workspaceView = {
   icon: "favorites",
   section: "favorites",
   sidebarTitle: "allFavorites",
+  sidebarGroups: [{ id: "favorites", title: "favorites" }],
   order: 40,
 } satisfies WorkspaceViewOptions;
 
