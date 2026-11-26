@@ -391,6 +391,7 @@ pub(super) fn variable(
         r#type: kind.chars().take(160).collect(),
         reference,
         group: None,
+        previous: None,
     }
 }
 

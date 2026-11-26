@@ -17,6 +17,7 @@ export interface DebugVariable {
   type: string;
   reference?: number;
   group?: "special" | "function" | "class";
+  previous?: { value: string; type: string };
 }
 
 interface DebugFrameVariables {

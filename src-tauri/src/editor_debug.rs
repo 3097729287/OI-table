@@ -18,6 +18,7 @@ use crate::editor_run::{hidden_command, stop_child, EditorLanguage};
 
 mod cpp;
 mod python;
+mod variable_history;
 
 const MAX_DRAFT_BYTES: usize = 256 * 1024;
 const MAX_OUTPUT_BYTES: u64 = 256 * 1024;
@@ -148,14 +149,14 @@ enum DebugAction {
     StepOut,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 struct DebugFrame {
     id: u32,
     name: String,
     line: u32,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct DebugVariable {
     name: String,
     value: String,
@@ -164,9 +165,17 @@ pub(crate) struct DebugVariable {
     reference: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     group: Option<DebugVariableGroup>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    previous: Option<DebugVariableValue>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
+struct DebugVariableValue {
+    value: String,
+    r#type: String,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum DebugVariableGroup {
     Special,
@@ -566,9 +575,19 @@ enum Engine {
     Python(python::Debugger),
 }
 
+impl Engine {
+    fn children(&mut self, reference: u32, active: &ActiveDebug) -> Result<Vec<DebugVariable>> {
+        match self {
+            Self::Cpp(engine) => engine.children(reference, active),
+            Self::Python(engine) => engine.children(reference, active),
+        }
+    }
+}
+
 struct DebugSession {
     engine: Engine,
-    frames: Vec<u32>,
+    frames: Vec<DebugFrame>,
+    variable_history: variable_history::VariableHistory,
     directory: tempfile::TempDir,
 }
 
@@ -599,6 +618,7 @@ impl DebugSession {
         let mut session = Self {
             engine,
             frames: Vec::new(),
+            variable_history: variable_history::VariableHistory::default(),
             directory,
         };
         let snapshot = session.snapshot(request.session_id, location);
@@ -611,8 +631,12 @@ impl DebugSession {
         }
     }
 
-    fn snapshot(&mut self, session_id: u64, location: DebugLocation) -> DebugSnapshot {
-        self.frames = location.frames.iter().map(|frame| frame.id).collect();
+    fn snapshot(&mut self, session_id: u64, mut location: DebugLocation) -> DebugSnapshot {
+        self.frames = location.frames.clone();
+        self.variable_history.show(
+            self.frames.iter().map(|frame| frame.name.clone()).collect(),
+            &mut location.scope,
+        );
         DebugSnapshot {
             session_id,
             location,
@@ -623,6 +647,8 @@ impl DebugSession {
 
     fn step(&mut self, request: &DebugStepRequest, active: &ActiveDebug) -> Result<DebugSnapshot> {
         active.check_cancelled()?;
+        self.variable_history
+            .remember(|reference| self.engine.children(reference, active))?;
         let location = match &mut self.engine {
             Engine::Cpp(engine) => engine.step(request.action, &request.breakpoints, active)?,
             Engine::Python(engine) => engine.step(request.action, &request.breakpoints, active)?,
@@ -633,23 +659,35 @@ impl DebugSession {
 
     fn inspect(&mut self, frame: u32, active: &ActiveDebug) -> Result<DebugFrameVariables> {
         active.check_cancelled()?;
-        if !self.frames.contains(&frame) {
+        let Some(index) = self
+            .frames
+            .iter()
+            .position(|candidate| candidate.id == frame)
+        else {
             return Err(DebugError::invalid(
                 "The requested stack frame is unavailable.",
             ));
-        }
-        match &mut self.engine {
+        };
+        let mut scope = match &mut self.engine {
             Engine::Cpp(engine) => engine.inspect(frame, active),
             Engine::Python(engine) => engine.inspect(frame, active),
-        }
+        }?;
+        self.variable_history.show(
+            self.frames[index..]
+                .iter()
+                .map(|frame| frame.name.clone())
+                .collect(),
+            &mut scope,
+        );
+        Ok(scope)
     }
 
     fn children(&mut self, reference: u32, active: &ActiveDebug) -> Result<Vec<DebugVariable>> {
         active.check_cancelled()?;
-        match &mut self.engine {
-            Engine::Cpp(engine) => engine.children(reference, active),
-            Engine::Python(engine) => engine.children(reference, active),
-        }
+        let mut children = self.engine.children(reference, active)?;
+        self.variable_history
+            .compare_children(reference, &mut children);
+        Ok(children)
     }
 }
 
@@ -891,6 +929,92 @@ mod tests {
             .find(|variable| variable.name == name)
             .and_then(|variable| variable.reference)
             .unwrap()
+    }
+
+    fn check_previously_unopened_variables(
+        language: EditorLanguage,
+        source: &str,
+        pause_line: u32,
+    ) {
+        let active = active();
+        let (mut session, paused) =
+            start_session(request(language, source, &[pause_line]), &active).unwrap();
+        assert_eq!(paused.location.line, Some(pause_line));
+        let snapshot = session
+            .step(
+                &DebugStepRequest {
+                    session_id: active.id,
+                    action: DebugAction::StepOver,
+                    breakpoints: vec![],
+                },
+                &active,
+            )
+            .unwrap();
+        assert_eq!(snapshot.location.line, Some(pause_line + 1));
+        let scope = snapshot.location.scope;
+        let item = session
+            .children(variable_reference(&scope.variables, "item"), &active)
+            .unwrap();
+        let children = session
+            .children(variable_reference(&item, "values"), &active)
+            .unwrap();
+        assert_eq!(children[0].value, "2");
+        assert_eq!(
+            children[0].previous.as_ref().map(|row| row.value.as_str()),
+            Some("1")
+        );
+        assert!(children[1].previous.is_none());
+        let globals = session
+            .children(scope.globals_reference.unwrap(), &active)
+            .unwrap();
+        let shared = session
+            .children(variable_reference(&globals, "shared"), &active)
+            .unwrap();
+        assert_eq!(shared[0].value, "6");
+        assert_eq!(
+            shared[0].previous.as_ref().map(|row| row.value.as_str()),
+            Some("5")
+        );
+    }
+
+    #[test]
+    fn python_compares_children_first_opened_after_stepping() {
+        if find_python().is_none() {
+            return;
+        }
+        check_previously_unopened_variables(
+            EditorLanguage::Python,
+            concat!(
+                "class Box: pass\n",
+                "shared = [5]\n",
+                "def work():\n",
+                "    item = Box()\n",
+                "    item.values = [1, 3]\n",
+                "    item.values[0] = 2; shared[0] = 6\n",
+                "    return item\n",
+                "work()\n",
+            ),
+            6,
+        );
+    }
+
+    #[test]
+    #[ignore = "requires an installed GDB and OS permission to debug a child process"]
+    fn cpp_compares_children_first_opened_after_stepping() {
+        let _gdb = GDB_TEST.lock().unwrap();
+        check_previously_unopened_variables(
+            EditorLanguage::Cpp,
+            concat!(
+                "struct Box { int values[2]; };\n",
+                "int shared[1] = {5};\n",
+                "int main() {\n",
+                "    Box item = {{1, 3}};\n",
+                "    item.values[0] = 2; shared[0] = 6;\n",
+                "    return item.values[0];\n",
+                "}\n",
+            ),
+            5,
+        );
     }
 
     fn inspect_and_run(
