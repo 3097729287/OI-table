@@ -2,6 +2,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useMessages, type MessageKey } from "../../../i18n";
 import { debugTimeoutMessages } from "../../../shared/debugDiagnostics";
+import { Icon, type IconName } from "../../../shared/Icon";
 import { checkRunDebugEnvironment, type RunDebugProgress, type RunDebugReport } from "./runDebugDiagnostics";
 import "./run-debug-settings.css";
 
@@ -34,6 +35,15 @@ const statusLabels = {
   busy: "runDebugBusy",
 } as const satisfies Record<Status, MessageKey>;
 
+const statusIcons = {
+  checking: "spinner",
+  ready: "check",
+  missing: "warning",
+  failed: "close",
+  unchecked: "pending",
+  busy: "pending",
+} as const satisfies Record<Status, IconName>;
+
 interface CheckState {
   report?: RunDebugReport;
   checking?: "detect" | "test";
@@ -60,7 +70,7 @@ function DiagnosticStatus({ status, checked }: { status: Status; checked?: boole
   const message = checked && status === "ready" ? "runDebugPassed" : statusLabels[status];
   return (
     <span className="run-debug-settings__badge" data-status={status} role={checked ? "status" : undefined}>
-      <span className="run-debug-settings__status-icon" aria-hidden="true" />{messages[message]}
+      <Icon name={statusIcons[status]} size={12} />{messages[message]}
     </span>
   );
 }

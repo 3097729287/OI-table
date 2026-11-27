@@ -7,7 +7,7 @@ const AboutSection = lazy(() => import("./section"));
 export const workspaceView = {
   id: "about",
   title: "about",
-  icon: "catalog",
+  icon: "info",
   singleton: true,
 } satisfies WorkspaceViewOptions;
 

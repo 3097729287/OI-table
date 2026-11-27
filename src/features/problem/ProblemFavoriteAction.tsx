@@ -134,7 +134,7 @@ function FavoriteGroups({ popoverId, favoriteIds, loadFailed, pending, saveFaile
       {saveFailed && <StatusMessage state="error">{messages.personalMembershipSaveFailed}</StatusMessage>}
       <footer className="problem-collections-popover__footer">
         <button ref={createButton} type="button" className="problem-collections-popover__create" disabled={!collections || pending}
-          onClick={() => setCreating(true)}><span aria-hidden="true">+</span>{messages.personalCreateFavorite}</button>
+          onClick={() => setCreating(true)}><Icon name="plus" size={14} />{messages.personalCreateFavorite}</button>
       </footer>
     </>
   );

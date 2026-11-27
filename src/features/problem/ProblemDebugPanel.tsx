@@ -1,7 +1,7 @@
 import { useContext, useId } from "react";
 import { useMessages, type MessageKey } from "../../i18n";
 import { debugTimeoutMessages } from "../../shared/debugDiagnostics";
-import { Icon } from "../../shared/Icon";
+import { Icon, type IconName } from "../../shared/Icon";
 import { isDebugActive, ProblemDebugContext, type DebugAction, type LocalDebug, type ProblemDebugLaunch } from "./localDebug";
 import { ProblemDebugVariables } from "./ProblemDebugVariables";
 import "./problem-debug.css";
@@ -33,22 +33,12 @@ const errorLabels: Partial<Record<string, MessageKey>> = {
   output_limit: "problemRunOutputLimit",
 };
 
-const controlPaths = {
-  stepOver: "M3 8a5 5 0 0 1 10 0m-3-2.5L13 8l2-2.5M8 10.5v2",
-  stepInto: "M8 2v8m-3-3 3 3 3-3m-3 5.5v1",
-  stepOut: "M8 10V2m-3 3 3-3 3 3m-3 7.5v1",
-  stop: "M3.5 3.5h9v9h-9z",
-} as const;
-
-function ControlIcon({ action }: { action: DebugAction | "stop" }) {
-  if (action === "continue") return <Icon name="run" size={14} />;
-  return (
-    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"
-      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d={controlPaths[action]} />
-    </svg>
-  );
-}
+const actionIcons = {
+  continue: "run",
+  stepOver: "stepOver",
+  stepInto: "stepInto",
+  stepOut: "stepOut",
+} as const satisfies Record<DebugAction, IconName>;
 
 function sessionStatus(state: LocalDebug, messages: ReturnType<typeof useMessages>) {
   if (state.stopping) return messages.problemDebugStopping;
@@ -110,13 +100,13 @@ export function ProblemDebugPanel() {
               <button key={action} type="button" className="problem-debug__action"
                 aria-label={messages[actionLabels[action]]} title={messages[actionLabels[action]]}
                 aria-disabled={!canInspect || undefined} onClick={() => { if (canInspect) state.action(action); }}>
-                <ControlIcon action={action} />
+                <Icon name={actionIcons[action]} size={14} />
               </button>
             ))}
             <button type="button" className="problem-debug__action problem-debug__action--stop"
               aria-label={messages.problemDebugStop} title={messages.problemDebugStop}
               aria-disabled={stopping || undefined} onClick={() => { if (!stopping) state.action("stop"); }}>
-              <ControlIcon action="stop" />
+              <Icon name="stop" size={14} />
             </button>
           </div>
         ) : (

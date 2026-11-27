@@ -373,10 +373,7 @@ export function ProblemDebugVariables({ variables, globalsReference, revision, s
           toggle={() => { close(); setExpanded(!expanded); }} /></h3>
         <button type="button" className="problem-debug-variable__collapse" title={messages.problemDebugVariableCollapseAll}
           aria-label={messages.problemDebugVariableCollapseAll} onClick={collapseAll}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-            strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M5 3h8v8H5zM3 5v8h8M7.5 7h3" />
-          </svg>
+          <Icon name="collapseAll" size={14} />
         </button>
       </div>
       <div id={controls} className="problem-debug-variable__scopes" hidden={!expanded}>

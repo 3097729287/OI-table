@@ -24,10 +24,10 @@ export const workspaceView = {
   icon: "settings",
   singleton: true,
   variants: {
-    appearance: { params: { group: "appearance" }, title: "appearance", icon: "settings", Section: AppearanceSection },
+    appearance: { params: { group: "appearance" }, title: "appearance", icon: "appearance", Section: AppearanceSection },
     editor: { params: { group: "editor" }, title: "editor", icon: "editor", Section: EditorSection },
     runDebug: { params: { group: "run-debug" }, title: "runAndDebug", icon: "run", Section: RunDebugSection },
-    diagnostics: { params: { group: "diagnostics" }, title: "dataAndDiagnostics", icon: "submissions", Section: DiagnosticsSection },
+    diagnostics: { params: { group: "diagnostics" }, title: "dataAndDiagnostics", icon: "activity", Section: DiagnosticsSection },
   },
 } satisfies WorkspaceViewOptions<SettingsVariant>;
 

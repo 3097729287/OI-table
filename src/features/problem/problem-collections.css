@@ -74,8 +74,7 @@
   background: var(--favorite-row-hover);
 }
 
-.problem-collections-popover__checkbox,
-.problem-collections-popover__create span {
+.problem-collections-popover__checkbox {
   flex: none;
   inline-size: var(--favorite-icon-size);
   block-size: var(--favorite-icon-size);
@@ -186,13 +185,6 @@
 
 .problem-collections-popover__create:enabled:is(:hover, :focus-visible) {
   color: var(--text-color);
-}
-
-.problem-collections-popover__create span {
-  display: grid;
-  place-items: center;
-  font-size: 16px;
-  line-height: 1;
 }
 
 .problem-collections-popover .personal-collection-inline {
