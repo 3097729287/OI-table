@@ -1,46 +1,63 @@
-import { createContext, useContext, useSyncExternalStore } from "react";
-import en from "./en.json";
-import zhCN from "./zh-CN.json";
+import { createInstance } from "i18next";
+import { createElement, type PropsWithChildren } from "react";
+import { I18nextProvider, initReactI18next } from "react-i18next";
+import {
+  fallbackLocale, isLocale, localeCatalogs, supportedLocales,
+  type Locale, type MessageKey,
+} from "./languages";
 
-const catalogs = {
-  en,
-  "zh-CN": zhCN,
-} satisfies Record<string, typeof en>;
+export {
+  fallbackLocale, localizedLabels, localeOptions, resolveLocale, systemLanguage,
+  type Locale, type MessageKey, type UiLanguage,
+} from "./languages";
 
-type Locale = keyof typeof catalogs;
-export type MessageKey = keyof typeof en;
-export const uiLanguages = ["system", "zh-CN", "en"] as const;
-export type UiLanguage = (typeof uiLanguages)[number];
+const resources = Object.fromEntries(Array.from(localeCatalogs, ([locale, { translation }]) => [locale, { translation }]));
+const fallbackLanguages = Object.fromEntries(Array.from(localeCatalogs, ([language, { fallback }]) => {
+  if (language === fallbackLocale) return [language, []];
 
-export function resolveLocale(preferences: readonly string[]): Locale {
-  for (const language of preferences) {
-    const primary = language.toLowerCase().split("-")[0];
-    if (primary === "zh") return "zh-CN";
-    if (primary === "en") return "en";
-  }
-  return "en";
+  const secondary = isLocale(fallback) && fallback !== language && fallback !== fallbackLocale;
+  return [language, secondary ? [fallback, fallbackLocale] : [fallbackLocale]];
+}));
+
+const i18n = createInstance();
+void i18n.use(initReactI18next).init({
+  resources,
+  lng: fallbackLocale,
+  fallbackLng: { ...fallbackLanguages, default: [fallbackLocale] },
+  supportedLngs: supportedLocales,
+  load: "currentOnly",
+  initAsync: false,
+  keySeparator: false,
+  interpolation: { escapeValue: false },
+});
+
+export function I18nProvider({ children }: PropsWithChildren) {
+  return createElement(I18nextProvider, { i18n, children });
 }
 
-function subscribeSystemLocale(notify: () => void) {
-  window.addEventListener("languagechange", notify);
-  return () => window.removeEventListener("languagechange", notify);
+export function changeLocale(next: Locale) {
+  if (i18n.language !== next) void i18n.changeLanguage(next);
 }
 
-function getSystemLocale() {
-  return resolveLocale(navigator.languages);
+function activeLocale(): Locale {
+  const language = i18n.language;
+  return isLocale(language) ? language : fallbackLocale;
 }
 
-export function useLocale(preference: UiLanguage = "system") {
-  const systemLocale = useSyncExternalStore(subscribeSystemLocale, getSystemLocale);
-  return preference === "system" ? systemLocale : preference;
+export let locale = activeLocale();
+
+i18n.on("languageChanged", () => {
+  locale = activeLocale();
+});
+
+export function t(key: MessageKey, values?: Readonly<Record<string, string | number>>, language = locale): string {
+  return i18n.t(key, { lng: language, replace: values });
 }
 
-export const LocaleContext = createContext<Locale>("en");
-
-export function getMessages(locale: Locale) {
-  return catalogs[locale];
+export function formatDateTime(value: Date): string {
+  return i18n.format(value, "datetime", locale, { dateStyle: "medium", timeStyle: "short" });
 }
 
-export function useMessages() {
-  return getMessages(useContext(LocaleContext));
+export function formatNumber(value: number): string {
+  return i18n.format(value, "number", locale);
 }

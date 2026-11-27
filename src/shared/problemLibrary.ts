@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useSyncExternalStore } from "react";
+import { localizedLabels, type Locale } from "../i18n";
 import type { PersonalProblemScope } from "./personalCollections";
 
 export interface LocalizedProblemText {
@@ -7,8 +8,18 @@ export interface LocalizedProblemText {
   en: string | null;
 }
 
-export function localizedLibraryText(text: LocalizedProblemText, locale: "en" | "zh-CN") {
-  return (locale === "zh-CN" ? text.zhCN ?? text.en : text.en ?? text.zhCN) ?? "";
+export type ProblemContentLocale = "zh-CN" | "en";
+
+export function problemContentLocale(locale: Locale | ProblemContentLocale): ProblemContentLocale {
+  return locale.split("-")[0] === "zh" ? "zh-CN" : "en";
+}
+
+export function localizedLibraryText(text: LocalizedProblemText, locale: Locale | ProblemContentLocale) {
+  return (problemContentLocale(locale) === "zh-CN" ? text.zhCN ?? text.en : text.en ?? text.zhCN) ?? "";
+}
+
+export function libraryTextLabels(text: LocalizedProblemText) {
+  return localizedLabels((locale) => (problemContentLocale(locale) === "zh-CN" ? text.zhCN : text.en) ?? undefined);
 }
 
 let libraryRevision = 0;

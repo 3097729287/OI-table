@@ -31,9 +31,8 @@
   --split-preview-background: color-mix(in srgb, var(--accent-color) 14%, transparent);
   --problem-toolbar-background: color-mix(in srgb, var(--sidebar-background) 62%, var(--window-background));
 
-  /* 工作台空页插画的明暗滤镜 */
-  --workbench-empty-image-filter: none;
-  --workbench-empty-image-dark-filter: brightness(0.86) saturate(0.9);
+  /* 工作台空页的软件图标剪影 */
+  --workbench-empty-mark-color: color-mix(in srgb, var(--muted-color) 21%, transparent);
 
   /* 滚动条各状态与系统高对比度颜色 */
   --scrollbar-thumb-color: color-mix(in srgb, var(--muted-color) 44%, transparent);
@@ -102,16 +101,8 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --workbench-empty-image-filter: none;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --workbench-empty-image-filter: var(--workbench-empty-image-dark-filter);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --workbench-empty-image-filter: var(--workbench-empty-image-dark-filter);
-  }
 }

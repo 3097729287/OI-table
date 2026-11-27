@@ -2,9 +2,9 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useMessages } from "../../i18n";
-import { Icon } from "../../shared/Icon";
-import { pickProblemLibrarySource, type ProblemLibrarySource } from "../../shared/problemLibrary";
+import { t } from "../../../../i18n";
+import { Icon } from "../../../../shared/Icon";
+import { pickProblemLibrarySource, type ProblemLibrarySource } from "../../../../shared/problemLibrary";
 import { ErrorDetails, operationError } from "./feedback";
 
 interface LibraryImportDialogProps {
@@ -13,7 +13,6 @@ interface LibraryImportDialogProps {
 }
 
 export function LibraryImportDialog({ onClose, onImport }: LibraryImportDialogProps) {
-  const messages = useMessages();
   const titleId = useId();
   const descriptionId = useId();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -82,7 +81,7 @@ export function LibraryImportDialog({ onClose, onImport }: LibraryImportDialogPr
   function pick(source: ProblemLibrarySource) {
     void run("pick", async () => {
       if (!isTauri()) throw { code: "native_picker_unavailable" };
-      const title = source === "directory" ? messages.libraryManagementPickerTitle : messages.libraryManagementZipPickerTitle;
+      const title = source === "directory" ? t("libraryManagementPickerTitle") : t("libraryManagementZipPickerTitle");
       const picked = await pickProblemLibrarySource(source, title);
       if (picked !== null) {
         setPath(picked);
@@ -110,8 +109,8 @@ export function LibraryImportDialog({ onClose, onImport }: LibraryImportDialogPr
         if (path) void run("import", () => onImport(path));
       }}>
         <header className="library-management__dialog-header">
-          <h2 id={titleId}>{messages.libraryManagementImport}</h2>
-          <button type="button" className="library-management__dialog-close" aria-label={messages.close}
+          <h2 id={titleId}>{t("libraryManagementImport")}</h2>
+          <button type="button" className="library-management__dialog-close" aria-label={t("close")}
             aria-disabled={busy || undefined} onClick={close}>
             <Icon name="close" size={14} />
           </button>
@@ -122,38 +121,38 @@ export function LibraryImportDialog({ onClose, onImport }: LibraryImportDialogPr
             <div className="library-management__drop-content">
               <div aria-live="polite">
                 <p className="library-management__drop-title" title={path}>
-                  {path ? fileName : messages.libraryManagementDropPrompt}
+                  {path ? fileName : t("libraryManagementDropPrompt")}
                 </p>
                 <p id={descriptionId} className="library-management__drop-description">
-                  {importing ? messages.libraryManagementInstalling
-                    : path ? messages.libraryManagementSourceReady : messages.libraryManagementDropDescription}
+                  {importing ? t("libraryManagementInstalling")
+                    : path ? t("libraryManagementSourceReady") : t("libraryManagementDropDescription")}
                 </p>
               </div>
               <div className="library-management__source-actions">
                 <button type="button" className="ui-field library-management__button" aria-disabled={busy || undefined}
                   onClick={() => pick("directory")}>
-                  <Icon name="catalog" />{messages.libraryManagementChoosePackage}
+                  <Icon name="catalog" />{t("libraryManagementChoosePackage")}
                 </button>
                 <button type="button" className="ui-field library-management__button" aria-disabled={busy || undefined}
                   onClick={() => pick("zip")}>
-                  <Icon name="archive" />{messages.libraryManagementChooseZip}
+                  <Icon name="archive" />{t("libraryManagementChooseZip")}
                 </button>
               </div>
             </div>
           </div>
           {error && (
             <div className="library-management__dialog-error" data-retrying={importing}>
-              <p role={importing ? undefined : "alert"}>{messages[error.title]}</p>
+              <p role={importing ? undefined : "alert"}>{t(error.title)}</p>
               {error.detail && <ErrorDetails detail={error.detail} />}
             </div>
           )}
         </div>
         <footer className="library-management__dialog-footer">
           <button type="button" className="ui-field library-management__button" data-variant="quiet"
-            aria-disabled={busy || undefined} onClick={close}>{messages.libraryManagementCancel}</button>
+            aria-disabled={busy || undefined} onClick={close}>{t("libraryManagementCancel")}</button>
           <button type="submit" className="ui-field library-management__button" data-variant="primary"
             disabled={!path} aria-disabled={busy || undefined} aria-busy={importing || undefined}>
-            {messages.libraryManagementImportConfirm}
+            {t("libraryManagementImportConfirm")}
           </button>
         </footer>
       </form>

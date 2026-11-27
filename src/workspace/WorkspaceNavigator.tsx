@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { useMessages } from "../i18n";
+import { t } from "../i18n";
 import { Icon } from "../shared/Icon";
 import { ScrollArea } from "../shared/ui/ScrollArea";
 import type { WorkspaceTarget } from "./layout";
@@ -14,7 +14,6 @@ export function WorkspaceNavigator({ sectionId, onSelectSection, onOpen }: {
   onSelectSection: (id: string) => void;
   onOpen: (target: WorkspaceTarget) => void;
 }) {
-  const messages = useMessages();
   const sidebar = useContext(WorkspaceSidebar);
   const [visitedSections, setVisitedSections] = useState(() => sectionId ? [sectionId] : []);
   if (sectionId && !visitedSections.includes(sectionId)) setVisitedSections([...visitedSections, sectionId]);
@@ -22,9 +21,9 @@ export function WorkspaceNavigator({ sectionId, onSelectSection, onOpen }: {
   return (
     <>
       <ScrollArea as="aside" className="workspace-rail" orientation="vertical">
-        <nav aria-label={messages.workspaceCategories}>
+        <nav aria-label={t("workspaceCategories")}>
           {workspaceSections.map(({ id, title, icon }) => (
-            <button key={id} type="button" title={messages[title]} aria-label={messages[title]}
+            <button key={id} type="button" title={t(title)} aria-label={t(title)}
               aria-controls="workspace-sidebar" aria-pressed={sidebar.visible && sectionId === id}
               onClick={() => {
                 if (sidebar.visible && sectionId === id) {

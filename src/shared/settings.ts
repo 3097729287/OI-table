@@ -2,8 +2,8 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type { UiLanguage } from "../i18n";
-import { defaultCodeLanguage, type CodeLanguage } from "./codeLanguages";
-import { defaultEditorFont, type FontPreset } from "./fonts";
+import type { CodeLanguage } from "./codeLanguages";
+import type { FontPreset } from "./fonts";
 
 const legacyThemeKey = "oi-table.theme";
 const settingsChanged = "oi-table:settings-changed";
@@ -64,21 +64,7 @@ async function refreshSettings(legacyTheme?: Theme): Promise<boolean> {
 
 async function initializeSettings() {
   if (!isTauri()) {
-    publish({
-      settings: {
-        theme: "system",
-        uiLanguage: "system",
-        uiFont: "system",
-        uiFontSize: 16,
-        editorDefaultLanguage: defaultCodeLanguage,
-        editorFont: defaultEditorFont,
-        editorFontSizeMode: "custom",
-        editorFontSize: 13,
-        problemDoubleColumn: false,
-        logMaxSizeMib: 5,
-      },
-      loadFailed: false,
-    });
+    publish({ loadFailed: true });
     return;
   }
 

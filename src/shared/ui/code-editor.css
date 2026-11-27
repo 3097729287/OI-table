@@ -107,7 +107,7 @@
   inline-size: var(--debug-arrow-size);
   block-size: var(--debug-arrow-size);
   background: var(--debug-position-color);
-  clip-path: polygon(0 27%, 48% 27%, 48% 0, 100% 50%, 48% 100%, 48% 73%, 0 73%);
+  mask: url("../icons/execution-pointer.svg?no-inline") center / contain no-repeat;
   transform: translateY(-50%);
 }
 

@@ -4,4 +4,3 @@ export const codeLanguageOptions = [
 ] as const;
 
 export type CodeLanguage = (typeof codeLanguageOptions)[number]["value"];
-export const defaultCodeLanguage: CodeLanguage = "cpp";

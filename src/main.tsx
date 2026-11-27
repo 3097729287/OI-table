@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { I18nProvider } from "./i18n";
 import "./theme/colors.css";
 import "./theme/mint.css";
 import "./theme/lavender.css";
@@ -16,6 +17,8 @@ document.addEventListener("keydown", (event) => {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <WindowShell />
+    <I18nProvider>
+      <WindowShell />
+    </I18nProvider>
   </StrictMode>,
 );

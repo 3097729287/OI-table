@@ -1,5 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect x="32" y="32" width="448" height="448" rx="96" fill="#1e355a"/>
-  <rect x="120" y="135" width="272" height="242" rx="24" fill="none" stroke="#d8e9ff" stroke-width="20"/>
-  <path d="M120 211h272M120 294h272M210 211v166M302 211v166" fill="none" stroke="#d8e9ff" stroke-width="14"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="3.3 3.3 57.4 57.4">
+  <title>OI-table</title>
+  <defs>
+    <path id="facet" d="
+      M6 27.8 10.7 13
+      C11.3 10.9 12.9 9.4 15.2 9
+      L38.2 5 Q41.8 4.4 43.8 6.9
+      L57.4 21.3 C59.3 23.3 58.3 25.7 55.9 26.1
+      L46.7 27.8 C42 28.6 38.8 26.9 36.3 23.1
+      L32.1 15.8 C30.4 24.2 25.5 28.8 17.4 30.2
+      L9.4 31.6 C6.8 32 5.1 30.3 6 27.8Z"/>
+  </defs>
+  <g transform="rotate(-22 32 32)">
+    <use href="#facet" fill="#5267cb"/>
+    <use href="#facet" fill="#398ba5" transform="rotate(180 32 32)"/>
+  </g>
 </svg>

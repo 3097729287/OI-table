@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useMessages } from "../i18n";
+import { t } from "../i18n";
 
 interface SidebarDisclosureProps {
   id: string;
@@ -9,7 +9,6 @@ interface SidebarDisclosureProps {
 }
 
 export function SidebarDisclosure({ id, expanded, loading = false, children }: SidebarDisclosureProps) {
-  const messages = useMessages();
   const [hasExpanded, setHasExpanded] = useState(expanded);
   if (expanded && !hasExpanded) setHasExpanded(true);
 
@@ -25,7 +24,7 @@ export function SidebarDisclosure({ id, expanded, loading = false, children }: S
         </div>
       </div>
       <span className="workbench-sidebar__disclosure-status" role="status">
-        {busy ? messages.libraryNavigationLoading : null}
+        {busy ? t("libraryNavigationLoading") : null}
       </span>
     </>
   );

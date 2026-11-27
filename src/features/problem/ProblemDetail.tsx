@@ -1,10 +1,10 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { Suspense, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { LocaleContext, useMessages } from "../../i18n";
-import { defaultCodeLanguage, type CodeLanguage } from "../../shared/codeLanguages";
+import { locale as interfaceLocale, t } from "../../i18n";
+import type { CodeLanguage } from "../../shared/codeLanguages";
 import { Icon } from "../../shared/Icon";
-import { localizedLibraryText, type LibraryProblemDetail, type LocalizedProblemText } from "../../shared/problemLibrary";
-import { useSettings } from "../../shared/settings";
+import { localizedLibraryText, problemContentLocale, type LibraryProblemDetail, type LocalizedProblemText, type ProblemContentLocale as ContentLocale } from "../../shared/problemLibrary";
+import type { AppSettings } from "../../shared/settings";
 import { DelayedLoadingMessage, StatusMessage } from "../../shared/StatusMessage";
 import type { ProblemMarkdownSampleActions } from "../../shared/ui/MarkdownViewer";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
@@ -18,7 +18,6 @@ import { ProblemRunResults, type ProblemRunResult } from "./ProblemRunPanels";
 import { ProblemSubmissions } from "./ProblemSubmissions";
 import { ProblemWorkspace, type ProblemWorkspaceTab, type ProblemWorkspaceTabId } from "./ProblemWorkspace";
 
-type ContentLocale = "zh-CN" | "en";
 type LanguagePreference = ContentLocale | "interface";
 
 const languageNames = { "zh-CN": "简体中文", en: "English" } as const;
@@ -58,18 +57,17 @@ function ContentMarkdown({ content, preferred, empty, sampleActions }: {
   empty: string;
   sampleActions?: ProblemMarkdownSampleActions;
 }) {
-  const messages = useMessages();
   if (!content.value) return <StatusMessage state="empty">{empty}</StatusMessage>;
 
   return (
     <>
       {content.locale !== preferred && (
         <p className="problem-detail__translation" role="status">
-          {messages.problemTranslationFallback.replace("{language}", languageNames[content.locale])}
+          {t("problemTranslationFallback", { language: languageNames[content.locale] })}
         </p>
       )}
       <div lang={content.locale}>
-        <Suspense fallback={<DelayedLoadingMessage>{messages.problemLoading}</DelayedLoadingMessage>}>
+        <Suspense fallback={<DelayedLoadingMessage>{t("problemLoading")}</DelayedLoadingMessage>}>
           <MarkdownViewer source={content.value} sampleActions={sampleActions} />
         </Suspense>
       </div>
@@ -81,23 +79,22 @@ function Solutions({ solutions, locale }: {
   solutions: LibraryProblemDetail["solutions"];
   locale: ContentLocale;
 }) {
-  const messages = useMessages();
   const [solutionId, setSolutionId] = useState<string>();
   const selected = solutions.find(({ id }) => id === solutionId) ?? solutions[0];
 
-  if (!selected) return <StatusMessage state="empty">{messages.problemSolutionsEmpty}</StatusMessage>;
+  if (!selected) return <StatusMessage state="empty">{t("problemSolutionsEmpty")}</StatusMessage>;
 
   const body = readTranslation(selected.body, locale);
   return (
     <div className="problem-detail__solution">
       {solutions.length > 1 ? (
-        <Select aria-label={messages.problemChooseSolution} className="ui-select--quiet problem-detail__solution-select"
+        <Select aria-label={t("problemChooseSolution")} className="ui-select--quiet problem-detail__solution-select"
           value={selected.id} onValueChange={setSolutionId}
           options={solutions.map(({ id, title, body }) => ({
             value: id, label: localizedLibraryText(title, readTranslation(body, locale).locale) || id,
           }))} />
       ) : <h2 lang={body.locale} data-selectable>{localizedLibraryText(selected.title, body.locale) || selected.id}</h2>}
-      <ContentMarkdown content={body} preferred={locale} empty={messages.problemSolutionEmpty} />
+      <ContentMarkdown content={body} preferred={locale} empty={t("problemSolutionEmpty")} />
     </div>
   );
 }
@@ -115,7 +112,6 @@ function ProblemStatement({ problem, locale, fallbackTitle, sampleActions }: {
   fallbackTitle: string;
   sampleActions: ProblemMarkdownSampleActions;
 }) {
-  const messages = useMessages();
   const statement = readTranslation(problem.statement, locale);
   const heading = readTranslation(problem.title, statement.locale);
   const title = heading.value || fallbackTitle;
@@ -129,25 +125,26 @@ function ProblemStatement({ problem, locale, fallbackTitle, sampleActions }: {
         {(problem.rating !== null || problem.tags.length > 0) && (
           <div className="problem-detail__metadata">
             {problem.rating !== null && (
-              <span className="problem-detail__rating">{messages.problemRating} {problem.rating}</span>
+              <span className="problem-detail__rating">{t("problemRating")} {problem.rating}</span>
             )}
             {problem.tags.length > 0 && (
-              <ul className="problem-detail__tags" aria-label={messages.problemTags}>
+              <ul className="problem-detail__tags" aria-label={t("problemTags")}>
                 {problem.tags.map(({ id, name }) => <li key={id}>{localizedLibraryText(name, locale) || id}</li>)}
               </ul>
             )}
           </div>
         )}
-        <ContentMarkdown content={statement} preferred={locale} empty={messages.problemStatementEmpty} sampleActions={sampleActions} />
+        <ContentMarkdown content={statement} preferred={locale} empty={t("problemStatementEmpty")} sampleActions={sampleActions} />
       </div>
     </ScrollArea>
   );
 }
 
-export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetail; title: string }) {
-  const messages = useMessages();
-  const interfaceLocale = useContext(LocaleContext);
-  const { settings } = useSettings();
+export function ProblemDetail({ problem, title, settings }: {
+  problem: LibraryProblemDetail;
+  title: string;
+  settings: Pick<AppSettings, "problemDoubleColumn" | "editorDefaultLanguage">;
+}) {
   const debuggerWorkspace = useContext(ProblemDebugContext);
   const releaseDebug = debuggerWorkspace?.release;
   const registerLaunch = debuggerWorkspace?.registerLaunch;
@@ -167,8 +164,8 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const launchAction = useRef<() => void>(() => {});
   const launch = useCallback(() => launchAction.current(), []);
   const layoutButton = useRef<HTMLButtonElement>(null);
-  const doubleColumn = layoutOverride ?? settings?.problemDoubleColumn ?? false;
-  const locale = language === "interface" ? interfaceLocale : language;
+  const doubleColumn = layoutOverride ?? settings.problemDoubleColumn;
+  const locale = language === "interface" ? problemContentLocale(interfaceLocale) : language;
   const revealKey = debug?.revealKey;
   const sourceRevealKey = debug?.sourceRevealKey;
   const debugSessionId = debug?.sessionId;
@@ -176,15 +173,15 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const debugStderr = debug?.stderr || (debug?.error === "compile_failed" ? debug.errorDetail : undefined) || "";
   const desktop = isTauri();
   const debugging = isDebugActive(debug);
-  const codeLanguage = settings?.editorDefaultLanguage ?? defaultCodeLanguage;
+  const codeLanguage = settings.editorDefaultLanguage;
   const editorLanguage = debugging && debug ? debug.language : codeLanguage;
   const running = run?.state === "running" || run?.state === "loading-draft";
   const launchDisabled = running || launchState === "loading";
-  const launchMessage = run?.state === "loading-draft" ? messages.problemDraftLoading
-    : running ? messages.problemRunRunning
-    : launchState === "loading" ? messages.problemDraftLoading
-    : launchState === "empty" ? messages.problemDebugWriteCode
-    : launchState === "failed" ? messages.problemDraftLoadFailed : undefined;
+  const launchMessage = run?.state === "loading-draft" ? t("problemDraftLoading")
+    : running ? t("problemRunRunning")
+    : launchState === "loading" ? t("problemDraftLoading")
+    : launchState === "empty" ? t("problemDebugWriteCode")
+    : launchState === "failed" ? t("problemDraftLoadFailed") : undefined;
 
   useLayoutEffect(() => () => {
     busy.current = undefined;
@@ -264,11 +261,11 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
 
   const sampleActions = useMemo<ProblemMarkdownSampleActions>(() => ({
     labels: {
-      run: messages.problemSampleRun,
-      copy: messages.problemSampleCopy,
-      fill: messages.problemSampleFill,
-      copied: messages.problemSampleCopied,
-      copyFailed: messages.problemSampleCopyFailed,
+      run: t("problemSampleRun"),
+      copy: t("problemSampleCopy"),
+      fill: t("problemSampleFill"),
+      copied: t("problemSampleCopied"),
+      copyFailed: t("problemSampleCopyFailed"),
     },
     onRun: desktop ? ({ input, expectedOutput }) => {
       if (expectedOutput !== undefined) void runDraft({ stdin: input, expected: expectedOutput });
@@ -278,7 +275,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
       setActivate({ id: "input" });
     },
     runDisabled: running || debugging,
-  }), [messages, desktop, running, debugging, runDraft]);
+  }), [interfaceLocale, desktop, running, debugging, runDraft]);
 
   function startDebug(codeLanguage: CodeLanguage, source: string, lines: number[]) {
     if (busy.current) return;
@@ -325,23 +322,23 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
 
   const tabs: ProblemWorkspaceTab[] = [
     {
-      id: "statement", label: messages.problemStatement,
+      id: "statement", label: t("problemStatement"),
       content: <ProblemStatement problem={problem} locale={locale} fallbackTitle={title} sampleActions={sampleActions} />,
     },
     {
-      id: "solutions", label: messages.problemSolutions,
+      id: "solutions", label: t("problemSolutions"),
       content: <ScrollArea className="problem-detail__read-scroll" orientation="vertical">
         <div className="problem-detail__article"><Solutions solutions={problem.solutions} locale={locale} /></div>
       </ScrollArea>,
     },
     {
-      id: "submissions", label: messages.submissionHistory, lazy: true,
+      id: "submissions", label: t("submissionHistory"), lazy: true,
       content: <ProblemSubmissions key={problem.id} problemId={problem.id} />,
     },
     {
-      id: "code", label: messages.problemCodeTab, lazy: true,
+      id: "code", label: t("problemCodeTab"), lazy: true,
       content: <div className="problem-detail__editor">
-        <Suspense fallback={<DelayedLoadingMessage>{messages.problemEditorLoading}</DelayedLoadingMessage>}>
+        <Suspense fallback={<DelayedLoadingMessage>{t("problemEditorLoading")}</DelayedLoadingMessage>}>
           <CodeEditor problemId={problem.id} preferredLanguage={editorLanguage} running={running}
             onRun={desktop ? (language, source) => void runDraft({ stdin: input, draft: { language, source } }) : undefined}
             breakpoints={breakpoints} onBreakpointsChange={updateBreakpoints}
@@ -352,30 +349,30 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
       </div>,
     },
     {
-      id: "input", label: messages.problemRunTestInput, lazy: true,
-      content: <Suspense fallback={<DelayedLoadingMessage>{messages.problemEditorLoading}</DelayedLoadingMessage>}>
-        <PlainTextEditor label={messages.problemRunStdin} value={input} onChange={setInput} />
+      id: "input", label: t("problemRunTestInput"), lazy: true,
+      content: <Suspense fallback={<DelayedLoadingMessage>{t("problemEditorLoading")}</DelayedLoadingMessage>}>
+        <PlainTextEditor label={t("problemRunStdin")} value={input} onChange={setInput} />
       </Suspense>,
     },
-    { id: "output", label: messages.problemRunResults, content: <ProblemRunResults run={run} /> },
+    { id: "output", label: t("problemRunResults"), content: <ProblemRunResults run={run} /> },
   ];
 
   return (
     <section className="workbench-page problem-detail" data-split={split}>
       <ProblemWorkspace tabs={tabs} enabled={doubleColumn} activate={activate} onSplitChange={setSplit}
-        labels={{ tabs: messages.problemWorkspaceArea, resizeWidth: messages.problemResizeColumns, resizeHeight: messages.resizePaneHeight }}
+        labels={{ tabs: t("problemWorkspaceArea"), resizeWidth: t("problemResizeColumns"), resizeHeight: t("resizePaneHeight") }}
         actions={(
           <div className="problem-detail__controls">
             {desktop && <ProblemFavoriteAction problemId={problem.id} />}
-            <Select className="ui-select--quiet problem-detail__language" aria-label={messages.problemContentLanguage}
-              title={messages.problemContentLanguage} triggerLabel={locale === "zh-CN" ? "简中" : "EN"}
+            <Select className="ui-select--quiet problem-detail__language" aria-label={t("problemContentLanguage")}
+              title={t("problemContentLanguage")} triggerLabel={locale === "zh-CN" ? "简中" : "EN"}
               value={language} onValueChange={setLanguage} options={[
-                { value: "interface", label: messages.followInterface },
+                { value: "interface", label: t("followInterface") },
                 { value: "zh-CN", label: languageNames["zh-CN"] },
                 { value: "en", label: languageNames.en },
               ]} />
             <button ref={layoutButton} type="button" className="ui-icon-button" aria-pressed={doubleColumn}
-              aria-label={messages.problemTwoColumns} title={messages.problemTwoColumns}
+              aria-label={t("problemTwoColumns")} title={t("problemTwoColumns")}
               onClick={(event) => toggleLayout(event.currentTarget)}><Icon name="splitColumns" /></button>
           </div>
         )} />

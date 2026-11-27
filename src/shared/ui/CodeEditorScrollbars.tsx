@@ -1,7 +1,7 @@
 import type { EditorView } from "@codemirror/view";
 import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import { Scrollbar } from "./Scrollbar";
 
 interface ScrollBounds {
@@ -12,7 +12,6 @@ interface ScrollBounds {
 }
 
 export function CodeEditorScrollbars({ editor }: { editor: EditorView }) {
-  const messages = useMessages();
   const id = useId();
   const overlay = useRef<HTMLDivElement>(null);
   const [bounds, setBounds] = useState<ScrollBounds>();
@@ -54,9 +53,9 @@ export function CodeEditorScrollbars({ editor }: { editor: EditorView }) {
     <>
       <div ref={overlay} className="code-editor__scrollbars" style={bounds}>
         <Scrollbar viewport={viewport} content={content} controls={controls}
-          label={messages.scrollVertically} orientation="vertical" />
+          label={t("scrollVertically")} orientation="vertical" />
         <Scrollbar viewport={viewport} content={content} controls={controls}
-          label={messages.scrollHorizontally} orientation="horizontal" />
+          label={t("scrollHorizontally")} orientation="horizontal" />
       </div>
       <EditorPopupScrollbars editor={editor} />
     </>
@@ -89,7 +88,6 @@ function EditorPopupScrollbars({ editor }: { editor: EditorView }) {
 }
 
 function PopupScrollbar({ list }: { list: HTMLUListElement }) {
-  const messages = useMessages();
   const viewport = useMemo(() => ({ current: list }), [list]);
   const [bounds, setBounds] = useState<ScrollBounds>();
 
@@ -123,7 +121,7 @@ function PopupScrollbar({ list }: { list: HTMLUListElement }) {
 
   return (
     <div className="code-editor__popup-scrollbar" style={bounds}>
-      <Scrollbar viewport={viewport} controls={list.id} label={messages.scrollVertically}
+      <Scrollbar viewport={viewport} controls={list.id} label={t("scrollVertically")}
         orientation="vertical" focusable={false} />
     </div>
   );

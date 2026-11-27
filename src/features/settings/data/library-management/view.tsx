@@ -1,14 +1,14 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LocaleContext, useMessages, type MessageKey } from "../../i18n";
-import { Icon } from "../../shared/Icon";
+import { locale, t, type MessageKey } from "../../../../i18n";
+import { Icon } from "../../../../shared/Icon";
 import {
   getLibraryRevision, importProblemLibrariesFromPath, listProblemLibraries, localizedLibraryText, setProblemLibraryEnabled,
   uninstallProblemLibrary, useLibraryRevision, type ProblemLibrary, type ProblemLibraryImport,
-} from "../../shared/problemLibrary";
-import { StatusMessage } from "../../shared/StatusMessage";
-import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
-import { ErrorDetails, format, operationError } from "./feedback";
+} from "../../../../shared/problemLibrary";
+import { StatusMessage } from "../../../../shared/StatusMessage";
+import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../../../workspace/views";
+import { ErrorDetails, operationError } from "./feedback";
 import { LibraryImportDialog } from "./LibraryImportDialog";
 import { LibraryTable } from "./LibraryTable";
 import "./library-management.css";
@@ -40,15 +40,14 @@ const operationSuccess: Record<RowAction, MessageKey> = {
 };
 
 function Failure({ error, message, onRetry }: { error: unknown; message: MessageKey; onRetry?: () => void }) {
-  const messages = useMessages();
   const { title, detail } = operationError(error, message);
   return (
     <div className="library-management__empty">
-      <StatusMessage state="error">{messages[title]}</StatusMessage>
+      <StatusMessage state="error">{t(title)}</StatusMessage>
       {detail && <ErrorDetails detail={detail} />}
       {onRetry && (
         <button type="button" className="ui-field library-management__button" data-variant="quiet" onClick={onRetry}>
-          {messages.libraryManagementRetry}
+          {t("libraryManagementRetry")}
         </button>
       )}
     </div>
@@ -56,22 +55,20 @@ function Failure({ error, message, onRetry }: { error: unknown; message: Message
 }
 
 function LibraryNotification({ feedback, onClose }: { feedback?: Feedback; onClose(): void }) {
-  const messages = useMessages();
-  const locale = useContext(LocaleContext);
   const resultTitle = ({ library, message }: ProblemLibraryImport & { message: MessageKey }) =>
-    format(messages[message], { name: localizedLibraryText(library.name, locale) || library.id, version: library.releaseVersion });
+    t(message, { name: localizedLibraryText(library.name, locale) || library.id, version: library.releaseVersion });
   let title = "";
   let detail: string | undefined;
 
   if (feedback?.state === "error") {
     const error = operationError(feedback.error, feedback.message);
-    title = messages[error.title];
+    title = t(error.title);
     detail = error.detail;
   } else if (feedback?.state === "success") {
-    title = format(messages[feedback.message], feedback.values);
+    title = t(feedback.message, feedback.values);
   } else if (feedback?.state === "import") {
     title = feedback.results.length === 1 ? resultTitle(feedback.results[0])
-      : format(messages.libraryManagementBatchImported, { count: feedback.results.length });
+      : t("libraryManagementBatchImported", { count: feedback.results.length });
   }
 
   return createPortal(
@@ -82,19 +79,19 @@ function LibraryNotification({ feedback, onClose }: { feedback?: Feedback; onClo
         <aside className="library-management__toast" data-state={feedback.state} aria-label={title}>
           <div className="library-management__toast-head">
             <p>{title}</p>
-            <button type="button" className="library-management__toast-close" aria-label={messages.close} onClick={onClose}>
+            <button type="button" className="library-management__toast-close" aria-label={t("close")} onClick={onClose}>
               <Icon name="close" size={12} />
             </button>
           </div>
           {detail && <div className="library-management__toast-details"><ErrorDetails detail={detail} /></div>}
           {feedback.state === "import" && (
             <details className="library-management__toast-details">
-              <summary>{messages.libraryManagementImportDetails}</summary>
+              <summary>{t("libraryManagementImportDetails")}</summary>
               <ul className="library-management__import-results" role="list">
                 {feedback.results.map((result) => (
                   <li key={result.library.id}>
                     {feedback.results.length > 1 && <p>{resultTitle(result)}</p>}
-                    <p className="library-management__hint">{format(messages.libraryManagementImportSummary, {
+                    <p className="library-management__hint">{t("libraryManagementImportSummary", {
                       inserted: result.inserted, updated: result.updated, restored: result.restored,
                       removed: result.removed, unchanged: result.unchanged,
                     })}</p>
@@ -111,8 +108,6 @@ function LibraryNotification({ feedback, onClose }: { feedback?: Feedback; onClo
 }
 
 export default function LibraryManagementView({ title }: WorkspaceViewProps) {
-  const messages = useMessages();
-  const locale = useContext(LocaleContext);
   const revision = useLibraryRevision();
   const operationRunning = useRef(false);
   const [pending, setPending] = useState<Operation>();
@@ -201,7 +196,7 @@ export default function LibraryManagementView({ title }: WorkspaceViewProps) {
         <button type="button" className="ui-field library-management__button" data-variant="primary"
           aria-disabled={pending !== undefined || undefined}
           onClick={() => { if (!operationRunning.current) setImportOpen(true); }}>
-          {messages.libraryManagementImport}
+          {t("libraryManagementImport")}
         </button>
       </header>
       <div className="library-management__section" aria-busy={loading}>
@@ -214,8 +209,8 @@ export default function LibraryManagementView({ title }: WorkspaceViewProps) {
         ) : (
           <div className="library-management__empty">
             <span className="library-management__empty-icon"><Icon name="catalog" size={24} /></span>
-            {loading ? <StatusMessage state="loading">{messages.libraryManagementLoading}</StatusMessage>
-              : <StatusMessage state="empty">{messages.libraryManagementEmpty}</StatusMessage>}
+            {loading ? <StatusMessage state="loading">{t("libraryManagementLoading")}</StatusMessage>
+              : <StatusMessage state="empty">{t("libraryManagementEmpty")}</StatusMessage>}
           </div>
         )}
       </div>

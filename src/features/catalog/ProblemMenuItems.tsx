@@ -1,5 +1,5 @@
-import { useContext, useEffect, useState } from "react";
-import { LocaleContext, useMessages } from "../../i18n";
+import { useEffect, useState } from "react";
+import { locale, t } from "../../i18n";
 import { Icon } from "../../shared/Icon";
 import { getPersonalRevision, usePersonalRevision } from "../../shared/personalCollections";
 import {
@@ -112,8 +112,6 @@ interface ProblemMenuItemsProps {
 }
 
 export function ProblemMenuItems({ menu, onOpen, selectedEntry }: ProblemMenuItemsProps) {
-  const messages = useMessages();
-  const locale = useContext(LocaleContext);
   const { page, loading, failed, loadPage } = menu;
 
   return (
@@ -134,8 +132,8 @@ export function ProblemMenuItems({ menu, onOpen, selectedEntry }: ProblemMenuIte
       {(failed || page.nextCursor !== null) && (
         <li>
           <button type="button" aria-disabled={loading || undefined} onClick={loadPage}>
-            {loading ? messages.libraryNavigationLoading
-              : failed ? messages.libraryNavigationLoadFailed : messages.moreProblems}
+            {loading ? t("libraryNavigationLoading")
+              : failed ? t("libraryNavigationLoadFailed") : t("moreProblems")}
           </button>
         </li>
       )}

@@ -1,4 +1,4 @@
-import { useMessages, type MessageKey } from "../i18n";
+import { t, type MessageKey } from "../i18n";
 
 const fontLabels = {
   system: "fontSystem",
@@ -9,9 +9,7 @@ const fontLabels = {
 } satisfies Record<string, MessageKey>;
 
 export type FontPreset = keyof typeof fontLabels;
-export const defaultEditorFont = "fira-code" satisfies FontPreset;
 
-export function useFontOptions() {
-  const messages = useMessages();
-  return (Object.keys(fontLabels) as FontPreset[]).map((value) => ({ value, label: messages[fontLabels[value]] }));
+export function getFontOptions() {
+  return (Object.keys(fontLabels) as FontPreset[]).map((value) => ({ value, label: t(fontLabels[value]) }));
 }

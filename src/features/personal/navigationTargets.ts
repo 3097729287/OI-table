@@ -1,4 +1,4 @@
-import { getMessages } from "../../i18n";
+import { localizedLabels, t } from "../../i18n";
 import { collectionName, type PersonalCollection } from "../../shared/personalCollections";
 import type { WorkspaceTarget } from "../../workspace/layout";
 
@@ -8,9 +8,6 @@ export function favoriteGroupTarget(collection: PersonalCollection): WorkspaceTa
   return {
     id: "favorites",
     params: { groupId: collection.id },
-    label: {
-      en: collectionName(collection, getMessages("en")),
-      "zh-CN": collectionName(collection, getMessages("zh-CN")),
-    },
+    label: localizedLabels((locale) => collectionName(collection, t("favoriteDefault", undefined, locale))),
   };
 }

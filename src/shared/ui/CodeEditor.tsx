@@ -8,7 +8,7 @@ import { Compartment, EditorState, type Text } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useMessages } from "../../i18n";
+import { locale, t } from "../../i18n";
 import { codeLanguageOptions, type CodeLanguage } from "../codeLanguages";
 import { Icon } from "../Icon";
 import { updateSettings } from "../settings";
@@ -29,17 +29,16 @@ const editorExtensions = [
   keymap.of([...closeBracketsKeymap, ...completionKeymap, ...historyKeymap, ...codeEditorDefaultKeymap, ...lintKeymap, indentWithTab]),
 ];
 
-type Messages = ReturnType<typeof useMessages>;
 type SavedDraft = { state: EditorState; scroll: ReturnType<EditorView["scrollSnapshot"]> };
 
-function editorLocalization(messages: Messages, debugEnabled: boolean) {
+function editorLocalization(debugEnabled: boolean) {
   return [
-    codeEditorContent(messages.problemCodeDraft),
-    debugEnabled ? codeEditorBreakpointGutter(`${messages.problemDebugToggleBreakpoint} (F9)`) : [],
+    codeEditorContent(t("problemCodeDraft")),
+    debugEnabled ? codeEditorBreakpointGutter(`${t("problemDebugToggleBreakpoint")} (F9)`) : [],
     EditorState.phrases.of({
-      Diagnostics: messages.problemEditorDiagnosticList,
-      "No diagnostics": messages.problemEditorNoDiagnostics,
-      "close": messages.close,
+      Diagnostics: t("problemEditorDiagnosticList"),
+      "No diagnostics": t("problemEditorNoDiagnostics"),
+      "close": t("close"),
     }),
   ];
 }
@@ -66,12 +65,10 @@ interface CodeEditorProps {
 
 export default function CodeEditor({ problemId, preferredLanguage, onRun, running = false, onDebug, breakpoints, onBreakpointsChange,
   debugLine, debugRevealKey, debugReadOnly = false, debugUnavailable = false }: CodeEditorProps) {
-  const messages = useMessages();
   const desktop = isTauri();
   const preferredLanguageRef = useRef(preferredLanguage);
   const activeLanguage = useRef(preferredLanguage);
   const latestDefaultLanguageUpdate = useRef<Promise<void>>(undefined);
-  const texts = useRef(messages);
   const debugEnabled = onDebug !== undefined;
   const debugBindings = useRef({ debugEnabled, debugReadOnly, breakpoints, onBreakpointsChange });
   const container = useRef<HTMLDivElement>(null);
@@ -88,7 +85,7 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   const [loadAttempt, setLoadAttempt] = useState(0);
   const subscribe = useCallback((listener: () => void) => subscribeToProblemDraft(problemId, listener), [problemId]);
   const saveStatus = useSyncExternalStore(subscribe, () => problemDraftSaveStatus(problemId));
-  const problemsLabel = messages.problemEditorProblems.replace("{count}", String(metrics.problems));
+  const problemsLabel = t("problemEditorProblems", { count: metrics.problems });
 
   function queueDraftChange(change: DraftOperation) {
     const contents = sources.current;
@@ -104,9 +101,9 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
       codeLanguageExtensions(codeLanguage),
       breakpointLines.init((state) => normalizeBreakpointLines(debugBindings.current.breakpoints?.[codeLanguage] ?? [], state.doc.lines)),
       debugLineField,
-      localization.of(editorLocalization(texts.current, debugBindings.current.debugEnabled)),
+      localization.of(editorLocalization(debugBindings.current.debugEnabled)),
       editability.of(debugBindings.current.debugReadOnly ? codeEditorDebugReadOnly : []),
-      linter((editor) => syntaxDiagnostics(editor.state, texts.current.problemEditorSyntaxError), {
+      linter((editor) => syntaxDiagnostics(editor.state, t("problemEditorSyntaxError")), {
         delay: 350,
         needsRefresh: (update) => localization.get(update.startState) !== localization.get(update.state),
       }),
@@ -163,12 +160,11 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   }, [problemId, loadAttempt]);
 
   useLayoutEffect(() => {
-    texts.current = messages;
     const editor = view.current;
     if (!editor) return;
-    editor.dispatch({ effects: localization.reconfigure(editorLocalization(messages, debugEnabled)) });
+    editor.dispatch({ effects: localization.reconfigure(editorLocalization(debugEnabled)) });
     forceLinting(editor);
-  }, [localization, messages, debugEnabled]);
+  }, [localization, locale, debugEnabled]);
 
   useLayoutEffect(() => {
     const editor = view.current;
@@ -206,7 +202,7 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
     const saved = drafts.current.get(next);
     editor.setState(saved?.state ?? createDraft(next));
     editor.dispatch({ effects: [
-      localization.reconfigure(editorLocalization(texts.current, debugEnabled)),
+      localization.reconfigure(editorLocalization(debugEnabled)),
       editability.reconfigure(debugReadOnly ? codeEditorDebugReadOnly : []),
       ...(saved ? [saved.scroll] : []),
     ] });
@@ -235,24 +231,24 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   const actionDisabled = loadState !== "ready" || running || debugReadOnly || metrics.length === 0;
 
   return (
-    <section className="code-editor" aria-label={messages.problemCodeDraft}>
+    <section className="code-editor" aria-label={t("problemCodeDraft")}>
       <header className="code-editor__bar">
-        <Select className="ui-select--quiet" aria-label={messages.problemEditorLanguage}
-          title={desktop ? messages.problemEditorLanguageHint : messages.problemEditorLanguage}
+        <Select className="ui-select--quiet" aria-label={t("problemEditorLanguage")}
+          title={desktop ? t("problemEditorLanguageHint") : t("problemEditorLanguage")}
           disabled={loadState !== "ready" || debugReadOnly} value={language} options={codeLanguageOptions}
           notifyOnReselect={desktop} onValueChange={selectLanguage} />
         {(onRun || onDebug) && (
           <div className="code-editor__actions">
             {onRun && (
               <button type="button" className="ui-icon-button code-editor__action" disabled={actionDisabled}
-                aria-label={messages.problemRunLocal} title={messages.problemRunLocal} aria-busy={running || undefined}
+                aria-label={t("problemRunLocal")} title={t("problemRunLocal")} aria-busy={running || undefined}
                 onClick={() => { if (view.current) onRun(language, view.current.state.doc.toString()); }}>
                 <Icon name="run" />
               </button>
             )}
             {onDebug && (
               <button type="button" className="ui-icon-button code-editor__action" disabled={actionDisabled || debugUnavailable}
-                aria-label={messages.problemDebugStart} title={messages.problemDebugStart}
+                aria-label={t("problemDebugStart")} title={t("problemDebugStart")}
                 onClick={() => {
                   const editor = view.current;
                   if (editor) onDebug(language, editor.state.doc.toString(), [...editor.state.field(breakpointLines)]);
@@ -266,13 +262,13 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
       <CodeEditorSurface mount={container} editor={mountedEditor}>
         {loadState !== "ready" && (
           <div className="code-editor__draft-load">
-            {loadState === "loading" ? <DelayedLoadingMessage>{messages.problemDraftLoading}</DelayedLoadingMessage> : (
+            {loadState === "loading" ? <DelayedLoadingMessage>{t("problemDraftLoading")}</DelayedLoadingMessage> : (
               <>
-                <StatusMessage state="error">{messages.problemDraftLoadFailed}</StatusMessage>
+                <StatusMessage state="error">{t("problemDraftLoadFailed")}</StatusMessage>
                 <button type="button" className="ui-field code-editor__draft-retry" onClick={() => {
                   setLoadState("loading");
                   setLoadAttempt((attempt) => attempt + 1);
-                }}>{messages.retry}</button>
+                }}>{t("retry")}</button>
               </>
             )}
           </div>
@@ -286,18 +282,18 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
           </button>
         )}
         {defaultLanguageSaveFailed && (
-          <span className="code-editor__settings-error" role="alert">{messages.settingsSaveFailed}</span>
+          <span className="code-editor__settings-error" role="alert">{t("settingsSaveFailed")}</span>
         )}
         <span className="code-editor__position">
-          {messages.problemEditorPosition.replace("{line}", String(metrics.line)).replace("{column}", String(metrics.column))}
+          {t("problemEditorPosition", { line: metrics.line, column: metrics.column })}
         </span>
         {loadState === "ready" && (saveStatus === "failed" ? (
           <button type="button" className="code-editor__save-status code-editor__save-retry"
-            aria-label={messages.problemDraftSaveRetry} title={messages.problemDraftSaveRetry}
-            onClick={() => void flushProblemDraft(problemId)}>{messages.problemDraftSaveFailed}</button>
+            aria-label={t("problemDraftSaveRetry")} title={t("problemDraftSaveRetry")}
+            onClick={() => void flushProblemDraft(problemId)}>{t("problemDraftSaveFailed")}</button>
         ) : (
           <span className="code-editor__save-status" role="status">
-            {saveStatus === "saving" ? messages.problemDraftSaving : messages.problemDraftSaved}
+            {saveStatus === "saving" ? t("problemDraftSaving") : t("problemDraftSaved")}
           </span>
         ))}
       </footer>

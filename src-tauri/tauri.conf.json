@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "identifier": "com.oi-table.desktop",
   "build": {
+    "additionalWatchFolders": ["../src/i18n/locales"],
     "beforeDevCommand": "npm run icon && npm run dev",
     "devUrl": "http://127.0.0.1:11420",
     "beforeBuildCommand": "npm run icon && npm run build",

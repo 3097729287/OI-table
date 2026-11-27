@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { MessageKey } from "../i18n";
+import { t } from "../i18n";
 
 export type PersonalProblemScope =
   | { kind: "favorites" }
@@ -18,8 +18,8 @@ interface SaveCollectionRequest {
   name: string;
 }
 
-export function collectionName(collection: PersonalCollection, messages: Record<MessageKey, string>) {
-  return collection.builtin ? messages.favoriteDefault : collection.name;
+export function collectionName(collection: PersonalCollection, defaultName = t("favoriteDefault")) {
+  return collection.builtin ? defaultName : collection.name;
 }
 
 let revision = 0;

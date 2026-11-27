@@ -13,7 +13,6 @@ export default {
       title: "catalog",
       children: [
         { kind: "view", viewId: "catalog", Row: CatalogNavigation },
-        { kind: "view", viewId: "library-management" },
       ],
     },
     {

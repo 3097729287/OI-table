@@ -1,4 +1,4 @@
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import { ProblemListPage, type ProblemListFilters } from "../../shared/ProblemListPage";
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
@@ -16,13 +16,12 @@ export const workspaceView = {
 const libraryArchiveFilters: ProblemListFilters = {};
 
 export default function ArchiveView({ params, title, open }: WorkspaceViewProps) {
-  const messages = useMessages();
   if (params.filter === "libraries") return <ProblemListPage title={title} open={open} filters={libraryArchiveFilters} />;
 
   return (
     <section className="workspace workbench-page">
       <h1>{title}</h1>
-      <StatusMessage state="empty">{messages.emptyWorkspace}</StatusMessage>
+      <StatusMessage state="empty">{t("emptyWorkspace")}</StatusMessage>
     </section>
   );
 }

@@ -1,7 +1,8 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { useMessages, type MessageKey } from "../../../i18n";
+import { t, type MessageKey } from "../../../i18n";
 import { debugTimeoutMessages } from "../../../shared/debugDiagnostics";
+import { Icon, type IconName } from "../../../shared/Icon";
 import { checkRunDebugEnvironment, type RunDebugProgress, type RunDebugReport } from "./runDebugDiagnostics";
 import "./run-debug-settings.css";
 
@@ -34,6 +35,15 @@ const statusLabels = {
   busy: "runDebugBusy",
 } as const satisfies Record<Status, MessageKey>;
 
+const statusIcons = {
+  checking: "spinner",
+  ready: "check",
+  missing: "warning",
+  failed: "close",
+  unchecked: "pending",
+  busy: "pending",
+} as const satisfies Record<Status, IconName>;
+
 interface CheckState {
   report?: RunDebugReport;
   checking?: "detect" | "test";
@@ -42,31 +52,28 @@ interface CheckState {
 }
 
 function DiagnosticDetail({ detail }: { detail?: string }) {
-  const messages = useMessages();
   if (!detail) return null;
   if (detail.length <= 160 && !/[\r\n]/.test(detail)) {
     return <p className="run-debug-settings__detail" data-selectable>{detail}</p>;
   }
   return (
     <details className="run-debug-settings__disclosure">
-      <summary>{messages.errorDetails}</summary>
+      <summary>{t("errorDetails")}</summary>
       <p className="run-debug-settings__detail" data-selectable>{detail}</p>
     </details>
   );
 }
 
 function DiagnosticStatus({ status, checked }: { status: Status; checked?: boolean }) {
-  const messages = useMessages();
   const message = checked && status === "ready" ? "runDebugPassed" : statusLabels[status];
   return (
     <span className="run-debug-settings__badge" data-status={status} role={checked ? "status" : undefined}>
-      <span className="run-debug-settings__status-icon" aria-hidden="true" />{messages[message]}
+      <Icon name={statusIcons[status]} size={12} />{t(message)}
     </span>
   );
 }
 
 export default function RunDebugSection() {
-  const messages = useMessages();
   const toolchainHeading = useId();
   const healthHeading = useId();
   const pending = useRef<symbol | undefined>(undefined);
@@ -103,22 +110,22 @@ export default function RunDebugSection() {
   }, [refresh]);
 
   const unavailable = !desktop || checking !== undefined;
-  const notice = !desktop ? messages.runDebugDesktop : failed ? messages.runDebugLoadFailed
-    : checking === "detect" ? messages.runDebugDetecting : "";
+  const notice = !desktop ? t("runDebugDesktop") : failed ? t("runDebugLoadFailed")
+    : checking === "detect" ? t("runDebugDetecting") : "";
 
   return (
     <div className="run-debug-settings">
       <section aria-labelledby={toolchainHeading}>
         <header className="run-debug-settings__header">
-          <h2 id={toolchainHeading}>{messages.runDebugToolchain}</h2>
+          <h2 id={toolchainHeading}>{t("runDebugToolchain")}</h2>
           <div className="run-debug-settings__actions">
             <button type="button" aria-disabled={unavailable || undefined} onClick={() => void refresh(false)}>
-              {messages.runDebugRefresh}
+              {t("runDebugRefresh")}
             </button>
             <button type="button" className="run-debug-settings__primary" aria-disabled={unavailable || undefined}
               aria-busy={testing || undefined}
               onClick={() => void refresh(true)}>
-              {testing ? messages.runDebugTesting : messages.runDebugSelfTest}
+              {testing ? t("runDebugTesting") : t("runDebugSelfTest")}
             </button>
           </div>
         </header>
@@ -129,7 +136,7 @@ export default function RunDebugSection() {
             return (
               <li key={id} className="run-debug-settings__row">
                 <div className="run-debug-settings__row-heading">
-                  <h3>{messages[toolLabels[id]]}</h3>
+                  <h3>{t(toolLabels[id])}</h3>
                   <DiagnosticStatus status={tool?.status ?? "unchecked"} />
                 </div>
                 {tool?.version && <p className="run-debug-settings__version" data-selectable>{tool.version}</p>}
@@ -140,19 +147,19 @@ export default function RunDebugSection() {
           })}
         </ul>
         {report?.tools.some((tool) => tool.status === "missing") && (
-          <p className="run-debug-settings__hint">{messages.runDebugMissingToolHint}</p>
+          <p className="run-debug-settings__hint">{t("runDebugMissingToolHint")}</p>
         )}
       </section>
       <section aria-labelledby={healthHeading}>
-        <h2 id={healthHeading}>{messages.runDebugHealth}</h2>
+        <h2 id={healthHeading}>{t("runDebugHealth")}</h2>
         <ul className="run-debug-settings__rows" aria-busy={checking === "detect" || undefined}>
           {checkIds.map((id) => {
             const check = testing ? progress?.[id] : report?.checks.find((check) => check.id === id);
-            const timeout = check?.phase && messages[debugTimeoutMessages[check.phase]];
+            const timeout = check?.phase && t(debugTimeoutMessages[check.phase]);
             return (
               <li key={id} className="run-debug-settings__row">
                 <div className="run-debug-settings__row-heading">
-                  <h3>{messages[checkLabels[id]]}</h3>
+                  <h3>{t(checkLabels[id])}</h3>
                   <DiagnosticStatus status={check?.status ?? "unchecked"} checked />
                 </div>
                 {timeout && <p className="run-debug-settings__detail">{timeout}</p>}

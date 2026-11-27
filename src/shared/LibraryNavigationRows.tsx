@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useMessages } from "../i18n";
+import { t } from "../i18n";
 import { getLibraryRevision, useLibraryRevision } from "./problemLibrary";
 
 export function useLibraryNavigationRows<Row>(load: () => Promise<Row[]>, expanded: boolean) {
@@ -42,11 +42,10 @@ interface LibraryNavigationRowsProps<Row> {
 }
 
 export function LibraryNavigationRows<Row>({ rows, failed, retry, empty, render }: LibraryNavigationRowsProps<Row>) {
-  const messages = useMessages();
   return (
     <>
       {rows?.map(render)}
-      {failed && <li><button type="button" onClick={retry}>{messages.libraryNavigationLoadFailed}</button></li>}
+      {failed && <li><button type="button" onClick={retry}>{t("libraryNavigationLoadFailed")}</button></li>}
       {!failed && rows?.length === 0 && empty && <li className="workbench-sidebar__status">{empty}</li>}
     </>
   );

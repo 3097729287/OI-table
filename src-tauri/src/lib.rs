@@ -48,6 +48,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            settings::get_system_languages,
             settings::get_settings,
             settings::update_settings,
             editor_run::run_editor_code,
