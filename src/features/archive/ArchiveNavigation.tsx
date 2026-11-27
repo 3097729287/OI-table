@@ -1,5 +1,5 @@
-import { useCallback, useContext, useState } from "react";
-import { LocaleContext, useMessages } from "../../i18n";
+import { useCallback, useState } from "react";
+import { locale, t } from "../../i18n";
 import { LibraryNavigationRows, useLibraryNavigationRows } from "../../shared/LibraryNavigationRows";
 import {
   listLibraryArchiveChildren, listProblemLibraries, localizedLibraryText, type LibraryArchive, type ProblemLibrary,
@@ -15,8 +15,6 @@ interface ArchiveBranchProps extends Omit<SidebarRowProps, "title" | "target"> {
 }
 
 function ArchiveBranch({ library, depth, archive, ...navigation }: ArchiveBranchProps) {
-  const locale = useContext(LocaleContext);
-  const messages = useMessages();
   const [expanded, setExpanded] = useState(false);
   const archiveId = archive?.id;
   const libraryId = library.id;
@@ -31,7 +29,7 @@ function ArchiveBranch({ library, depth, archive, ...navigation }: ArchiveBranch
   return (
     <SidebarBranch {...navigation} title={title} target={target} count={archive?.subtreeProblemCount} depth={depth}
       expanded={expanded} loading={loading} onToggle={() => setExpanded((open) => !open)}>
-      <LibraryNavigationRows {...children} empty={hasProblems ? undefined : messages.noLibraryArchives}
+      <LibraryNavigationRows {...children} empty={hasProblems ? undefined : t("noLibraryArchives")}
         render={(child) => <ArchiveBranch {...navigation} key={child.id} library={library}
           archive={child} depth={depth + 1} />} />
       {hasProblems && <ProblemMenuItems {...navigation} menu={menu} />}
@@ -44,7 +42,6 @@ async function listEnabledLibraries() {
 }
 
 export function ArchiveNavigation({ depth, title, target, ...navigation }: SidebarRowProps) {
-  const messages = useMessages();
   const [expanded, setExpanded] = useState(false);
   const libraryArchives = target.params.filter === "libraries";
   const libraries = useLibraryNavigationRows(listEnabledLibraries, libraryArchives && expanded);
@@ -53,9 +50,9 @@ export function ArchiveNavigation({ depth, title, target, ...navigation }: Sideb
     <SidebarBranch {...navigation} title={title} target={target} depth={depth} expanded={expanded}
       loading={libraryArchives && libraries.loading} onToggle={() => setExpanded((open) => !open)}>
       {libraryArchives ? (
-        <LibraryNavigationRows {...libraries} empty={messages.noEnabledLibraries}
+        <LibraryNavigationRows {...libraries} empty={t("noEnabledLibraries")}
           render={(library) => <ArchiveBranch {...navigation} key={library.id} library={library} depth={depth + 1} />} />
-      ) : <li className="workbench-sidebar__status">{messages.emptyWorkspace}</li>}
+      ) : <li className="workbench-sidebar__status">{t("emptyWorkspace")}</li>}
     </SidebarBranch>
   );
 }

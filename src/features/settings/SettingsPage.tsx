@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import { StatusMessage } from "../../shared/StatusMessage";
 import type { useSettingsForm } from "./useSettingsForm";
 import "./settings.css";
@@ -11,16 +11,15 @@ interface SettingsPageProps {
 }
 
 export function SettingsPage({ title, children, form }: SettingsPageProps) {
-  const messages = useMessages();
   return (
     <section className="workspace workbench-page settings-view">
       <h1>{title}</h1>
       {children}
       {form && !form.settings && !form.loadFailed && (
-        <StatusMessage state="loading">{messages.settingsLoading}</StatusMessage>
+        <StatusMessage state="loading">{t("settingsLoading")}</StatusMessage>
       )}
-      {form?.loadFailed && <StatusMessage state="error">{messages.settingsLoadFailed}</StatusMessage>}
-      {form?.saveFailed && <StatusMessage state="error">{messages.settingsSaveFailed}</StatusMessage>}
+      {form?.loadFailed && <StatusMessage state="error">{t("settingsLoadFailed")}</StatusMessage>}
+      {form?.saveFailed && <StatusMessage state="error">{t("settingsSaveFailed")}</StatusMessage>}
     </section>
   );
 }

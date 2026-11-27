@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import { Icon } from "../../shared/Icon";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
 import "../../shared/ui/floating-surface.css";
@@ -106,12 +106,11 @@ function VariableCategory({ category, variables, context }: {
   variables: readonly DebugVariable[];
   context: VariableContext;
 }) {
-  const messages = useMessages();
   const controls = useId();
   const { expanded, toggle } = useVariableExpansion(context);
   return (
     <li className="problem-debug-variable__category">
-      <Disclosure label={messages[categoryLabels[category]]} expanded={expanded} controls={controls} toggle={toggle} />
+      <Disclosure label={t(categoryLabels[category])} expanded={expanded} controls={controls} toggle={toggle} />
       <div id={controls} className="problem-debug-variable__branch" hidden={!expanded}>
         <VariableList variables={variables} context={{ ...context, canInspect: expanded && context.canInspect }} />
       </div>
@@ -148,7 +147,6 @@ function VariableRow({ variable, context }: { variable: DebugVariable; context: 
   const typeDescription = previous?.type && previous.type !== type ? `${previous.type} → ${type || "?"}` : type;
   const change = previous && [`${name} = ${previous.value || '""'} → ${value || '""'}`, typeDescription]
     .filter(Boolean).join("\n");
-  const messages = useMessages();
   const childrenId = useId();
   const { expanded, toggle } = useVariableExpansion(context);
   const visible = reference != null && expanded;
@@ -167,7 +165,7 @@ function VariableRow({ variable, context }: { variable: DebugVariable; context: 
         } : undefined}>
         {reference != null ? (
           <button type="button" className="problem-debug-variable__toggle"
-            aria-label={messages.problemDebugToggleVariable.replace("{name}", () => name)}
+            aria-label={t("problemDebugToggleVariable", { name })}
             aria-expanded={visible} aria-controls={childrenId} aria-disabled={!canToggle || undefined}>
             <Icon name="chevronRight" size={13} />
           </button>
@@ -195,7 +193,6 @@ function VariableChildren({ reference, expanded, context, grouped }: {
   grouped?: boolean;
 }) {
   const { revision, scope, canInspect, loadChildren } = context;
-  const messages = useMessages();
   const [branch, setBranch] = useState<VariableBranch>({ scope });
   if (branch.scope !== scope) setBranch({ scope });
   const result = branch.scope === scope ? branch.result : undefined;
@@ -225,14 +222,14 @@ function VariableChildren({ reference, expanded, context, grouped }: {
     <div aria-busy={expanded && !current && !failed || undefined}>
       {result && <VariableList grouped={grouped} variables={result.children}
         context={{ ...context, valueRevision: result.revision, canInspect: expanded && canInspect && current }} />}
-      {!children && !failed && <p className="problem-debug-variable__status" role="status">{messages.problemDebugInspecting}</p>}
-      {current && children?.length === 0 && <p className="problem-debug-variable__status">{messages.problemDebugVariableEmpty}</p>}
+      {!children && !failed && <p className="problem-debug-variable__status" role="status">{t("problemDebugInspecting")}</p>}
+      {current && children?.length === 0 && <p className="problem-debug-variable__status">{t("problemDebugVariableEmpty")}</p>}
       {failed && (
         <div className="problem-debug-variable__status">
-          <p role="status">{messages.problemDebugVariableLoadFailed}</p>
+          <p role="status">{t("problemDebugVariableLoadFailed")}</p>
           <button type="button" className="problem-debug-variable__retry" aria-disabled={!canInspect || undefined}
             onClick={() => { if (canInspect) setBranch((previous) => ({ ...previous, error: undefined })); }}>
-            {messages.retry}
+            {t("retry")}
           </button>
         </div>
       )}
@@ -316,7 +313,6 @@ function VariableTooltip({ hover, close, hold, dismissSoon }: {
 }
 
 export function ProblemDebugVariables({ variables, globalsReference, revision, scope = "", canInspect, loadChildren }: VariablesProps) {
-  const messages = useMessages();
   const controls = useId();
   const [expanded, setExpanded] = useState(true);
   const [localsOpen, setLocalsOpen] = useState(true);
@@ -369,21 +365,21 @@ export function ProblemDebugVariables({ variables, globalsReference, revision, s
   return (
     <div className="problem-debug__variables" onPointerOver={startHover} onPointerOut={endHover}>
       <div className="problem-debug-variable__heading">
-        <h3><Disclosure label={messages.problemDebugVariables} expanded={expanded} controls={controls}
+        <h3><Disclosure label={t("problemDebugVariables")} expanded={expanded} controls={controls}
           toggle={() => { close(); setExpanded(!expanded); }} /></h3>
-        <button type="button" className="problem-debug-variable__collapse" title={messages.problemDebugVariableCollapseAll}
-          aria-label={messages.problemDebugVariableCollapseAll} onClick={collapseAll}>
+        <button type="button" className="problem-debug-variable__collapse" title={t("problemDebugVariableCollapseAll")}
+          aria-label={t("problemDebugVariableCollapseAll")} onClick={collapseAll}>
           <Icon name="collapseAll" size={14} />
         </button>
       </div>
       <div id={controls} className="problem-debug-variable__scopes" hidden={!expanded}>
-        <ScopeGroup label={messages.problemDebugVariableLocals} expanded={localsOpen} id={`${controls}-locals`}
+        <ScopeGroup label={t("problemDebugVariableLocals")} expanded={localsOpen} id={`${controls}-locals`}
           toggle={() => { close(); setLocalsOpen(!localsOpen); }}>
           {variables && <VariableList grouped variables={variables} context={{ ...context, canInspect: context.canInspect && localsOpen }} />}
-          {variables?.length === 0 && <p className="problem-debug-variable__status">{messages.problemDebugNoVariables}</p>}
+          {variables?.length === 0 && <p className="problem-debug-variable__status">{t("problemDebugNoVariables")}</p>}
         </ScopeGroup>
         {globalsReference != null && (
-          <ScopeGroup label={messages.problemDebugVariableGlobals} expanded={globalsOpen} id={`${controls}-globals`}
+          <ScopeGroup label={t("problemDebugVariableGlobals")} expanded={globalsOpen} id={`${controls}-globals`}
             toggle={() => { close(); setGlobalsOpen(!globalsOpen); }}>
             <VariableChildren grouped reference={globalsReference} expanded={globalsOpen} context={context} />
           </ScopeGroup>

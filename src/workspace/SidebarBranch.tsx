@@ -1,5 +1,5 @@
 import { useId, useRef, type CSSProperties, type ReactNode } from "react";
-import { useMessages } from "../i18n";
+import { t } from "../i18n";
 import { Icon } from "../shared/Icon";
 import { workspaceTabId } from "./layout";
 import { SidebarDisclosure } from "./SidebarDisclosure";
@@ -23,11 +23,10 @@ interface SidebarBranchProps extends SidebarRowProps {
 export function SidebarBranch({
   title, target, depth, selectedEntry, onOpen, count, expanded, loading, onToggle, onMenu, children,
 }: SidebarBranchProps) {
-  const messages = useMessages();
   const listId = useId();
   const openButton = useRef<HTMLButtonElement>(null);
   const selected = selectedEntry === workspaceTabId(target);
-  const toggleLabel = messages.sidebarToggleBranch.replace("{title}", () => title);
+  const toggleLabel = t("sidebarToggleBranch", { title });
   const indent = { "--menu-indent": `${Math.min((depth + 1) * 12, 60)}px` } as CSSProperties;
 
   return (

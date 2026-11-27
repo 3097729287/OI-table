@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import { Scrollbar } from "../../shared/ui/Scrollbar";
 import { SplitSeparator } from "../../shared/ui/SplitSeparator";
 import { collectWorkspaceFrames, previewBounds, workspaceReducer,
@@ -78,7 +78,6 @@ function WorkspaceTabs({ id, pane, label, dropEnd, children }: {
   children: ReactNode;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
-  const messages = useMessages();
 
   return (
     <div className="problem-workspace__tabrail scrollbar-host">
@@ -87,7 +86,7 @@ function WorkspaceTabs({ id, pane, label, dropEnd, children }: {
         {children}
       </div>
       <Scrollbar viewport={viewport} controls={id} orientation="horizontal" wheelOnParent
-        label={messages.scrollEditorTabs.replace("{pane}", () => label)} />
+        label={t("scrollEditorTabs", { pane: label })} />
     </div>
   );
 }

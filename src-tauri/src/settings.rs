@@ -11,12 +11,15 @@ const THEME_KEY: &str = "theme";
 const LOG_MAX_SIZE_KEY: &str = "logMaxSizeMib";
 const EDITOR_DEFAULT_LANGUAGE_KEY: &str = "editorDefaultLanguage";
 const PROBLEM_DOUBLE_COLUMN_KEY: &str = "problemDoubleColumn";
+const SYSTEM_LANGUAGE: &str = "system";
+const UI_LOCALES: &str = include_str!(concat!(env!("OUT_DIR"), "/ui-locales.txt"));
 const FONT_PRESETS: &[&str] = &["system", "yahei", "serif", "monospace", "fira-code"];
 pub const DEFAULT_LOG_MAX_SIZE_MIB: u32 = 5;
 
 type Settings = Map<String, Value>;
 
 enum Rule {
+    UiLanguage,
     Choice {
         default: &'static str,
         alternatives: &'static [&'static [&'static str]],
@@ -39,13 +42,7 @@ const RULES: &[(&str, Rule)] = &[
             alternatives: &[&["light", "dark", "mint", "lavender"]],
         },
     ),
-    (
-        "uiLanguage",
-        Rule::Choice {
-            default: "system",
-            alternatives: &[&["zh-CN", "en"]],
-        },
-    ),
+    ("uiLanguage", Rule::UiLanguage),
     (
         "uiFont",
         Rule::Choice {
@@ -105,6 +102,13 @@ fn normalize(mut settings: Settings) -> Settings {
     for (key, rule) in RULES {
         let current = settings.get(*key);
         let fallback = match rule {
+            Rule::UiLanguage => current
+                .and_then(Value::as_str)
+                .filter(|value| {
+                    *value == SYSTEM_LANGUAGE || UI_LOCALES.lines().any(|locale| locale == *value)
+                })
+                .is_none()
+                .then(|| Value::from(SYSTEM_LANGUAGE)),
             Rule::Choice {
                 default,
                 alternatives,
@@ -189,6 +193,11 @@ fn notify_settings_changed(app: &AppHandle) {
     if let Err(error) = app.emit(SETTINGS_CHANGED, ()) {
         log::warn!("Could not notify settings listeners: {error}");
     }
+}
+
+#[tauri::command]
+pub fn get_system_languages() -> Vec<String> {
+    sys_locale::get_locales().collect()
 }
 
 #[tauri::command]

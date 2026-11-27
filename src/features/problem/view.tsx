@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import {
   getLibraryProblem, getLibraryRevision, useLibraryRevision, type LibraryProblemDetail,
 } from "../../shared/problemLibrary";
@@ -17,7 +17,6 @@ export const workspaceView = {
 
 export default function ProblemView({ params, title }: WorkspaceViewProps) {
   const { problemId } = params;
-  const messages = useMessages();
   const { settings, loadFailed } = useSettings();
   const revision = useLibraryRevision();
   const [attempt, setAttempt] = useState(0);
@@ -47,18 +46,18 @@ export default function ProblemView({ params, title }: WorkspaceViewProps) {
     <section className="workspace workbench-page problem-preview" aria-label={title}>
       {(!problemId || problem === null) && (
         <>
-          <StatusMessage state="error">{messages.problemLoadError}</StatusMessage>
+          <StatusMessage state="error">{t("problemLoadError")}</StatusMessage>
           {problemId && (
             <button type="button" className="problem-preview__retry" onClick={() => setAttempt((count) => count + 1)}>
-              {messages.retry}
+              {t("retry")}
             </button>
           )}
         </>
       )}
-      {problemId && problem === undefined && <DelayedLoadingMessage>{messages.problemLoading}</DelayedLoadingMessage>}
+      {problemId && problem === undefined && <DelayedLoadingMessage>{t("problemLoading")}</DelayedLoadingMessage>}
       {problem && (loadFailed
-        ? <StatusMessage state="error">{messages.settingsLoadFailed}</StatusMessage>
-        : <DelayedLoadingMessage>{messages.settingsLoading}</DelayedLoadingMessage>)}
+        ? <StatusMessage state="error">{t("settingsLoadFailed")}</StatusMessage>
+        : <DelayedLoadingMessage>{t("settingsLoading")}</DelayedLoadingMessage>)}
     </section>
   );
 }

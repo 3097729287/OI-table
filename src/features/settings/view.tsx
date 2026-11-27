@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import type { AppSettings } from "../../shared/settings";
 import type { WorkspaceViewOptions, WorkspaceViewProps, WorkspaceViewVariant } from "../../workspace/views";
 import AppearanceSection from "./appearance/section";
@@ -32,7 +32,6 @@ export const workspaceView = {
 } satisfies WorkspaceViewOptions<SettingsVariant>;
 
 export default function SettingsView({ params }: WorkspaceViewProps) {
-  const messages = useMessages();
   const form = useSettingsForm();
   const { settings, saving, saveChanges } = form;
   const { variants } = workspaceView;
@@ -40,7 +39,7 @@ export default function SettingsView({ params }: WorkspaceViewProps) {
   const { Section, title } = variant;
 
   return (
-    <SettingsPage title={messages[title]} form={form}>
+    <SettingsPage title={t(title)} form={form}>
       {settings && <Section key={variant.params.group} settings={settings} saving={saving} saveChanges={saveChanges} />}
     </SettingsPage>
   );

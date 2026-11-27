@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import { Icon } from "../../shared/Icon";
 import {
   collectionName, getPersonalMemberships, getPersonalRevision, setPersonalMembership, usePersonalCollections, usePersonalRevision,
@@ -11,7 +11,6 @@ import { PersonalCollectionDialog } from "../personal/PersonalCollectionDialog";
 import "./problem-collections.css";
 
 export function ProblemFavoriteAction({ problemId }: { problemId: string }) {
-  const messages = useMessages();
   const revision = usePersonalRevision();
   const writing = useRef(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>();
@@ -53,12 +52,12 @@ export function ProblemFavoriteAction({ problemId }: { problemId: string }) {
 
   const assigned = Boolean(favoriteIds?.length);
   return (
-    <Popover label={messages.personalProblemFavorite} className="problem-collections-popover"
+    <Popover label={t("personalProblemFavorite")} className="problem-collections-popover"
       trigger={<Icon name={assigned ? "favoriteFilled" : "favorites"} />}
       triggerProps={{
         className: "ui-icon-button problem-collection-action",
-        title: messages.personalProblemFavorite,
-        "aria-description": assigned ? messages.personalProblemFavorited : undefined,
+        title: t("personalProblemFavorite"),
+        "aria-description": assigned ? t("personalProblemFavorited") : undefined,
         "data-assigned": assigned || undefined,
       }}>
       {(popoverId) => <FavoriteGroups popoverId={popoverId} favoriteIds={favoriteIds} loadFailed={loadFailed}
@@ -77,7 +76,6 @@ function FavoriteGroups({ popoverId, favoriteIds, loadFailed, pending, saveFaile
   retry(): void;
   onChange(id: string, included: boolean): void;
 }) {
-  const messages = useMessages();
   const createButton = useRef<HTMLButtonElement>(null);
   const restoreCreateFocus = useRef(false);
   const [creating, setCreating] = useState(false);
@@ -105,13 +103,13 @@ function FavoriteGroups({ popoverId, favoriteIds, loadFailed, pending, saveFaile
       <ScrollArea className="problem-collections-popover__body" orientation="vertical">
         {failed || loadFailed ? (
           <div className="problem-collections-popover__error">
-            <StatusMessage state="error">{messages.personalCollectionLoadFailed}</StatusMessage>
+            <StatusMessage state="error">{t("personalCollectionLoadFailed")}</StatusMessage>
             <button type="button" className="ui-field" onClick={() => { if (failed) retryCollections(); if (loadFailed) retry(); }}>
-              {messages.retry}
+              {t("retry")}
             </button>
           </div>
-        ) : !collections || !favoriteIds ? <StatusMessage state="loading">{messages.libraryNavigationLoading}</StatusMessage>
-          : collections.length === 0 ? <StatusMessage state="empty">{messages.personalCollectionEmpty}</StatusMessage>
+        ) : !collections || !favoriteIds ? <StatusMessage state="loading">{t("libraryNavigationLoading")}</StatusMessage>
+          : collections.length === 0 ? <StatusMessage state="empty">{t("personalCollectionEmpty")}</StatusMessage>
           : (
             <ul className="problem-collections-popover__items" aria-busy={pending || undefined}>
               {collections.map((item) => (
@@ -124,28 +122,27 @@ function FavoriteGroups({ popoverId, favoriteIds, loadFailed, pending, saveFaile
                         <Icon name="check" size={14} />
                       </span>
                     </span>
-                    <span className="problem-collections-popover__label">{collectionName(item, messages)}</span>
+                    <span className="problem-collections-popover__label">{collectionName(item)}</span>
                   </label>
                 </li>
               ))}
             </ul>
           )}
       </ScrollArea>
-      {saveFailed && <StatusMessage state="error">{messages.personalMembershipSaveFailed}</StatusMessage>}
+      {saveFailed && <StatusMessage state="error">{t("personalMembershipSaveFailed")}</StatusMessage>}
       <footer className="problem-collections-popover__footer">
         <button ref={createButton} type="button" className="problem-collections-popover__create" disabled={!collections || pending}
-          onClick={() => setCreating(true)}><Icon name="plus" size={14} />{messages.personalCreateFavorite}</button>
+          onClick={() => setCreating(true)}><Icon name="plus" size={14} />{t("personalCreateFavorite")}</button>
       </footer>
     </>
   );
 }
 
 function FavoritePopoverHeader({ popoverId, onBack, busy }: { popoverId: string; onBack?: () => void; busy?: boolean }) {
-  const messages = useMessages();
-  const action = onBack ? messages.personalCollectionBack : messages.close;
+  const action = onBack ? t("personalCollectionBack") : t("close");
   return (
     <header className="problem-collections-popover__header">
-      <h2>{messages.personalProblemFavorite}</h2>
+      <h2>{t("personalProblemFavorite")}</h2>
       <button type="button" className="ui-icon-button" aria-label={action} title={action}
         popoverTarget={onBack ? undefined : popoverId} popoverTargetAction={onBack ? undefined : "hide"}
         onClick={onBack} disabled={busy}><Icon name={onBack ? "arrowLeft" : "close"} size={14} /></button>

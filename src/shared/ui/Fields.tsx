@@ -1,5 +1,5 @@
 import { useRef, type ComponentProps, type ReactNode, type Ref } from "react";
-import { useMessages } from "../../i18n";
+import { t } from "../../i18n";
 import { Icon } from "../Icon";
 import "./fields.css";
 
@@ -22,7 +22,6 @@ export function Input(props: InputProps) {
 }
 
 export function NumberInput(props: Omit<InputProps, "type">) {
-  const messages = useMessages();
   const field = useRef<HTMLSpanElement>(null);
 
   function stepValue(direction: -1 | 1) {
@@ -39,11 +38,11 @@ export function NumberInput(props: Omit<InputProps, "type">) {
   const stepsDisabled = props.disabled || props.readOnly;
   const controls = props.step !== "any" && (
     <span className="ui-input__steps">
-      <button type="button" tabIndex={-1} disabled={stepsDisabled} aria-label={messages.increaseValue}
+      <button type="button" tabIndex={-1} disabled={stepsDisabled} aria-label={t("increaseValue")}
         onMouseDown={(event) => event.preventDefault()} onClick={() => stepValue(1)}>
         <Icon name="chevronRight" size={12} />
       </button>
-      <button type="button" tabIndex={-1} disabled={stepsDisabled} aria-label={messages.decreaseValue}
+      <button type="button" tabIndex={-1} disabled={stepsDisabled} aria-label={t("decreaseValue")}
         onMouseDown={(event) => event.preventDefault()} onClick={() => stepValue(-1)}>
         <Icon name="chevronRight" size={12} />
       </button>

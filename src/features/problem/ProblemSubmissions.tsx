@@ -1,5 +1,5 @@
-import { useContext, useEffect, useMemo, useState } from "react";
-import { LocaleContext, useMessages, type MessageKey } from "../../i18n";
+import { useEffect, useState } from "react";
+import { formatDateTime, t, type MessageKey } from "../../i18n";
 import { listProblemSubmissions, type ProblemSubmissionPage } from "../../shared/problemLibrary";
 import { StatusMessage } from "../../shared/StatusMessage";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
@@ -32,9 +32,6 @@ function submissionLanguage(language: string) {
 }
 
 export function ProblemSubmissions({ problemId }: { problemId: string }) {
-  const messages = useMessages();
-  const locale = useContext(LocaleContext);
-  const formatDate = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }), [locale]);
   const [request, setRequest] = useState<Request>({});
   const [result, setResult] = useState<Result>();
   const settled = result?.request === request ? result : undefined;
@@ -63,40 +60,40 @@ export function ProblemSubmissions({ problemId }: { problemId: string }) {
     <ScrollArea className="problem-submissions" orientation="vertical" aria-busy={!settled}>
       <div className="problem-submissions__body">
         {items.length > 0 && (
-          <ul className="problem-submissions__records" aria-label={messages.submissionHistory}>
+          <ul className="problem-submissions__records" aria-label={t("submissionHistory")}>
             {items.map((item) => {
               const verdict = verdictLabels.get(item.status);
               const time = submissionTime(item.createdAt);
               return (
                 <li key={item.id} className="problem-submissions__record" data-selectable>
                   <strong className="problem-submissions__verdict" data-accepted={item.status === "accepted"}>
-                    {verdict ? messages[verdict] : item.status}
+                    {verdict ? t(verdict) : item.status}
                   </strong>
-                  {time && <time dateTime={time.toISOString()}>{formatDate.format(time)}</time>}
+                  {time && <time dateTime={time.toISOString()}>{formatDateTime(time)}</time>}
                   <div className="problem-submissions__metadata">
                     <span>{submissionLanguage(item.language)}</span>
-                    <span>{messages.problemSubmissionVersion.replace("{version}", String(item.contentVersion))}</span>
+                    <span>{t("problemSubmissionVersion", { version: item.contentVersion })}</span>
                   </div>
                 </li>
               );
             })}
           </ul>
         )}
-        {!settled && <StatusMessage state="loading">{messages.problemSubmissionsLoading}</StatusMessage>}
+        {!settled && <StatusMessage state="loading">{t("problemSubmissionsLoading")}</StatusMessage>}
         {settled?.failed && (
           <div className="problem-submissions__failure">
-            <StatusMessage state="error">{messages.problemSubmissionsLoadFailed}</StatusMessage>
+            <StatusMessage state="error">{t("problemSubmissionsLoadFailed")}</StatusMessage>
             <button type="button" className="ui-field problem-submissions__action" onClick={() => setRequest({ ...request })}>
-              {messages.retry}
+              {t("retry")}
             </button>
           </div>
         )}
         {settled && !settled.failed && items.length === 0 && (
-          <StatusMessage state="empty">{messages.problemSubmissionsEmpty}</StatusMessage>
+          <StatusMessage state="empty">{t("problemSubmissionsEmpty")}</StatusMessage>
         )}
         {settled && !settled.failed && settled.nextCursor && (
           <button type="button" className="ui-field problem-submissions__action"
-            onClick={() => setRequest({ after: settled.nextCursor ?? undefined })}>{messages.problemSubmissionsMore}</button>
+            onClick={() => setRequest({ after: settled.nextCursor ?? undefined })}>{t("problemSubmissionsMore")}</button>
         )}
       </div>
     </ScrollArea>

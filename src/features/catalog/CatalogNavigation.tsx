@@ -1,5 +1,5 @@
-import { useContext, useState } from "react";
-import { LocaleContext, useMessages } from "../../i18n";
+import { useState } from "react";
+import { locale, t } from "../../i18n";
 import { LibraryNavigationRows, useLibraryNavigationRows } from "../../shared/LibraryNavigationRows";
 import { listLibraryTagGroups, type LibraryTagGroup } from "../../shared/problemLibrary";
 import { SidebarBranch } from "../../workspace/SidebarBranch";
@@ -10,7 +10,6 @@ import { tagGroupTarget } from "./navigationTargets";
 type TagBranchProps = Omit<SidebarRowProps, "title" | "target"> & { group: LibraryTagGroup };
 
 function TagBranch({ group, depth, ...navigation }: TagBranchProps) {
-  const locale = useContext(LocaleContext);
   const [expanded, setExpanded] = useState(false);
   const target = tagGroupTarget(group);
   const query = group.id === null ? { untagged: true } : { tagId: group.id };
@@ -25,14 +24,13 @@ function TagBranch({ group, depth, ...navigation }: TagBranchProps) {
 }
 
 export function CatalogNavigation({ depth, title, target, ...navigation }: SidebarRowProps) {
-  const messages = useMessages();
   const [expanded, setExpanded] = useState(false);
   const groups = useLibraryNavigationRows(listLibraryTagGroups, expanded);
 
   return (
     <SidebarBranch {...navigation} title={title} target={target} depth={depth} expanded={expanded}
       loading={groups.loading} onToggle={() => setExpanded((open) => !open)}>
-      <LibraryNavigationRows {...groups} empty={messages.emptyWorkspace}
+      <LibraryNavigationRows {...groups} empty={t("emptyWorkspace")}
         render={(group) => <TagBranch {...navigation} key={group.id ?? ""} group={group} depth={depth + 1} />} />
     </SidebarBranch>
   );

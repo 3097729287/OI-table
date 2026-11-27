@@ -1,5 +1,5 @@
-import { useContext, useEffect, useState } from "react";
-import { LocaleContext, useMessages } from "../i18n";
+import { useEffect, useState } from "react";
+import { locale, t } from "../i18n";
 import type { WorkspaceTarget } from "../workspace/layout";
 import { getPersonalRevision, usePersonalRevision } from "./personalCollections";
 import {
@@ -40,22 +40,20 @@ function errorDetails(error: unknown) {
 }
 
 function ProblemTable({ items, open }: { items: LibraryProblem[]; open: ProblemListPageProps["open"] }) {
-  const locale = useContext(LocaleContext);
-  const messages = useMessages();
   return (
     <ScrollArea className="problem-list-view__rows" orientation="vertical">
       <table className="problem-list-view__table">
         <thead>
           <tr>
-            <th scope="col">{messages.problemTitle}</th>
-            <th scope="col">{messages.problemRating}</th>
+            <th scope="col">{t("problemTitle")}</th>
+            <th scope="col">{t("problemRating")}</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item) => {
             const title = localizedLibraryText(item.title, locale) || item.id;
-            const availability = item.removed ? messages.personalProblemRemoved
-              : item.libraryStatus && item.libraryStatus !== "enabled" ? messages.personalProblemLibraryUnavailable : undefined;
+            const availability = item.removed ? t("personalProblemRemoved")
+              : item.libraryStatus && item.libraryStatus !== "enabled" ? t("personalProblemLibraryUnavailable") : undefined;
             return (
               <tr key={item.id}>
                 <td>
@@ -80,7 +78,6 @@ function ProblemResults({ filters, keyword, open }: {
   keyword: string;
   open: ProblemListPageProps["open"];
 }) {
-  const messages = useMessages();
   const revision = useLibraryRevision();
   const collections = usePersonalRevision();
   const personalRevision = filters.personal ? collections : undefined;
@@ -122,48 +119,47 @@ function ProblemResults({ filters, keyword, open }: {
   return (
     <>
       {(pageNumber > 1 || nextCursor !== null) && (
-        <nav className="problem-list-view__pagination" aria-label={messages.problemPagination}>
+        <nav className="problem-list-view__pagination" aria-label={t("problemPagination")}>
           <button type="button" className="ui-field problem-list-view__action" disabled={pageNumber === 1}
             aria-disabled={!current || undefined}
             onClick={() => { if (!previousDisabled) loadPage(cursors.slice(0, -1)); }}>
-            {messages.previousPage}
+            {t("previousPage")}
           </button>
-          <span role="status">{messages.pageNumber.replace("{number}", String(pageNumber))}</span>
+          <span role="status">{t("pageNumber", { number: pageNumber })}</span>
           <button type="button" className="ui-field problem-list-view__action" disabled={nextCursor === null}
             aria-disabled={nextDisabled || undefined}
             onClick={() => {
               if (!nextDisabled && nextCursor !== null) loadPage([...cursors, nextCursor]);
             }}>
-            {messages.nextPage}
+            {t("nextPage")}
           </button>
         </nav>
       )}
-      {!current && !page && <StatusMessage state="loading">{messages.problemListLoading}</StatusMessage>}
+      {!current && !page && <StatusMessage state="loading">{t("problemListLoading")}</StatusMessage>}
       {current?.state === "error" && (
         <div className="problem-list-view__error">
           <div className="problem-list-view__error-actions">
-            <StatusMessage state="error">{messages.problemListLoadFailed}</StatusMessage>
+            <StatusMessage state="error">{t("problemListLoadFailed")}</StatusMessage>
             <button type="button" className="ui-field problem-list-view__action" onClick={() => loadPage(request.cursors)}>
-              {messages.retry}
+              {t("retry")}
             </button>
           </div>
           {current.details && (
             <details data-selectable>
-              <summary>{messages.errorDetails}</summary>
+              <summary>{t("errorDetails")}</summary>
               <p>{current.details}</p>
             </details>
           )}
         </div>
       )}
       {page?.items.length ? <ProblemTable items={page.items} open={open} /> : current?.state === "ready" && (
-        <StatusMessage state="empty">{keyword ? messages.problemListNoResults : messages.problemListEmpty}</StatusMessage>
+        <StatusMessage state="empty">{keyword ? t("problemListNoResults") : t("problemListEmpty")}</StatusMessage>
       )}
     </>
   );
 }
 
 function ProblemListContent({ filters, title, open, unavailable }: ProblemListPageProps) {
-  const messages = useMessages();
   const [draft, setDraft] = useState("");
   const [search, setSearch] = useState({ keyword: "", submission: 0 });
 
@@ -175,10 +171,10 @@ function ProblemListContent({ filters, title, open, unavailable }: ProblemListPa
           event.preventDefault();
           setSearch((current) => ({ keyword: draft.trim(), submission: current.submission + 1 }));
         }}>
-          <Input className="problem-list-view__input" type="search" aria-label={messages.problemSearch}
-            placeholder={messages.problemSearchPlaceholder} value={draft}
+          <Input className="problem-list-view__input" type="search" aria-label={t("problemSearch")}
+            placeholder={t("problemSearchPlaceholder")} value={draft}
             onChange={(event) => setDraft(event.target.value)} />
-          <button type="submit" className="ui-field problem-list-view__action">{messages.search}</button>
+          <button type="submit" className="ui-field problem-list-view__action">{t("search")}</button>
         </form>}
       </header>
       {unavailable ? (

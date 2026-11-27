@@ -1,6 +1,6 @@
 import { useCallback, useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { LocaleContext, useMessages, type MessageKey } from "../i18n";
+import { fallbackLocale, locale, t, type MessageKey } from "../i18n";
 import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
 import { ScrollArea } from "../shared/ui/ScrollArea";
@@ -67,12 +67,12 @@ function revealTab(view: string) {
   if (tab && strip) revealTabInStrip(strip, tab);
 }
 
-function tabDetails(view: WorkspaceView, target: WorkspaceTarget, messages: ReturnType<typeof useMessages>,
-  locale: "en" | "zh-CN") {
+function tabDetails(view: WorkspaceView, target: WorkspaceTarget) {
   const variant = view.singleton ? undefined : Object.values(view.variants ?? {}).find(({ params }) =>
     workspaceTabId({ id: view.id, params }) === workspaceTabId(target));
-  const title = target.label?.[locale] ?? target.label?.en ?? target.label?.["zh-CN"]
-    ?? messages[variant?.title ?? view.title];
+  const title = target.label?.[locale] ?? target.label?.[fallbackLocale]
+    ?? Object.values(target.label ?? {}).find((label) => label !== undefined)
+    ?? t(variant?.title ?? view.title);
   return { title, icon: variant?.icon ?? view.icon };
 }
 
@@ -103,14 +103,12 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
   drag: ReturnType<typeof useTabDrag>;
   onOpenTabMenu: (anchor: TabMenuAnchor) => void;
 }) {
-  const messages = useMessages();
-  const locale = useContext(LocaleContext);
   const { pane: group } = frame;
   const pane = group.id;
   const list = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLDivElement>(null);
   const listId = `workbench-tabs-${pane}`;
-  const label = messages.editorPane.replace("{number}", String(number));
+  const label = t("editorPane", { number });
   const tabOffsets = useRef(new Map<string, number>());
   const destination = drag.destination?.type === "place" &&
     drag.destination.placement.pane === pane ? drag.destination.placement : null;
@@ -153,7 +151,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
       strip.removeEventListener("scroll", onScroll);
       observer.disconnect();
     };
-  }, [group.active, messages]);
+  }, [group.active, locale]);
 
   useLayoutEffect(() => {
     const next = new Map<string, number>();
@@ -223,8 +221,8 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
             const target = targets.get(id);
             const view = target && workspaceViews.get(target.id);
             if (!target || !view) return null;
-            const { title, icon } = tabDetails(view, target, messages, locale);
-            const closeLabel = messages.closeView.replace("{title}", () => title);
+            const { title, icon } = tabDetails(view, target);
+            const closeLabel = t("closeView", { title });
             const selected = group.active === id;
             const dropEdge = destination?.anchor === id && drag.draggedView !== id
               ? destination.after ? "after" : "before"
@@ -269,14 +267,12 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
       </div>
       <Scrollbar viewport={list} content={row} controls={listId} className="pane-tab-scrollbar"
         orientation="horizontal" wheelOnParent
-        label={messages.scrollEditorTabs.replace("{pane}", label)} />
+        label={t("scrollEditorTabs", { pane: label })} />
     </div>
   );
 }
 
 export function Workbench() {
-  const messages = useMessages();
-  const locale = useContext(LocaleContext);
   const [layout, dispatch] = useReducer(workspaceReducer, initialLayout);
   const [sidebarSection, setSidebarSection] = useState<string | undefined>(workspaceSections[0]?.id);
   const [tabMenu, setTabMenu] = useState<TabMenuAnchor | null>(null);
@@ -380,7 +376,7 @@ export function Workbench() {
       <WorkspaceNavigator sectionId={sidebarSection} onSelectSection={setSidebarSection} onOpen={openTarget} />
       {sidebar.visible && (
         <div className="workbench-sidebar-resizer" role="separator" tabIndex={0}
-          aria-orientation="vertical" aria-controls="workspace-sidebar" aria-label={messages.resizeSidebar}
+          aria-orientation="vertical" aria-controls="workspace-sidebar" aria-label={t("resizeSidebar")}
           aria-valuemin={sidebarResize.minWidth} aria-valuemax={sidebarResize.maxWidth}
           aria-valuenow={sidebarResize.width}
           onPointerDown={sidebarResize.start} onPointerMove={sidebarResize.track}
@@ -414,7 +410,7 @@ export function Workbench() {
                   role="tabpanel" aria-labelledby={`workbench-tab-${id}`} tabIndex={0}
                   hidden={pane.active !== id} onFocusCapture={() => dispatch({ type: "focus", pane: pane.id })}
                   onPointerDown={() => dispatch({ type: "focus", pane: pane.id })}>
-                  <Page {...target} title={tabDetails(view, target, messages, locale).title} open={openTarget} />
+                  <Page {...target} title={tabDetails(view, target).title} open={openTarget} />
                 </ScrollArea>
               </PanePanelHost>
             );
@@ -433,10 +429,10 @@ export function Workbench() {
       )}
       {tabMenu && tabMenuPane?.tabs.includes(tabMenu.view) && (
         <ContextMenu key={`${tabMenu.pane}:${tabMenu.view}`} x={tabMenu.x} y={tabMenu.y}
-          label={messages.tabActions} onDismiss={dismissTabMenu}
+          label={t("tabActions")} onDismiss={dismissTabMenu}
           items={tabCloseActions.map(({ scope, label }) => ({
             id: scope,
-            label: messages[label],
+            label: t(label),
             enabled: closePaneTabs(tabMenuPane, tabMenu.view, scope) !== tabMenuPane,
             onSelect: () => closeFromTabMenu(scope),
           }))} />

@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useMessages, type MessageKey } from "../../i18n";
+import { t, type MessageKey } from "../../i18n";
 import { Icon } from "../../shared/Icon";
 import { collectionName, deletePersonalCollection, savePersonalCollection, type PersonalCollection } from "../../shared/personalCollections";
 import { Input } from "../../shared/ui/Fields";
@@ -26,7 +26,6 @@ function errorMessage(error: unknown, fallback: MessageKey) {
 }
 
 export function PersonalCollectionDialog({ current, mode = "edit", inlineHeader, onClose, onSaved }: PersonalCollectionDialogProps) {
-  const messages = useMessages();
   const dialog = useRef<HTMLDialogElement>(null);
   const inFlight = useRef(false);
   const titleId = useId();
@@ -39,7 +38,7 @@ export function PersonalCollectionDialog({ current, mode = "edit", inlineHeader,
   const inline = inlineHeader !== undefined;
   const deleting = mode === "delete";
   const firstControl = deleting ? cancelId : nameId;
-  const title = deleting ? messages.personalDelete : current ? messages.personalRename : messages.personalCreateFavorite;
+  const title = deleting ? t("personalDelete") : current ? t("personalRename") : t("personalCreateFavorite");
   const canSubmit = !current?.builtin && (deleting ? current !== undefined : name.trim().length > 0);
 
   useLayoutEffect(() => {
@@ -85,14 +84,14 @@ export function PersonalCollectionDialog({ current, mode = "edit", inlineHeader,
     void submit();
   }
 
-  const fieldName = messages.personalCollectionName;
+  const fieldName = t("personalCollectionName");
   const nameInput = (
     <Input id={nameId} value={name} readOnly={busy} required
       placeholder={inline ? fieldName : undefined} aria-label={inline ? fieldName : undefined}
       aria-invalid={error === "personalCollectionInvalidName" || undefined}
       onChange={(event) => { setName(event.target.value); setError(undefined); }} />
   );
-  const feedback = error && <p className="personal-dialog__error" role="alert">{messages[error]}</p>;
+  const feedback = error && <p className="personal-dialog__error" role="alert">{t(error)}</p>;
 
   if (inlineHeader) {
     return (
@@ -102,12 +101,12 @@ export function PersonalCollectionDialog({ current, mode = "edit", inlineHeader,
           <div className="personal-collection-inline__row">
             {nameInput}
             <button type="submit" className="ui-icon-button personal-collection-inline__submit"
-              aria-label={messages.personalCreate} title={messages.personalCreate} disabled={!canSubmit || busy}>
+              aria-label={t("personalCreate")} title={t("personalCreate")} disabled={!canSubmit || busy}>
               <Icon name="check" size={16} />
             </button>
           </div>
           {feedback}
-          {busy && <p className="personal-dialog__status" role="status">{messages.personalCollectionSaving}</p>}
+          {busy && <p className="personal-dialog__status" role="status">{t("personalCollectionSaving")}</p>}
         </div>
       </form>
     );
@@ -117,13 +116,13 @@ export function PersonalCollectionDialog({ current, mode = "edit", inlineHeader,
     <form onSubmit={handleSubmit}>
       <header className="personal-dialog__header">
         <h2 id={titleId}>{title}</h2>
-        <button type="button" className="ui-icon-button" aria-label={messages.close} title={messages.close}
+        <button type="button" className="ui-icon-button" aria-label={t("close")} title={t("close")}
           aria-disabled={busy || undefined} onClick={close}><Icon name="close" size={14} /></button>
       </header>
       <div className="personal-dialog__body">
         {deleting && current && (
           <p id={descriptionId} data-selectable>
-            {messages.personalDeleteFavoriteDescription.replace("{name}", () => collectionName(current, messages))}
+            {t("personalDeleteFavoriteDescription", { name: collectionName(current) })}
           </p>
         )}
         {!deleting && (
@@ -136,13 +135,13 @@ export function PersonalCollectionDialog({ current, mode = "edit", inlineHeader,
       </div>
       <footer className="personal-dialog__footer">
         {busy && <span className="personal-dialog__status" role="status">
-          {deleting ? messages.personalCollectionDeleting : messages.personalCollectionSaving}
+          {deleting ? t("personalCollectionDeleting") : t("personalCollectionSaving")}
         </span>}
         <button id={cancelId} type="button" className="ui-field personal-dialog__button"
-          aria-disabled={busy || undefined} onClick={close}>{messages.libraryManagementCancel}</button>
+          aria-disabled={busy || undefined} onClick={close}>{t("libraryManagementCancel")}</button>
         <button type="submit" className="ui-field personal-dialog__button" data-variant={deleting ? "danger" : "primary"}
           disabled={!canSubmit} aria-disabled={busy || undefined} aria-busy={busy || undefined}>
-          {deleting ? messages.personalDelete : current ? messages.save : messages.personalCreate}
+          {deleting ? t("personalDelete") : current ? t("save") : t("personalCreate")}
         </button>
       </footer>
     </form>

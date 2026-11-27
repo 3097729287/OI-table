@@ -4,7 +4,8 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { scheduleProblemComponentsPreload } from "../features/problem/problemComponents";
 import { useSettings } from "../shared/settings";
-import { getMessages, LocaleContext, useLocale } from "../i18n";
+import { locale, t } from "../i18n";
+import { useLanguagePreference } from "../i18n/languagePreference";
 import { StatusMessage } from "../shared/StatusMessage";
 import { flushAllProblemDrafts } from "../shared/ui/problemDrafts";
 import { WorkspaceSidebar } from "../workspace/sidebar";
@@ -18,8 +19,7 @@ function checkpointProblemDrafts() {
 
 export function WindowShell() {
   const { settings, loadFailed } = useSettings();
-  const locale = useLocale(settings?.uiLanguage);
-  const messages = getMessages(locale);
+  useLanguagePreference(settings?.uiLanguage);
   const [configuration, setConfiguration] = useState<"ready" | "failed">();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [windowClosing, setWindowClosing] = useState(false);
@@ -124,37 +124,35 @@ export function WindowShell() {
   }, []);
 
   return (
-    <LocaleContext value={locale}>
-      <div className="window-shell">
-        <TitleBar
-          title={currentWindow?.title ?? "OI-table"}
-          sidebar={isMainWindow ? {
-            visible: sidebarVisible,
-            toggle: toggleSidebar,
-          } : undefined}
-          feedback={windowClosing ? {
-            state: "loading",
-            message: messages.windowActionPending,
-          } : draftCloseFailed ? {
-            state: "error",
-            message: messages.windowDraftSaveFailed,
-          } : configuration === "failed" ? {
-            state: "error",
-            message: messages.windowConfigurationFailed,
-          } : undefined}
-        />
-        <div className="window-content" inert={windowClosing}>
-          {Page ? (
-            <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true), toggle: toggleSidebar }}>
-              <Page />
-            </WorkspaceSidebar.Provider>
-          ) : (
-            <main className="workspace">
-              <StatusMessage state="error">{messages.windowPageUnavailable}</StatusMessage>
-            </main>
-          )}
-        </div>
+    <div className="window-shell">
+      <TitleBar
+        title={currentWindow?.title ?? "OI-table"}
+        sidebar={isMainWindow ? {
+          visible: sidebarVisible,
+          toggle: toggleSidebar,
+        } : undefined}
+        feedback={windowClosing ? {
+          state: "loading",
+          message: t("windowActionPending"),
+        } : draftCloseFailed ? {
+          state: "error",
+          message: t("windowDraftSaveFailed"),
+        } : configuration === "failed" ? {
+          state: "error",
+          message: t("windowConfigurationFailed"),
+        } : undefined}
+      />
+      <div className="window-content" inert={windowClosing}>
+        {Page ? (
+          <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true), toggle: toggleSidebar }}>
+            <Page />
+          </WorkspaceSidebar.Provider>
+        ) : (
+          <main className="workspace">
+            <StatusMessage state="error">{t("windowPageUnavailable")}</StatusMessage>
+          </main>
+        )}
       </div>
-    </LocaleContext>
+    </div>
   );
 }

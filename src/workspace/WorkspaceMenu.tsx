@@ -1,5 +1,5 @@
 import { useId, useState, type CSSProperties } from "react";
-import { useMessages } from "../i18n";
+import { t } from "../i18n";
 import { Icon } from "../shared/Icon";
 import { workspaceTabId, type WorkspaceTarget } from "./layout";
 import { SidebarDisclosure } from "./SidebarDisclosure";
@@ -12,7 +12,6 @@ interface WorkspaceMenuProps {
 }
 
 export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
-  const messages = useMessages();
   const menuId = useId();
   const [expandedGroups, setExpandedGroups] = useState<Partial<Record<string, boolean>>>({});
   const [selectedEntry, setSelectedEntry] = useState<string>();
@@ -27,7 +26,7 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
       <ul className="workbench-sidebar__items" style={{ "--menu-indent": `${depth * 12}px` } as CSSProperties}>
         {items.map((item) => {
           if (item.kind === "group") {
-            const title = messages[item.title];
+            const title = t(item.title);
             const groupId = `${parentId}/${item.id}`;
             const defaultExpanded = depth === 0;
             const expanded = expandedGroups[groupId] ?? defaultExpanded;
@@ -51,7 +50,7 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
           if (!view) return null;
           const variant = item.variant === undefined ? undefined : view.variants?.[item.variant];
           if (item.variant !== undefined && !variant) return null;
-          const title = messages[item.title ?? variant?.title ?? view.title];
+          const title = t(item.title ?? variant?.title ?? view.title);
           const target = { id: view.id, params: variant?.params ?? {} };
           const id = workspaceTabId(target);
           if (item.Row) {
@@ -73,5 +72,5 @@ export function WorkspaceMenu({ section, onOpen }: WorkspaceMenuProps) {
     );
   }
 
-  return <nav aria-label={messages[section.title]}>{renderItems(section.children, section.id)}</nav>;
+  return <nav aria-label={t(section.title)}>{renderItems(section.children, section.id)}</nav>;
 }

@@ -1,5 +1,5 @@
 import { useContext, useId } from "react";
-import { useMessages, type MessageKey } from "../../i18n";
+import { t, type MessageKey } from "../../i18n";
 import { debugTimeoutMessages } from "../../shared/debugDiagnostics";
 import { Icon, type IconName } from "../../shared/Icon";
 import { isDebugActive, ProblemDebugContext, type DebugAction, type LocalDebug, type ProblemDebugLaunch } from "./localDebug";
@@ -40,26 +40,25 @@ const actionIcons = {
   stepOut: "stepOut",
 } as const satisfies Record<DebugAction, IconName>;
 
-function sessionStatus(state: LocalDebug, messages: ReturnType<typeof useMessages>) {
-  if (state.stopping) return messages.problemDebugStopping;
-  if (state.inspecting && state.status === "paused") return messages.problemDebugInspecting;
-  if (state.reason === "exception" && (state.status === "paused" || state.status === "finished")) return messages.problemDebugException;
-  if (state.status !== "paused") return messages[statusLabels[state.status]];
-  if (state.reason === "signal") return messages.problemDebugSignal;
+function sessionStatus(state: LocalDebug) {
+  if (state.stopping) return t("problemDebugStopping");
+  if (state.inspecting && state.status === "paused") return t("problemDebugInspecting");
+  if (state.reason === "exception" && (state.status === "paused" || state.status === "finished")) return t("problemDebugException");
+  if (state.status !== "paused") return t(statusLabels[state.status]);
+  if (state.reason === "signal") return t("problemDebugSignal");
   const line = state.frames?.[0]?.line || state.line;
-  if (!line) return messages.problemDebugPaused;
-  return (state.reason === "breakpoint" ? messages.problemDebugBreakpointHit : messages.problemDebugPausedAtLine).replace("{line}", String(line));
+  if (!line) return t("problemDebugPaused");
+  return t(state.reason === "breakpoint" ? "problemDebugBreakpointHit" : "problemDebugPausedAtLine", { line });
 }
 
 function DebugLaunch({ launch }: { launch?: ProblemDebugLaunch }) {
-  const messages = useMessages();
   const description = useId();
-  const message = launch ? launch.message : messages.problemDebugOpenProblem;
+  const message = launch ? launch.message : t("problemDebugOpenProblem");
   return (
     <div className="problem-debug__launch">
       <button type="button" className="problem-debug__launch-button" disabled={!launch?.start || launch.disabled}
         aria-describedby={message ? description : undefined} onClick={launch?.start}>
-        <Icon name="debug" size={15} /><span>{messages.problemDebugStart}</span>
+        <Icon name="debug" size={15} /><span>{t("problemDebugStart")}</span>
       </button>
       {message && <p id={description} role="status">{message}</p>}
     </div>
@@ -70,11 +69,10 @@ export function ProblemDebugPanel() {
   const debug = useContext(ProblemDebugContext);
   const state = debug?.state;
   const launch = debug?.launch;
-  const messages = useMessages();
   const titleId = useId();
   if (!state) return (
     <section className="problem-debug" aria-labelledby={titleId} data-status="idle">
-      <header className="problem-debug__header"><h2 id={titleId}>{messages.problemDebugSidebar}</h2></header>
+      <header className="problem-debug__header"><h2 id={titleId}>{t("problemDebugSidebar")}</h2></header>
       <DebugLaunch launch={launch} />
     </section>
   );
@@ -88,37 +86,37 @@ export function ProblemDebugPanel() {
   const snapshotPending = status === "starting" || status === "running";
   const variableScope = `${state.sessionId}:${selectedFrame ?? 0}:${frames?.find(({ id }) => id === selectedFrame)?.name ?? ""}`;
   const errorKey = error && Object.hasOwn(errorLabels, error) ? errorLabels[error] : undefined;
-  const errorText = error && messages[errorPhase ? debugTimeoutMessages[errorPhase] : errorKey ?? "problemDebugOperationFailed"];
+  const errorText = error && t(errorPhase ? debugTimeoutMessages[errorPhase] : errorKey ?? "problemDebugOperationFailed");
 
   return (
     <section className="problem-debug" aria-labelledby={titleId} data-status={status}>
       <header className="problem-debug__header">
-        <h2 id={titleId}>{messages.problemDebugSidebar}</h2>
+        <h2 id={titleId}>{t("problemDebugSidebar")}</h2>
         {active ? (
-          <div className="problem-debug__actions" role="group" aria-label={messages.problemDebugControls}>
+          <div className="problem-debug__actions" role="group" aria-label={t("problemDebugControls")}>
             {pauseActions.map((action) => (
               <button key={action} type="button" className="problem-debug__action"
-                aria-label={messages[actionLabels[action]]} title={messages[actionLabels[action]]}
+                aria-label={t(actionLabels[action])} title={t(actionLabels[action])}
                 aria-disabled={!canInspect || undefined} onClick={() => { if (canInspect) state.action(action); }}>
                 <Icon name={actionIcons[action]} size={14} />
               </button>
             ))}
             <button type="button" className="problem-debug__action problem-debug__action--stop"
-              aria-label={messages.problemDebugStop} title={messages.problemDebugStop}
+              aria-label={t("problemDebugStop")} title={t("problemDebugStop")}
               aria-disabled={stopping || undefined} onClick={() => { if (!stopping) state.action("stop"); }}>
               <Icon name="stop" size={14} />
             </button>
           </div>
         ) : (
-          <button type="button" className="problem-debug__action" aria-label={messages.problemDebugDismiss} title={messages.problemDebugDismiss}
+          <button type="button" className="problem-debug__action" aria-label={t("problemDebugDismiss")} title={t("problemDebugDismiss")}
             onClick={() => state.action("stop")}><Icon name="close" size={14} /></button>
         )}
       </header>
       <div className="problem-debug__status">
-        <p role="status">{sessionStatus(state, messages)}</p>
+        <p role="status">{sessionStatus(state)}</p>
         {active && (
-          <button type="button" className="problem-debug__action" aria-label={messages.problemDebugShowSource}
-            title={messages.problemDebugShowSource} onClick={state.reveal}><Icon name="editor" size={14} /></button>
+          <button type="button" className="problem-debug__action" aria-label={t("problemDebugShowSource")}
+            title={t("problemDebugShowSource")} onClick={state.reveal}><Icon name="editor" size={14} /></button>
         )}
       </div>
       {errorText && (
@@ -137,7 +135,7 @@ export function ProblemDebugPanel() {
               loadChildren={state.loadVariableChildren} />
           </section>
           <section className="problem-debug__section" aria-busy={snapshotPending || undefined}>
-            <h3>{messages.problemDebugCallStack}</h3>
+            <h3>{t("problemDebugCallStack")}</h3>
             <ol className="problem-debug__stack">
               {frames?.map(({ id, name, line }) => (
                 <li key={id}>
@@ -150,7 +148,7 @@ export function ProblemDebugPanel() {
                 </li>
               ))}
             </ol>
-            {frames?.length === 0 && <p className="problem-debug__empty">{messages.problemDebugNoFrames}</p>}
+            {frames?.length === 0 && <p className="problem-debug__empty">{t("problemDebugNoFrames")}</p>}
           </section>
         </>
       )}

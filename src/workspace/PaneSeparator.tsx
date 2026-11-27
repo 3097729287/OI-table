@@ -1,4 +1,4 @@
-import { useMessages } from "../i18n";
+import { t } from "../i18n";
 import { SplitSeparator } from "../shared/ui/SplitSeparator";
 import type { SplitFrame } from "./layout";
 
@@ -9,14 +9,13 @@ interface PaneSeparatorProps {
 }
 
 export function PaneSeparator({ frame, controls, onResize }: PaneSeparatorProps) {
-  const messages = useMessages();
   const { axis, bounds, ratio, minRatio, maxRatio } = frame;
   const sideBySide = axis === "horizontal";
   const span = sideBySide ? bounds.width : bounds.height;
 
   return (
     <SplitSeparator className="workbench-pane-separator"
-      label={sideBySide ? messages.resizePaneWidth : messages.resizePaneHeight}
+      label={sideBySide ? t("resizePaneWidth") : t("resizePaneHeight")}
       orientation={sideBySide ? "vertical" : "horizontal"} controls={controls}
       value={ratio} min={minRatio} max={maxRatio} pixelsPerUnit={span} onResize={onResize}
       style={sideBySide
