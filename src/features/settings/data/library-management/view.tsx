@@ -1,13 +1,13 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LocaleContext, useMessages, type MessageKey } from "../../i18n";
-import { Icon } from "../../shared/Icon";
+import { LocaleContext, useMessages, type MessageKey } from "../../../../i18n";
+import { Icon } from "../../../../shared/Icon";
 import {
   getLibraryRevision, importProblemLibrariesFromPath, listProblemLibraries, localizedLibraryText, setProblemLibraryEnabled,
   uninstallProblemLibrary, useLibraryRevision, type ProblemLibrary, type ProblemLibraryImport,
-} from "../../shared/problemLibrary";
-import { StatusMessage } from "../../shared/StatusMessage";
-import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
+} from "../../../../shared/problemLibrary";
+import { StatusMessage } from "../../../../shared/StatusMessage";
+import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../../../workspace/views";
 import { ErrorDetails, format, operationError } from "./feedback";
 import { LibraryImportDialog } from "./LibraryImportDialog";
 import { LibraryTable } from "./LibraryTable";

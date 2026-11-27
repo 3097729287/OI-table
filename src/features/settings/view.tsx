@@ -1,7 +1,6 @@
-import { lazy, Suspense, type ComponentType } from "react";
+import type { ComponentType } from "react";
 import { useMessages } from "../../i18n";
 import type { AppSettings } from "../../shared/settings";
-import { DelayedLoadingMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps, WorkspaceViewVariant } from "../../workspace/views";
 import AppearanceSection from "./appearance/section";
 import DiagnosticsSection from "./diagnostics/section";
@@ -14,10 +13,10 @@ export type SettingsSectionProps = Pick<ReturnType<typeof useSettingsForm>, "sav
   settings: AppSettings;
 };
 
-type SettingsVariant = WorkspaceViewVariant & { params: { group: string } } &
-  ({ Section: ComponentType<SettingsSectionProps> } | { Page: ComponentType });
-
-const AboutSection = lazy(() => import("./about/section"));
+type SettingsVariant = WorkspaceViewVariant & {
+  params: { group: string };
+  Section: ComponentType<SettingsSectionProps>;
+};
 
 export const workspaceView = {
   id: "settings",
@@ -29,7 +28,6 @@ export const workspaceView = {
     editor: { params: { group: "editor" }, title: "editor", icon: "editor", Section: EditorSection },
     runDebug: { params: { group: "run-debug" }, title: "runAndDebug", icon: "run", Section: RunDebugSection },
     diagnostics: { params: { group: "diagnostics" }, title: "dataAndDiagnostics", icon: "submissions", Section: DiagnosticsSection },
-    about: { params: { group: "about" }, title: "about", icon: "catalog", Page: AboutSection },
   },
 } satisfies WorkspaceViewOptions<SettingsVariant>;
 
@@ -39,16 +37,6 @@ export default function SettingsView({ params }: WorkspaceViewProps) {
   const { settings, saving, saveChanges } = form;
   const { variants } = workspaceView;
   const variant = Object.values(variants).find((entry) => entry.params.group === params.group) ?? variants.appearance;
-  if ("Page" in variant) {
-    const Page = variant.Page;
-    return (
-      <SettingsPage title={messages[variant.title]}>
-        <Suspense fallback={<DelayedLoadingMessage>{messages.settingsLoading}</DelayedLoadingMessage>}>
-          <Page />
-        </Suspense>
-      </SettingsPage>
-    );
-  }
   const { Section, title } = variant;
 
   return (

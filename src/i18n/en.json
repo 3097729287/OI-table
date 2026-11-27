@@ -338,6 +338,7 @@
   "settingsGroupEmpty": "No settings yet.",
   "settingsLoadFailed": "Could not load settings.",
   "settingsSaveFailed": "Could not save settings.",
+  "settingsData": "Data",
   "settingsOther": "Other",
   "about": "About",
   "aboutVersion": "Version",

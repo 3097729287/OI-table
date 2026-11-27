@@ -2,9 +2,9 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useMessages } from "../../i18n";
-import { Icon } from "../../shared/Icon";
-import { pickProblemLibrarySource, type ProblemLibrarySource } from "../../shared/problemLibrary";
+import { useMessages } from "../../../../i18n";
+import { Icon } from "../../../../shared/Icon";
+import { pickProblemLibrarySource, type ProblemLibrarySource } from "../../../../shared/problemLibrary";
 import { ErrorDetails, operationError } from "./feedback";
 
 interface LibraryImportDialogProps {

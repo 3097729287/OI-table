@@ -1,7 +1,7 @@
 import { useContext, useId } from "react";
-import { LocaleContext, getMessages } from "../../i18n";
-import { localizedLibraryText, type ProblemLibrary } from "../../shared/problemLibrary";
-import "../../shared/ui/fields.css";
+import { LocaleContext, getMessages } from "../../../../i18n";
+import { localizedLibraryText, type ProblemLibrary } from "../../../../shared/problemLibrary";
+import "../../../../shared/ui/fields.css";
 
 interface LibraryTableProps {
   libraries: readonly ProblemLibrary[];

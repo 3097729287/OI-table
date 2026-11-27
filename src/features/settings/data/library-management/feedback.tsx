@@ -1,4 +1,4 @@
-import { useMessages, type MessageKey } from "../../i18n";
+import { useMessages, type MessageKey } from "../../../../i18n";
 
 const errorMessages: Readonly<Partial<Record<string, MessageKey>>> = {
   invalid_directory: "libraryManagementInvalidDirectory",

@@ -19,10 +19,18 @@ export default {
     },
     {
       kind: "group",
+      id: "data",
+      title: "settingsData",
+      children: [
+        { kind: "view", viewId: "library-management" },
+      ],
+    },
+    {
+      kind: "group",
       id: "other",
       title: "settingsOther",
       children: [
-        { kind: "view", viewId: "settings", variant: "about" },
+        { kind: "view", viewId: "about" },
       ],
     },
   ],
