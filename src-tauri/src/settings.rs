@@ -90,7 +90,7 @@ const RULES: &[(&str, Rule)] = &[
             alternatives: &[&["python"]],
         },
     ),
-    (PROBLEM_DOUBLE_COLUMN_KEY, Rule::Boolean { default: false }),
+    (PROBLEM_DOUBLE_COLUMN_KEY, Rule::Boolean { default: true }),
     (
         LOG_MAX_SIZE_KEY,
         Rule::Integer {
@@ -249,7 +249,7 @@ mod tests {
                 "uiFont": "monospace",
                 "editorFont": "monospace",
                 "editorDefaultLanguage": "python",
-                "problemDoubleColumn": true,
+                "problemDoubleColumn": false,
                 "editorPrefs": { "wordWrap": true, "extra": null },
             }))?,
             |log_limit| assert_eq!(log_limit, None),
@@ -268,7 +268,7 @@ mod tests {
         assert_eq!(settings["editorFont"], "monospace");
         assert_eq!(settings["uiFontSize"], 18);
         assert_eq!(settings[EDITOR_DEFAULT_LANGUAGE_KEY], "python");
-        assert_eq!(settings[PROBLEM_DOUBLE_COLUMN_KEY], true);
+        assert_eq!(settings[PROBLEM_DOUBLE_COLUMN_KEY], false);
         assert_eq!(
             settings["editorPrefs"],
             json!({ "wordWrap": true, "extra": null })
@@ -299,7 +299,7 @@ mod tests {
         assert_eq!(loaded["editorFontSize"], 13);
         assert_eq!(loaded["editorFontSizeMode"], "custom");
         assert_eq!(loaded[EDITOR_DEFAULT_LANGUAGE_KEY], "cpp");
-        assert_eq!(loaded[PROBLEM_DOUBLE_COLUMN_KEY], false);
+        assert_eq!(loaded[PROBLEM_DOUBLE_COLUMN_KEY], true);
         assert_eq!(log_max_size(&loaded), DEFAULT_LOG_MAX_SIZE_MIB);
 
         save_settings(
@@ -348,7 +348,7 @@ mod tests {
         assert_eq!(saved["editorFontSize"], 13);
         assert_eq!(saved["editorFontSizeMode"], "custom");
         assert_eq!(saved[EDITOR_DEFAULT_LANGUAGE_KEY], "cpp");
-        assert_eq!(saved[PROBLEM_DOUBLE_COLUMN_KEY], false);
+        assert_eq!(saved[PROBLEM_DOUBLE_COLUMN_KEY], true);
         assert_eq!(saved[LOG_MAX_SIZE_KEY], DEFAULT_LOG_MAX_SIZE_MIB);
         Ok(())
     }

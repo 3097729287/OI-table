@@ -3,6 +3,7 @@ import { useMessages } from "../../i18n";
 import {
   getLibraryProblem, getLibraryRevision, useLibraryRevision, type LibraryProblemDetail,
 } from "../../shared/problemLibrary";
+import { useSettings } from "../../shared/settings";
 import { DelayedLoadingMessage, StatusMessage } from "../../shared/StatusMessage";
 import type { WorkspaceViewOptions, WorkspaceViewProps } from "../../workspace/views";
 import { ProblemDetail } from "./ProblemDetail";
@@ -17,6 +18,7 @@ export const workspaceView = {
 export default function ProblemView({ params, title }: WorkspaceViewProps) {
   const { problemId } = params;
   const messages = useMessages();
+  const { settings, loadFailed } = useSettings();
   const revision = useLibraryRevision();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ id: string; problem: LibraryProblemDetail | null }>();
@@ -37,7 +39,9 @@ export default function ProblemView({ params, title }: WorkspaceViewProps) {
     return () => { current = false; };
   }, [problemId, revision, attempt]);
 
-  if (problem) return <ProblemDetail key={problem.id} problem={problem} title={title} />;
+  if (problem && settings) {
+    return <ProblemDetail key={problem.id} problem={problem} title={title} settings={settings} />;
+  }
 
   return (
     <section className="workspace workbench-page problem-preview" aria-label={title}>
@@ -52,6 +56,9 @@ export default function ProblemView({ params, title }: WorkspaceViewProps) {
         </>
       )}
       {problemId && problem === undefined && <DelayedLoadingMessage>{messages.problemLoading}</DelayedLoadingMessage>}
+      {problem && (loadFailed
+        ? <StatusMessage state="error">{messages.settingsLoadFailed}</StatusMessage>
+        : <DelayedLoadingMessage>{messages.settingsLoading}</DelayedLoadingMessage>)}
     </section>
   );
 }

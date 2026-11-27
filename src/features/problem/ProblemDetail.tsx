@@ -1,10 +1,10 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { Suspense, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LocaleContext, useMessages } from "../../i18n";
-import { defaultCodeLanguage, type CodeLanguage } from "../../shared/codeLanguages";
+import type { CodeLanguage } from "../../shared/codeLanguages";
 import { Icon } from "../../shared/Icon";
 import { localizedLibraryText, type LibraryProblemDetail, type LocalizedProblemText } from "../../shared/problemLibrary";
-import { useSettings } from "../../shared/settings";
+import type { AppSettings } from "../../shared/settings";
 import { DelayedLoadingMessage, StatusMessage } from "../../shared/StatusMessage";
 import type { ProblemMarkdownSampleActions } from "../../shared/ui/MarkdownViewer";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
@@ -144,10 +144,13 @@ function ProblemStatement({ problem, locale, fallbackTitle, sampleActions }: {
   );
 }
 
-export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetail; title: string }) {
+export function ProblemDetail({ problem, title, settings }: {
+  problem: LibraryProblemDetail;
+  title: string;
+  settings: Pick<AppSettings, "problemDoubleColumn" | "editorDefaultLanguage">;
+}) {
   const messages = useMessages();
   const interfaceLocale = useContext(LocaleContext);
-  const { settings } = useSettings();
   const debuggerWorkspace = useContext(ProblemDebugContext);
   const releaseDebug = debuggerWorkspace?.release;
   const registerLaunch = debuggerWorkspace?.registerLaunch;
@@ -167,7 +170,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const launchAction = useRef<() => void>(() => {});
   const launch = useCallback(() => launchAction.current(), []);
   const layoutButton = useRef<HTMLButtonElement>(null);
-  const doubleColumn = layoutOverride ?? settings?.problemDoubleColumn ?? false;
+  const doubleColumn = layoutOverride ?? settings.problemDoubleColumn;
   const locale = language === "interface" ? interfaceLocale : language;
   const revealKey = debug?.revealKey;
   const sourceRevealKey = debug?.sourceRevealKey;
@@ -176,7 +179,7 @@ export function ProblemDetail({ problem, title }: { problem: LibraryProblemDetai
   const debugStderr = debug?.stderr || (debug?.error === "compile_failed" ? debug.errorDetail : undefined) || "";
   const desktop = isTauri();
   const debugging = isDebugActive(debug);
-  const codeLanguage = settings?.editorDefaultLanguage ?? defaultCodeLanguage;
+  const codeLanguage = settings.editorDefaultLanguage;
   const editorLanguage = debugging && debug ? debug.language : codeLanguage;
   const running = run?.state === "running" || run?.state === "loading-draft";
   const launchDisabled = running || launchState === "loading";

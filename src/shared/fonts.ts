@@ -9,7 +9,6 @@ const fontLabels = {
 } satisfies Record<string, MessageKey>;
 
 export type FontPreset = keyof typeof fontLabels;
-export const defaultEditorFont = "fira-code" satisfies FontPreset;
 
 export function useFontOptions() {
   const messages = useMessages();
