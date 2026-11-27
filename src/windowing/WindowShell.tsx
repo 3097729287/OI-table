@@ -7,7 +7,6 @@ import { useSettings } from "../shared/settings";
 import { getMessages, LocaleContext, useLocale } from "../i18n";
 import { StatusMessage } from "../shared/StatusMessage";
 import { flushAllProblemDrafts } from "../shared/ui/problemDrafts";
-import { ScrollArea } from "../shared/ui/ScrollArea";
 import { WorkspaceSidebar } from "../workspace/sidebar";
 import { applyMainWindowOptions, currentWindow, isMainWindow } from "./routes";
 import { TitleBar } from "./TitleBar";
@@ -144,7 +143,7 @@ export function WindowShell() {
             message: messages.windowConfigurationFailed,
           } : undefined}
         />
-        <ScrollArea className="window-content" inert={windowClosing}>
+        <div className="window-content" inert={windowClosing}>
           {Page ? (
             <WorkspaceSidebar.Provider value={{ visible: sidebarVisible, show: () => setSidebarVisible(true), toggle: toggleSidebar }}>
               <Page />
@@ -154,7 +153,7 @@ export function WindowShell() {
               <StatusMessage state="error">{messages.windowPageUnavailable}</StatusMessage>
             </main>
           )}
-        </ScrollArea>
+        </div>
       </div>
     </LocaleContext>
   );

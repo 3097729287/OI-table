@@ -4,6 +4,12 @@
   block-size: 100vh;
 }
 
+.window-content {
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: clip;
+}
+
 .title-bar {
   position: relative;
   z-index: 1;
