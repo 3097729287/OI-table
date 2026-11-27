@@ -5,7 +5,6 @@ import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
 import { ScrollArea } from "../shared/ui/ScrollArea";
 import { Scrollbar } from "../shared/ui/Scrollbar";
-import emptyWorkbenchImage from "./assets/oi-table-product.svg?no-inline";
 import {
   closePaneTabs, collectWorkspaceFrames, initialLayout, previewBounds, workspaceReducer, workspaceTabId,
   type LayoutAction, type PaneBounds, type PaneFrame, type PaneId, type PaneSize, type TabCloseScope,
@@ -430,7 +429,7 @@ export function Workbench() {
           )}
         </div>
       ) : (
-        <img className="workbench-empty-image" src={emptyWorkbenchImage} alt="" draggable={false} />
+        <div className="workbench-empty-mark" aria-hidden="true" />
       )}
       {tabMenu && tabMenuPane?.tabs.includes(tabMenu.view) && (
         <ContextMenu key={`${tabMenu.pane}:${tabMenu.view}`} x={tabMenu.x} y={tabMenu.y}

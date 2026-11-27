@@ -259,14 +259,14 @@
   transition: none;
 }
 
-.workbench-empty-image {
+.workbench-empty-mark {
   grid-column: 3;
   place-self: center;
-  inline-size: min(100%, 640px);
-  block-size: 100%;
-  min-block-size: 0;
-  object-fit: contain;
-  filter: var(--workbench-empty-image-filter);
+  inline-size: min(68%, 300px);
+  block-size: min(62%, 300px);
+  background: var(--workbench-empty-mark-color);
+  mask: url("../../src-tauri/app-icon.svg?no-inline") center / contain no-repeat;
+  pointer-events: none;
 }
 
 :is(.workbench-pane, .workbench-dock-preview) {

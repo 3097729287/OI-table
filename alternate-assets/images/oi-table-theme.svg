@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="550" viewBox="0 0 900 550" role="img" aria-labelledby="title description">
+  <title id="title">OI-table</title>
+  <desc id="description">Playful OI-table lettering with graph, sorting, and checkmark stickers.</desc>
+
+  <defs>
+    <!-- Letter shapes are drawn directly so the wordmark looks the same on every platform. -->
+    <path id="o" fill-rule="evenodd" d="M62 0C23 0 1 25 1 64s22 64 61 64 61-26 61-64S101 0 62 0Zm0 30c16 0 25 12 25 34s-9 34-25 34-25-12-25-34 9-34 25-34Z"/>
+    <path id="i" d="M9 2h51q7 0 7 7v14q0 7-7 7H52v68h8q7 0 7 7v14q0 7-7 7H9q-7 0-7-7v-14q0-7 7-7h8V30H9q-7 0-7-7V9q0-7 7-7Z"/>
+    <rect id="dash" width="58" height="24" rx="12"/>
+    <path id="t" d="M10 2h92q8 0 8 8v18q0 8-8 8H74v82q0 8-8 8H46q-8 0-8-8V36H10q-8 0-8-8V10q0-8 8-8Z"/>
+    <path id="a" fill-rule="evenodd" d="M41 8q2-7 9-7h24q7 0 10 7l39 108q4 10-7 10H94q-6 0-8-7l-5-17H43l-5 17q-2 7-9 7H9q-10 0-7-10ZM51 76h22L62 39Z"/>
+    <path id="b" fill-rule="evenodd" d="M10 2h49c32 0 48 13 48 33 0 12-6 21-17 26 14 5 22 15 22 29 0 23-18 36-51 36H10q-8 0-8-8V10q0-8 8-8Zm26 27v21h21q16 0 16-11 0-10-16-10Zm0 47v23h23q18 0 18-12 0-11-18-11Z"/>
+    <path id="l" d="M10 2h20q8 0 8 8v83h48q8 0 8 8v17q0 8-8 8H10q-8 0-8-8V10q0-8 8-8Z"/>
+    <path id="e" d="M10 2h77q8 0 8 8v14q0 8-8 8H37v16h42q8 0 8 8v14q0 8-8 8H37v18h52q8 0 8 8v14q0 8-8 8H10q-8 0-8-8V10q0-8 8-8Z"/>
+
+    <path id="spark" d="M0-30C4-9 9-4 30 0 9 4 4 9 0 30-4 9-9 4-30 0-9-4-4-9 0-30Z"/>
+    <path id="graph-card" d="M-65-43h130q12 0 12 12v62q0 12-12 12H-65q-12 0-12-12v-62q0-12 12-12Z"/>
+    <rect id="sort-card" x="-63" y="-47" width="126" height="94" rx="18"/>
+    <rect id="check-card" x="-26" y="-26" width="52" height="52" rx="13"/>
+    <linearGradient id="bright-blue" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#2c8df2"/>
+      <stop offset="1" stop-color="#1653cc"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Two overlapping algorithm stickers bring the type off the page. -->
+  <g transform="translate(188 208) rotate(-19)">
+    <use href="#graph-card" transform="translate(0 11)" fill="#116598" stroke="#116598" stroke-width="15"/>
+    <use href="#graph-card" fill="#49e1f4" stroke="#fff" stroke-width="15"/>
+    <path d="m-45 18 26-37 31 33 34-34" fill="none" stroke="#136baf" stroke-width="7" stroke-linejoin="round"/>
+    <g fill="#fff" stroke="#136baf" stroke-width="4">
+      <circle cx="-45" cy="18" r="8"/>
+      <circle cx="-19" cy="-19" r="8"/>
+      <circle cx="12" cy="14" r="8"/>
+      <circle cx="46" cy="-20" r="8"/>
+    </g>
+  </g>
+
+  <g transform="translate(709 195) rotate(17)">
+    <use href="#sort-card" transform="translate(0 10)" fill="#2458a7" stroke="#2458a7" stroke-width="14"/>
+    <use href="#sort-card" fill="#e8e5ff" stroke="#fff" stroke-width="14"/>
+    <path d="M-38 23h75" stroke="#6752c3" stroke-width="5" stroke-linecap="round"/>
+    <rect x="-38" y="1" width="14" height="18" rx="4" fill="#43c8f3"/>
+    <rect x="-17" y="-8" width="14" height="27" rx="4" fill="#2f80ed"/>
+    <rect x="4" y="-19" width="14" height="38" rx="4" fill="#7960ee"/>
+    <rect x="25" y="-30" width="14" height="49" rx="4" fill="#b24af1"/>
+  </g>
+
+  <!-- Print the depth, then the white die-cut edge and the colored face. -->
+  <g stroke-linejoin="round">
+    <g transform="translate(264 100) rotate(-12) scale(1.58)">
+      <use href="#o" transform="translate(0 9)" fill="#1748a4" stroke="#1748a4" stroke-width="16"/>
+      <use href="#o" fill="url(#bright-blue)" stroke="#fff" stroke-width="16" paint-order="stroke fill"/>
+    </g>
+    <g transform="translate(463 91) rotate(9) scale(1.54)">
+      <use href="#i" transform="translate(0 9)" fill="#4031a5" stroke="#4031a5" stroke-width="16"/>
+      <use href="#i" fill="#6c4ee7" stroke="#fff" stroke-width="16" paint-order="stroke fill"/>
+    </g>
+    <g transform="translate(573 178) rotate(-15) scale(1.31)">
+      <use href="#dash" transform="translate(0 9)" fill="#1961a2" stroke="#1961a2" stroke-width="14"/>
+      <use href="#dash" fill="#32c9ee" stroke="#fff" stroke-width="14" paint-order="stroke fill"/>
+    </g>
+
+    <g transform="translate(93 315) rotate(-13) scale(1.28)">
+      <use href="#t" transform="translate(0 10)" fill="#1748a4" stroke="#1748a4" stroke-width="16"/>
+      <use href="#t" fill="url(#bright-blue)" stroke="#fff" stroke-width="16" paint-order="stroke fill"/>
+    </g>
+    <g transform="translate(233 300) rotate(-6) scale(1.28)">
+      <use href="#a" transform="translate(0 10)" fill="#2252ab" stroke="#2252ab" stroke-width="16"/>
+      <use href="#a" fill="#246fea" stroke="#fff" stroke-width="16" paint-order="stroke fill"/>
+    </g>
+    <g transform="translate(383 284) rotate(2) scale(1.31)">
+      <use href="#b" transform="translate(0 10)" fill="#4031a5" stroke="#4031a5" stroke-width="16"/>
+      <use href="#b" fill="#7855e8" stroke="#fff" stroke-width="16" paint-order="stroke fill"/>
+    </g>
+    <g transform="translate(533 299) rotate(7) scale(1.3)">
+      <use href="#l" transform="translate(0 10)" fill="#2544a0" stroke="#2544a0" stroke-width="16"/>
+      <use href="#l" fill="#435ee3" stroke="#fff" stroke-width="16" paint-order="stroke fill"/>
+    </g>
+    <g transform="translate(655 315) rotate(13) scale(1.28)">
+      <use href="#e" transform="translate(0 10)" fill="#1748a4" stroke="#1748a4" stroke-width="16"/>
+      <use href="#e" fill="url(#bright-blue)" stroke="#fff" stroke-width="16" paint-order="stroke fill"/>
+    </g>
+  </g>
+
+  <g transform="translate(765 444) rotate(14)">
+    <use href="#check-card" transform="translate(0 7)" fill="#177d86" stroke="#177d86" stroke-width="9"/>
+    <use href="#check-card" fill="#67f0c3" stroke="#fff" stroke-width="9"/>
+    <path d="m-12 0 8 8L13-9" fill="none" stroke="#13756c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g stroke="#fff" stroke-linejoin="round" stroke-width="7" paint-order="stroke fill">
+    <use href="#spark" transform="translate(167 100) rotate(-12) scale(.83)" fill="#ffc438"/>
+    <use href="#spark" transform="translate(638 95) rotate(12)" fill="#ffc438"/>
+    <use href="#spark" transform="translate(793 286) rotate(14) scale(.65)" fill="#ffb62b"/>
+    <use href="#spark" transform="translate(216 465) rotate(-12) scale(.72)" fill="#50e3f5"/>
+  </g>
+  <g fill="none" stroke-linecap="round" stroke-width="9">
+    <path d="m115 261-16-5m707-123 14-12" stroke="#42d7f1"/>
+    <path d="m201 62-4-13m427 449 10 14" stroke="#a788ff"/>
+    <path d="m83 380-14 8m738-35 15 5" stroke="#ffc438"/>
+  </g>
+</svg>
