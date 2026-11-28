@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import { debugTimeoutMessages, type DebugTimeoutPhase } from "../../shared/debugDiagnostics";
-import type { CodeLanguage } from "../../shared/ui/codeLanguages";
+import type { CodeLanguage } from "../../shared/codeLanguages";
 
 export type DebugAction = "continue" | "stepOver" | "stepInto" | "stepOut";
 

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CodeLanguage } from "../../shared/ui/codeLanguages";
+import type { CodeLanguage } from "../../shared/codeLanguages";
 
 export type RunStatus = "success" | "compile_error" | "runtime_error" | "compile_timeout" | "runtime_timeout" | "output_limit";
 

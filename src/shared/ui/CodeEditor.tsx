@@ -1,4 +1,4 @@
-import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
+import { closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentOnInput, indentUnit } from "@codemirror/language";
 import {
@@ -10,10 +10,10 @@ import { isTauri } from "@tauri-apps/api/core";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { locale, t } from "../../i18n";
 import { codeLanguageOptions, type CodeLanguage } from "../codeLanguages";
+import { codeAutocomplete, codeLanguageExtensions, syntaxDiagnostics } from "../editor/languageSupport";
 import { Icon } from "../Icon";
 import { updateSettings } from "../settings";
 import { DelayedLoadingMessage, StatusMessage } from "../StatusMessage";
-import { codeLanguageExtensions, syntaxDiagnostics } from "./codeLanguages";
 import { codeSyntaxHighlighting } from "./codeEditorTheme";
 import { breakpointLines, codeEditorBreakpointGutter, codeEditorDebugReadOnly, debugLine as debugLineField,
   setBreakpointLines, setDebugLine } from "./codeEditorDebug";
@@ -23,7 +23,7 @@ import { Select } from "./Select";
 
 const editorExtensions = [
   codeEditorSurfaceExtensions, indentOnInput(), indentUnit.of("    "),
-  bracketMatching(), closeBrackets(), autocompletion(), codeSyntaxHighlighting,
+  bracketMatching(), closeBrackets(), codeAutocomplete, codeSyntaxHighlighting,
   keymap.of([...closeBracketsKeymap, ...completionKeymap, ...historyKeymap, ...codeEditorDefaultKeymap, ...lintKeymap, indentWithTab]),
 ];
 
