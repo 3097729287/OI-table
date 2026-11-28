@@ -1,0 +1,7 @@
+.code-syntax-keyword { color: var(--code-syntax-keyword); }
+.code-syntax-type { color: var(--code-syntax-type); }
+.code-syntax-string { color: var(--code-syntax-string); }
+.code-syntax-number { color: var(--code-syntax-number); }
+.code-syntax-function { color: var(--code-syntax-function); }
+.code-syntax-comment { color: var(--code-syntax-comment); }
+.code-syntax-meta { color: var(--code-syntax-meta); }

@@ -63,6 +63,27 @@
 
 题面在标签页内居中显示，支持 Markdown 标题、列表、表格和代码块，以及 `$…$` 行内公式与独立的 `$$` 公式块。链接显示其文字，图片显示替代文字。
 
+围栏后的第一个词指定语法解析语言，`title` 指定标签显示名，`example` 指定示例组名。相邻代码块写同一个 `example` 就会归入同一组，每个代码块占一个标签，同一种语言可以有多个写法。省略 `title` 时显示语言名，每组默认打开第一项。带空格的值用引号包起来。当前支持 C++（`cpp` 或 `c++`）和 Python（`python` 或 `py`）。
+
+````markdown
+```cpp example=分组1
+long long range_sum(const std::vector<long long>& prefix, int left, int right) {
+    return prefix[right] - prefix[left - 1];
+}
+```
+
+```python title="Python 写法一" example=分组1
+def range_sum(prefix, left, right):
+    return prefix[right] - prefix[left - 1]
+```
+
+```py example=分组1 title="Python 写法二"
+def range_sum(prefix, left, right):
+    start = left - 1
+    return prefix[right] - prefix[start]
+```
+````
+
 题目页可切换题面、题解和代码草稿。内容语言默认跟随界面，也可独立选择简体中文或 English。所选语言缺少翻译时，页面显示可用译文并标明语言。题目包含多篇题解时，可在题解区选择。
 
 题目默认使用双栏，可在「设置 → 编辑器 → 题目默认布局」调整新标签页的布局。题目页的「双栏」按钮可临时切换布局。初始双栏左侧依次显示题面、题解和提交记录，右侧上方是代码，下方是测试输入和运行结果。提交记录按时间倒序展示当前题目的判定、语言和题目版本。拖动标签名可排序或移动到其他窗格，拖到窗格边缘可新增分屏。拖动分隔条或聚焦后用方向键可调整尺寸。窗格空间不足时所有标签合并到同一栏，空间恢复后沿用此前布局。切换语言、布局或移动标签时会保留代码草稿和测试输入。

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { I18nProvider } from "./i18n";
 import { installKeybindings } from "./shared/keybindings";
 import "./theme/colors.css";
+import "./theme/code-syntax.css";
 import "./theme/mint.css";
 import "./theme/lavender.css";
 import "./app.css";
