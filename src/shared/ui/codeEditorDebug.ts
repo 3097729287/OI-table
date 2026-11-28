@@ -1,5 +1,6 @@
 import { EditorState, RangeSet, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, EditorView, GutterMarker, keymap, lineNumberMarkers, lineNumbers } from "@codemirror/view";
+import { Decoration, EditorView, GutterMarker, lineNumberMarkers, lineNumbers, ViewPlugin } from "@codemirror/view";
+import { formatShortcut, registerShortcutScope } from "../keybindings";
 import { mapBreakpointLines, sameBreakpointLines } from "./problemDraftSession";
 
 export const setBreakpointLines = StateEffect.define<readonly number[]>();
@@ -48,12 +49,17 @@ class DebugGutterMarker extends GutterMarker {
 const breakpointMarker = new DebugGutterMarker("cm-debug-breakpoint");
 const pausedMarker = new DebugGutterMarker("cm-debug-paused");
 
-function toggleAt(view: EditorView, position: number) {
+function toggleBreakpointAt(view: EditorView, position: number) {
   view.dispatch({ effects: toggleBreakpointLine.of(view.state.doc.lineAt(position).number) });
-  return true;
 }
 
-export function codeEditorBreakpointGutter(hint: string) {
+const breakpointShortcuts = ViewPlugin.define((view) => ({
+  destroy: registerShortcutScope(view.contentDOM, "editor", {
+    "editor.toggleBreakpoint": () => toggleBreakpointAt(view, view.state.selection.main.head),
+  }),
+}));
+
+export function codeEditorBreakpointGutter(hint: string, shortcut: string | null) {
   return [
     EditorView.editorAttributes.compute(["doc"], ({ doc }) => ({
       "data-breakpoint-space": doc.lines < 1_000 ? "wide" : doc.lines < 10_000 ? "compact" : "minimal",
@@ -66,8 +72,11 @@ export function codeEditorBreakpointGutter(hint: string) {
     }),
     lineNumbers({
       domEventHandlers: {
-        click: (view, block, event) => event.target instanceof HTMLElement &&
-          event.target.classList.contains("cm-gutterElement") && toggleAt(view, block.from),
+        click: (view, block, event) => {
+          if (!(event.target instanceof HTMLElement) || !event.target.classList.contains("cm-gutterElement")) return false;
+          toggleBreakpointAt(view, block.from);
+          return true;
+        },
         pointerover: (_view, _block, event) => {
           if (event.target instanceof HTMLElement && event.target.classList.contains("cm-gutterElement")) {
             event.target.title = hint;
@@ -76,8 +85,8 @@ export function codeEditorBreakpointGutter(hint: string) {
         },
       },
     }),
-    keymap.of([{ key: "F9", run: (view) => toggleAt(view, view.state.selection.main.head) }]),
-    EditorView.contentAttributes.of({ "aria-keyshortcuts": "F9" }),
+    breakpointShortcuts,
+    shortcut ? EditorView.contentAttributes.of({ "aria-keyshortcuts": formatShortcut(shortcut).replace(/^Ctrl\+/, "Control+") }) : [],
   ];
 }
 

@@ -113,13 +113,6 @@
   }
 }
 
-.problem-workspace__tab:focus-visible,
-.problem-workspace__panel:focus-visible {
-  outline: 1px solid var(--accent-color);
-  outline-offset: -2px;
-  box-shadow: none;
-}
-
 .problem-workspace[data-problem-tab-dragging="true"] .problem-workspace__tab {
   cursor: grabbing;
 }
@@ -205,7 +198,7 @@
   block-size: 1px;
 }
 
-.problem-workspace__separator:is(:hover, :focus-visible, [data-resizing="true"])::before {
+.problem-workspace__separator:is(:hover, [data-resizing="true"])::before {
   background: var(--accent-color);
 }
 

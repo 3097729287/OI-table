@@ -13,6 +13,7 @@ export default {
       children: [
         { kind: "view", viewId: "settings", variant: "appearance" },
         { kind: "view", viewId: "settings", variant: "editor" },
+        { kind: "view", viewId: "settings", variant: "shortcuts" },
         { kind: "view", viewId: "settings", variant: "runDebug" },
         { kind: "view", viewId: "settings", variant: "diagnostics" },
       ],

@@ -1,8 +1,9 @@
-import { useId, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { t } from "../../i18n";
 import { Scrollbar } from "../../shared/ui/Scrollbar";
 import { SplitSeparator } from "../../shared/ui/SplitSeparator";
+import { registerTabCommands } from "../../shared/ui/tabCommands";
 import { collectWorkspaceFrames, previewBounds, workspaceReducer,
   type LayoutAction, type Pane, type PaneBounds, type PaneFrame, type PaneId, type PaneSize, type SplitFrame } from "../../workspace/layout";
 import { createProblemWorkspaceLayout, type ProblemWorkspaceTabId } from "./problemWorkspaceLayout";
@@ -70,14 +71,28 @@ function WorkspaceSeparator({ frame, labels, controls, onResize }: {
       : { left: bounds.x, top: bounds.y + span * ratio, width: bounds.width }} />;
 }
 
-function WorkspaceTabs({ id, pane, label, dropEnd, children }: {
+function WorkspaceTabs({ id, pane, label, dropEnd, onSelectTab, children }: {
   id: string;
   pane: PaneId;
   label: string;
   dropEnd?: boolean;
+  onSelectTab: (tab: string) => void;
   children: ReactNode;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const list = viewport.current;
+    if (!list) return;
+    return registerTabCommands(list, {
+      select(button) {
+        const tab = button.dataset.problemTab;
+        if (tab === undefined) return;
+        onSelectTab(tab);
+        button.focus({ preventScroll: true });
+      },
+    });
+  }, [onSelectTab]);
 
   return (
     <div className="problem-workspace__tabrail scrollbar-host">
@@ -188,21 +203,6 @@ export function ProblemWorkspace({ tabs, enabled, labels, actions, activate, onS
   const placed = drag.drop?.kind === "strip" ? drag.drop.action.destination : undefined;
   const preview = drag.drop?.kind === "body" ? drag.drop.bounds : undefined;
 
-  function moveTab(event: KeyboardEvent<HTMLButtonElement>, pane: Pane, index: number) {
-    const count = pane.tabs.length;
-    let next: number;
-    switch (event.key) {
-      case "ArrowLeft": next = (index + count - 1) % count; break;
-      case "ArrowRight": next = (index + 1) % count; break;
-      case "Home": next = 0; break;
-      case "End": next = count - 1; break;
-      default: return;
-    }
-    event.preventDefault();
-    select(pane.tabs[next]);
-    document.getElementById(tabId(pane.tabs[next]))?.focus({ preventScroll: true });
-  }
-
   return (
     <div ref={canvas} className="problem-workspace" data-problem-workspace data-problem-tab-dragging={drag.dragged !== undefined}
       onPointerDownCapture={drag.onPointerDownCapture} onClickCapture={drag.onClickCapture}
@@ -214,8 +214,8 @@ export function ProblemWorkspace({ tabs, enabled, labels, actions, activate, onS
             <div className="problem-workspace__bar">
               <WorkspaceTabs id={stripId(pane.id)} pane={pane.id}
                 label={frames.length > 1 ? `${labels.tabs} ${index + 1}` : labels.tabs}
-                dropEnd={target && target.anchor === null}>
-                {pane.tabs.map((tab, tabIndex) => {
+                dropEnd={target && target.anchor === null} onSelectTab={select}>
+                {pane.tabs.map((tab) => {
                   const item = tabById.get(tab);
                   if (!item) return null;
                   const selected = tab === pane.active;
@@ -224,8 +224,7 @@ export function ProblemWorkspace({ tabs, enabled, labels, actions, activate, onS
                   return <button key={tab} id={tabId(tab)} className="problem-workspace__tab" type="button" role="tab"
                     data-problem-tab={tab} data-dragged={drag.dragged === tab} data-drop-edge={edge}
                     aria-selected={selected} aria-controls={panelId(tab)} tabIndex={selected ? 0 : -1}
-                    title={item.label} onClick={() => select(tab)} onPointerDown={(event) => drag.start(event, pane.id, tab)}
-                    onKeyDown={(event) => moveTab(event, pane, tabIndex)}>{item.label}</button>;
+                    title={item.label} onClick={() => select(tab)} onPointerDown={(event) => drag.start(event, pane.id, tab)}>{item.label}</button>;
                 })}
               </WorkspaceTabs>
               {index === 0 && actions && <div className="problem-workspace__actions">{actions}</div>}

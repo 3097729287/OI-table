@@ -20,6 +20,7 @@ type Settings = Map<String, Value>;
 
 enum Rule {
     UiLanguage,
+    Keybindings,
     Choice {
         default: &'static str,
         alternatives: &'static [&'static [&'static str]],
@@ -43,6 +44,7 @@ const RULES: &[(&str, Rule)] = &[
         },
     ),
     ("uiLanguage", Rule::UiLanguage),
+    ("keybindings", Rule::Keybindings),
     (
         "uiFont",
         Rule::Choice {
@@ -109,6 +111,18 @@ fn normalize(mut settings: Settings) -> Settings {
                 })
                 .is_none()
                 .then(|| Value::from(SYSTEM_LANGUAGE)),
+            Rule::Keybindings => Some(Value::Object(
+                current
+                    .and_then(Value::as_object)
+                    .into_iter()
+                    .flatten()
+                    .filter(|(_, value)| {
+                        value.is_null()
+                            || value.as_str().is_some_and(crate::shortcuts::valid_binding)
+                    })
+                    .map(|(id, binding)| (id.clone(), binding.clone()))
+                    .collect(),
+            )),
             Rule::Choice {
                 default,
                 alternatives,
@@ -359,6 +373,50 @@ mod tests {
         assert_eq!(saved[EDITOR_DEFAULT_LANGUAGE_KEY], "cpp");
         assert_eq!(saved[PROBLEM_DOUBLE_COLUMN_KEY], true);
         assert_eq!(saved[LOG_MAX_SIZE_KEY], DEFAULT_LOG_MAX_SIZE_MIB);
+        Ok(())
+    }
+
+    #[test]
+    fn keybindings_preserve_overrides_and_disabled_commands_until_reset() -> io::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let storage = Storage::new(directory.path().to_owned());
+        assert_eq!(
+            read_settings(&storage, None, || {})?["keybindings"],
+            json!({})
+        );
+
+        let bindings = json!({
+            "editor.toggleBreakpoint": "Ctrl+Shift+F8",
+            "workbench.toggleSidebar": null,
+        });
+        let mut incoming = bindings.clone();
+        incoming["editor.invalidText"] = json!("A");
+        incoming["editor.invalidKey"] = json!("F08");
+        save_settings(
+            &storage,
+            serde_json::from_value(json!({ "keybindings": incoming }))?,
+            |_| {},
+        )?;
+        save_settings(
+            &storage,
+            serde_json::from_value(json!({ "theme": "dark" }))?,
+            |_| {},
+        )?;
+        let reopened = Storage::new(directory.path().to_owned());
+        assert_eq!(
+            read_settings(&reopened, None, || {})?["keybindings"],
+            bindings
+        );
+
+        save_settings(
+            &reopened,
+            serde_json::from_value(json!({ "keybindings": {} }))?,
+            |_| {},
+        )?;
+        assert_eq!(
+            read_settings(&reopened, None, || {})?["keybindings"],
+            json!({})
+        );
         Ok(())
     }
 }

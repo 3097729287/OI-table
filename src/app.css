@@ -52,10 +52,6 @@
   user-select: text;
 }
 
-:focus-visible {
-  box-shadow: inset 0 0 0 2px currentColor;
-}
-
 body {
   background: var(--window-background);
   color: var(--text-color);

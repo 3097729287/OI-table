@@ -8,6 +8,7 @@ mod problem_drafts;
 mod problem_library;
 mod run_debug_diagnostics;
 mod settings;
+mod shortcuts;
 mod storage;
 mod triggers;
 mod windowing;

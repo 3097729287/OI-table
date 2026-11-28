@@ -1,10 +1,11 @@
-import { useCallback, useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useContext, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type Dispatch, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { fallbackLocale, locale, t, type MessageKey } from "../i18n";
 import { ContextMenu } from "../shared/ContextMenu";
 import { Icon } from "../shared/Icon";
 import { ScrollArea } from "../shared/ui/ScrollArea";
 import { Scrollbar } from "../shared/ui/Scrollbar";
+import { registerTabCommands } from "../shared/ui/tabCommands";
 import {
   closePaneTabs, collectWorkspaceFrames, initialLayout, previewBounds, workspaceReducer, workspaceTabId,
   type LayoutAction, type PaneBounds, type PaneFrame, type PaneId, type PaneSize, type TabCloseScope,
@@ -180,35 +181,25 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
     dispatch({ type: "close", pane, view });
   }
 
-  function handleTabKey(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
-      event.preventDefault();
-      const { left, bottom } = event.currentTarget.getBoundingClientRect();
-      onOpenTabMenu({ pane, view: group.tabs[index], x: left, y: bottom });
-      return;
-    }
-
-    if (event.key === "Delete") {
-      event.preventDefault();
-      closeTab(group.tabs[index]);
-      return;
-    }
-
-    const last = group.tabs.length - 1;
-    let next: number;
-    switch (event.key) {
-      case "ArrowLeft": next = index === 0 ? last : index - 1; break;
-      case "ArrowRight": next = index === last ? 0 : index + 1; break;
-      case "Home": next = 0; break;
-      case "End": next = last; break;
-      default: return;
-    }
-    event.preventDefault();
-    const view = group.tabs[next];
-    dispatch({ type: "select", pane, view });
-    tabLabel(view)?.focus({ preventScroll: true });
-    revealTab(view);
-  }
+  useLayoutEffect(() => {
+    const strip = list.current;
+    if (!strip) return;
+    return registerTabCommands(strip, {
+      select(tab) {
+        const view = tab.parentElement?.dataset.tabView;
+        if (view === undefined) return;
+        dispatch({ type: "select", pane, view });
+        tab.focus({ preventScroll: true });
+        revealTab(view);
+      },
+      openMenu(tab) {
+        const view = tab.parentElement?.dataset.tabView;
+        if (view === undefined) return;
+        const { left, bottom } = tab.getBoundingClientRect();
+        onOpenTabMenu({ pane, view, x: left, y: bottom });
+      },
+    });
+  }, [group, dispatch, onOpenTabMenu]);
 
   return (
     <div className="pane-toolbar scrollbar-host" data-tablist-pane={pane} data-focused={focused}
@@ -217,7 +208,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
       <div ref={list} id={listId} className="pane-tabs" role="tablist" data-tab-scrollport
         data-drop-end={destination?.anchor === null} aria-label={label}>
         <div ref={row} className="pane-tab-row" role="presentation">
-          {group.tabs.map((id, index) => {
+          {group.tabs.map((id) => {
             const target = targets.get(id);
             const view = target && workspaceViews.get(target.id);
             if (!target || !view) return null;
@@ -248,8 +239,7 @@ function PaneToolbar({ frame, focused, number, targets, dispatch, drag, onOpenTa
                   aria-haspopup="menu"
                   aria-controls={`workbench-panel-${id}`} aria-selected={selected} tabIndex={selected ? 0 : -1}
                   onClick={() => dispatch({ type: "select", pane, view: id })}
-                  onPointerDown={(event) => drag.start(event, pane, id)}
-                  onKeyDown={(event) => handleTabKey(event, index)}>
+                  onPointerDown={(event) => drag.start(event, pane, id)}>
                   <Icon name={icon} size={14} />
                   <span className="workbench-tab__title">{title}</span>
                 </button>

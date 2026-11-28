@@ -36,12 +36,6 @@
   background: var(--context-menu-pressed-background);
 }
 
-:is(.context-menu, .context-menu button):focus-visible {
-  box-shadow: none;
-  outline: 1px solid currentColor;
-  outline-offset: -1px;
-}
-
 .context-menu button:disabled {
   color: var(--muted-color);
   opacity: 0.6;

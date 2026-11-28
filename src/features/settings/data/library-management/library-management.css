@@ -215,7 +215,7 @@
   cursor: pointer;
 }
 
-.library-management__button:enabled:not([aria-disabled="true"]):hover {
+.library-management__button:enabled:not([aria-disabled="true"]):is(:hover, :focus-visible) {
   background: var(--navigation-hover);
 }
 
@@ -223,19 +223,12 @@
   background: var(--navigation-selected);
 }
 
-.library-management__button[data-variant="primary"]:enabled:not([aria-disabled="true"]):hover {
+.library-management__button[data-variant="primary"]:enabled:not([aria-disabled="true"]):is(:hover, :focus-visible) {
   background: var(--accent-hover);
 }
 
 .library-management__button[data-variant="primary"]:enabled:not([aria-disabled="true"]):active {
   background: var(--accent-pressed);
-}
-
-.library-management__button:focus-visible,
-:is(.library-management__dialog-close, .library-management__toast-close):focus-visible {
-  outline: 1px solid var(--accent-color);
-  outline-offset: 2px;
-  box-shadow: none;
 }
 
 .library-management__empty {
@@ -313,12 +306,6 @@
   inline-size: fit-content;
   max-inline-size: 100%;
   cursor: pointer;
-}
-
-:is(.library-management__toast-details, .library-management__dialog-error) summary:focus-visible {
-  outline: 1px solid currentColor;
-  outline-offset: 2px;
-  box-shadow: none;
 }
 
 :is(.library-management__toast-details, .library-management__dialog-error) details p,
@@ -399,7 +386,7 @@ details.library-management__toast-details p {
   cursor: pointer;
 }
 
-:is(.library-management__dialog-close, .library-management__toast-close):enabled:not([aria-disabled="true"]):hover {
+:is(.library-management__dialog-close, .library-management__toast-close):enabled:not([aria-disabled="true"]):is(:hover, :focus-visible) {
   background: var(--navigation-hover);
   color: var(--text-color);
 }

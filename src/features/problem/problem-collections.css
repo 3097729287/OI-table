@@ -124,11 +124,6 @@
   opacity: 1;
 }
 
-.problem-collections-popover__checkbox input:focus-visible + .problem-collections-popover__checkmark {
-  outline: 1px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
 @media (forced-colors: active) {
   .problem-collections-popover__checkmark {
     forced-color-adjust: none;
@@ -139,10 +134,6 @@
     border-color: var(--system-highlight);
     background: var(--system-highlight);
     color: var(--system-highlight-text);
-  }
-
-  .problem-collections-popover__checkbox input:focus-visible + .problem-collections-popover__checkmark {
-    outline-color: var(--system-highlight);
   }
 }
 

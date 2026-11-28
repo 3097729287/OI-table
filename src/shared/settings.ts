@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type { UiLanguage } from "../i18n";
 import type { CodeLanguage } from "./codeLanguages";
+import type { ShortcutOverrides } from "./commands";
 import type { FontPreset } from "./fonts";
 
 const legacyThemeKey = "oi-table.theme";
@@ -22,6 +23,7 @@ export interface AppSettings {
   editorFontSize: number;
   problemDoubleColumn: boolean;
   logMaxSizeMib: number;
+  keybindings: ShortcutOverrides;
 }
 
 interface SettingsSnapshot {
@@ -91,8 +93,12 @@ function subscribe(notify: () => void) {
   return () => { subscribers.delete(notify); };
 }
 
+export function getSettingsSnapshot() {
+  return snapshot;
+}
+
 export function useSettings() {
-  return useSyncExternalStore(subscribe, () => snapshot, () => initialSnapshot);
+  return useSyncExternalStore(subscribe, getSettingsSnapshot, () => initialSnapshot);
 }
 
 export function updateSettings(changes: Partial<AppSettings>) {

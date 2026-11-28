@@ -87,10 +87,6 @@
   touch-action: none;
 }
 
-.workbench[data-sidebar-resizing="true"] .workbench-sidebar-resizer {
-  box-shadow: none;
-}
-
 :is(.workspace-rail, .workbench-sidebar, .pane-toolbar) button {
   border: 0;
   background: transparent;
@@ -106,12 +102,6 @@
 .workbench-sidebar button:hover {
   background: var(--navigation-hover);
   color: var(--text-color);
-}
-
-:is(.workspace-rail, .workbench-sidebar, .pane-toolbar) button:focus-visible,
-.workbench-panel:focus-visible {
-  outline: 1px solid currentColor;
-  outline-offset: -2px;
 }
 
 .workbench-sidebar button {
@@ -231,7 +221,6 @@
 }
 
 .workbench-pane-separator {
-  --split-separator-focus: var(--workbench-accent);
   position: absolute;
   z-index: 2;
   transition: left var(--workspace-motion), top var(--workspace-motion),
