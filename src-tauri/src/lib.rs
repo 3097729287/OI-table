@@ -2,6 +2,7 @@ use tauri::Manager;
 
 mod editor_debug;
 mod editor_run;
+mod external_editor;
 mod logging;
 mod problem_drafts;
 mod problem_library;
@@ -23,6 +24,7 @@ pub fn run() {
 
     builder
         .manage(editor_debug::EditorDebugState::default())
+        .manage(external_editor::ExternalEditors::default())
         .setup(|app| {
             storage::setup(app)?;
             problem_drafts::setup(app)?;
@@ -52,6 +54,8 @@ pub fn run() {
             settings::get_settings,
             settings::update_settings,
             editor_run::run_editor_code,
+            external_editor::open_external_editor,
+            external_editor::read_external_editor,
             editor_debug::warm_cpp_debugger,
             editor_debug::debug_start,
             editor_debug::debug_step,
@@ -87,6 +91,7 @@ pub fn run() {
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
                 app.state::<editor_debug::EditorDebugState>().cancel_all();
+                app.state::<external_editor::ExternalEditors>().close_all();
             }
         });
 }

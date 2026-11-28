@@ -4,9 +4,9 @@ import { bracketMatching, indentOnInput, indentUnit } from "@codemirror/language
 import {
   diagnosticCount, forceLinting, linter, lintKeymap, openLintPanel,
 } from "@codemirror/lint";
-import { Compartment, EditorState, type Text } from "@codemirror/state";
+import { ChangeSet, Compartment, EditorState, Text } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { locale, t } from "../../i18n";
 import { codeLanguageOptions, type CodeLanguage } from "../codeLanguages";
@@ -30,6 +30,72 @@ const editorExtensions = [
 ];
 
 type SavedDraft = { state: EditorState; scroll: ReturnType<EditorView["scrollSnapshot"]> };
+type ExternalStatus = "opening" | "active" | "closing" | "missing" | "tooLarge" | "openFailed" | "syncFailed" | "closeFailed";
+type ExternalEdit = ReturnType<typeof openExternalEdit>;
+const closingEdits = new Map<string, Promise<boolean>>();
+
+function openExternalEdit(language: CodeLanguage, source: string, apply: (source: string, finish: boolean) => boolean,
+  report: (failed: boolean) => void) {
+  const opened = invoke<string>("open_external_editor", { language, source });
+  let applied = source;
+  let timer: number | undefined;
+  let reading: Promise<boolean> | undefined;
+  let closing: Promise<boolean> | undefined;
+
+  async function read(finish: boolean) {
+    try {
+      const sessionId = await opened;
+      const update = await invoke<string | null>("read_external_editor", { sessionId, finish });
+      if (update !== null) source = update;
+      if (applied !== source && apply(source, finish)) applied = source;
+      report(false);
+      return true;
+    } catch {
+      report(true);
+      return false;
+    }
+  }
+
+  function poll() {
+    if (!closing && !reading) reading = read(false).finally(() => { reading = undefined; });
+  }
+
+  void opened.then(() => {
+    if (closing) return;
+    timer = window.setInterval(poll, 350);
+    window.addEventListener("focus", poll);
+    poll();
+  }, () => {});
+
+  return { language, opened, close() {
+    window.clearInterval(timer);
+    window.removeEventListener("focus", poll);
+    return closing ??= Promise.resolve(reading).then(() => read(true));
+  } };
+}
+
+function externalChange(before: string, after: string) {
+  function lowSurrogateAt(value: string, offset: number) {
+    const code = value.charCodeAt(offset);
+    return code >= 0xdc00 && code <= 0xdfff;
+  }
+
+  let from = 0;
+  let to = before.length;
+  let end = after.length;
+  while (from < to && from < end && before[from] === after[from]) from += 1;
+  if (from > 0 && (lowSurrogateAt(before, from) || lowSurrogateAt(after, from))) from -= 1;
+  while (to > from && end > from && before[to - 1] === after[end - 1]) {
+    to -= 1;
+    end -= 1;
+  }
+  // The native journal accepts UTF-16 offsets only at Unicode character boundaries.
+  if (lowSurrogateAt(before, to) || lowSurrogateAt(after, end)) {
+    to += 1;
+    end += 1;
+  }
+  return ChangeSet.of({ from, to, insert: after.slice(from, end) }, before.length);
+}
 
 function editorLocalization(debugEnabled: boolean) {
   return [
@@ -75,6 +141,7 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   const view = useRef<EditorView>(null);
   const drafts = useRef(new Map<CodeLanguage, SavedDraft>());
   const sources = useRef<Record<CodeLanguage, string | Text>>({ cpp: "", python: "" });
+  const externalEdit = useRef<ExternalEdit>(undefined);
   const [localization] = useState(() => new Compartment());
   const [editability] = useState(() => new Compartment());
   const [language, setLanguage] = useState(preferredLanguage);
@@ -83,6 +150,10 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   const [mountedEditor, setMountedEditor] = useState<EditorView>();
   const [loadState, setLoadState] = useState<"loading" | "ready" | "failed">("loading");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [externalStatus, setExternalStatus] = useState<ExternalStatus>();
+  const externalBusy = externalStatus === "opening" || externalStatus === "closing";
+  const externalActive = externalBusy || externalStatus === "active" || externalStatus === "syncFailed";
+  const externalLanguage = externalEdit.current?.language;
   const subscribe = useCallback((listener: () => void) => subscribeToProblemDraft(problemId, listener), [problemId]);
   const saveStatus = useSyncExternalStore(subscribe, () => problemDraftSaveStatus(problemId));
   const problemsLabel = t("problemEditorProblems", { count: metrics.problems });
@@ -95,6 +166,11 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
     }));
   }
 
+  function recordDraftEdit(codeLanguage: CodeLanguage, changes: ChangeSet, doc: Text) {
+    sources.current = { ...sources.current, [codeLanguage]: doc };
+    queueDraftChange({ kind: "edit", language: codeLanguage, changes });
+  }
+
   function createDraft(codeLanguage: CodeLanguage) {
     return EditorState.create({ doc: sources.current[codeLanguage], extensions: [
       editorExtensions,
@@ -102,15 +178,14 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
       breakpointLines.init((state) => normalizeBreakpointLines(debugBindings.current.breakpoints?.[codeLanguage] ?? [], state.doc.lines)),
       debugLineField,
       localization.of(editorLocalization(debugBindings.current.debugEnabled)),
-      editability.of(debugBindings.current.debugReadOnly ? codeEditorDebugReadOnly : []),
+      editability.of(debugBindings.current.debugReadOnly || externalEdit.current?.language === codeLanguage ? codeEditorDebugReadOnly : []),
       linter((editor) => syntaxDiagnostics(editor.state, t("problemEditorSyntaxError")), {
         delay: 350,
         needsRefresh: (update) => localization.get(update.startState) !== localization.get(update.state),
       }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
-          sources.current = { ...sources.current, [codeLanguage]: update.state.doc };
-          queueDraftChange({ kind: "edit", language: codeLanguage, changes: update.changes });
+          recordDraftEdit(codeLanguage, update.changes, update.state.doc);
         }
         const lines = update.state.field(breakpointLines);
         if (lines !== update.startState.field(breakpointLines) && !update.transactions.some((transaction) =>
@@ -137,7 +212,7 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
     const parent = container.current;
     if (!parent) return;
     let active = true;
-    void loadProblemDraft(problemId).then((saved) => {
+    void Promise.resolve(closingEdits.get(problemId)).then(() => loadProblemDraft(problemId)).then((saved) => {
       if (!active) return;
       const selected = preferredLanguageRef.current;
       sources.current = saved?.drafts ?? { cpp: "", python: "" };
@@ -155,6 +230,17 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
       active = false;
       view.current?.destroy();
       view.current = null;
+      const session = externalEdit.current;
+      externalEdit.current = undefined;
+      if (session) {
+        const closing = session.close();
+        closingEdits.set(problemId, closing);
+        void closing.then(() => {
+          if (closingEdits.get(problemId) === closing) closingEdits.delete(problemId);
+          void flushProblemDraft(problemId);
+        });
+        return;
+      }
       void flushProblemDraft(problemId);
     };
   }, [problemId, loadAttempt]);
@@ -169,8 +255,8 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   useLayoutEffect(() => {
     const editor = view.current;
     if (!editor) return;
-    editor.dispatch({ effects: editability.reconfigure(debugReadOnly ? codeEditorDebugReadOnly : []) });
-  }, [debugReadOnly, editability, mountedEditor]);
+    editor.dispatch({ effects: editability.reconfigure(debugReadOnly || externalLanguage === language ? codeEditorDebugReadOnly : []) });
+  }, [debugReadOnly, editability, externalLanguage, language, mountedEditor]);
 
   useLayoutEffect(() => {
     const editor = view.current;
@@ -203,7 +289,7 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
     editor.setState(saved?.state ?? createDraft(next));
     editor.dispatch({ effects: [
       localization.reconfigure(editorLocalization(debugEnabled)),
-      editability.reconfigure(debugReadOnly ? codeEditorDebugReadOnly : []),
+      editability.reconfigure(debugReadOnly || externalEdit.current?.language === next ? codeEditorDebugReadOnly : []),
       ...(saved ? [saved.scroll] : []),
     ] });
     activeLanguage.current = next;
@@ -228,7 +314,78 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
     });
   }
 
+  function applyExternalSource(codeLanguage: CodeLanguage, source: string, immediate: boolean) {
+    const editor = view.current;
+    if (editor && debugBindings.current.debugReadOnly && !immediate) return false;
+    const active = editor && activeLanguage.current === codeLanguage ? editor : null;
+    const saved = editor && !active ? drafts.current.get(codeLanguage) : undefined;
+    const before = (active?.state.doc ?? saved?.state.doc ?? sources.current[codeLanguage]).toString().replace(/\r\n?/g, "\n");
+    if (before === source) return true;
+    const changes = externalChange(before, source);
+    if (active) {
+      active.dispatch({ changes, userEvent: "input.external" });
+      return true;
+    }
+    if (saved) {
+      const next = saved.state.update({ changes, userEvent: "input.external" }).state;
+      drafts.current.set(codeLanguage, { state: next, scroll: saved.scroll.map(changes) ?? saved.scroll });
+      const lines = next.field(breakpointLines);
+      if (lines !== saved.state.field(breakpointLines)) {
+        debugBindings.current.onBreakpointsChange?.(codeLanguage, [...lines]);
+      }
+      recordDraftEdit(codeLanguage, changes, next.doc);
+    } else {
+      recordDraftEdit(codeLanguage, changes, Text.of(source.split("\n")));
+    }
+    return true;
+  }
+
+  async function toggleExternalEditor() {
+    const editor = view.current;
+    if (!editor || debugBindings.current.debugReadOnly || externalBusy) return;
+    const current = externalEdit.current;
+    if (current) {
+      setExternalStatus("closing");
+      const synchronized = await current.close();
+      if (externalEdit.current === current) {
+        externalEdit.current = undefined;
+        setExternalStatus(synchronized ? undefined : "closeFailed");
+      }
+      return;
+    }
+
+    const codeLanguage = activeLanguage.current;
+    setExternalStatus("opening");
+    const session = openExternalEdit(codeLanguage, editor.state.doc.toString(),
+      (source, immediate) => applyExternalSource(codeLanguage, source, immediate),
+      (failed) => {
+        if (externalEdit.current !== session) return;
+        setExternalStatus((status) => {
+          if (status !== "active" && status !== "syncFailed") return status;
+          return failed ? "syncFailed" : "active";
+        });
+      });
+    externalEdit.current = session;
+    try {
+      await session.opened;
+      if (externalEdit.current === session) setExternalStatus("active");
+    } catch (error) {
+      if (externalEdit.current !== session) return;
+      externalEdit.current = undefined;
+      setExternalStatus(error === "external_editor_vscode_missing" ? "missing"
+        : error === "external_editor_source_too_large" ? "tooLarge" : "openFailed");
+    }
+  }
+
   const actionDisabled = loadState !== "ready" || running || debugReadOnly || metrics.length === 0;
+  const externalAction = t(externalActive ? "problemExternalEditorStop" : "problemExternalEditorOpen");
+  const externalMessage = externalStatus === "active" ? t("problemExternalEditorActive", {
+    language: codeLanguageOptions.find(({ value }) => value === externalLanguage)?.label ?? "",
+  })
+    : externalStatus === "missing" ? t("problemExternalEditorMissing")
+    : externalStatus === "tooLarge" ? t("problemExternalEditorTooLarge")
+    : externalStatus === "openFailed" ? t("problemExternalEditorOpenFailed")
+    : externalStatus === "syncFailed" || externalStatus === "closeFailed" ? t("problemExternalEditorSyncFailed") : undefined;
 
   return (
     <section className="code-editor" aria-label={t("problemCodeDraft")}>
@@ -237,8 +394,15 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
           title={desktop ? t("problemEditorLanguageHint") : t("problemEditorLanguage")}
           disabled={loadState !== "ready" || debugReadOnly} value={language} options={codeLanguageOptions}
           notifyOnReselect={desktop} onValueChange={selectLanguage} />
-        {(onRun || onDebug) && (
+        {(desktop || onRun || onDebug) && (
           <div className="code-editor__actions">
+            {desktop && (
+              <button type="button" className="ui-icon-button code-editor__action" aria-pressed={externalActive}
+                disabled={loadState !== "ready" || debugReadOnly || externalBusy} aria-busy={externalBusy || undefined}
+                aria-label={externalAction} title={externalAction} onClick={() => void toggleExternalEditor()}>
+                <Icon name={externalActive ? "stop" : "externalEditor"} />
+              </button>
+            )}
             {onRun && (
               <button type="button" className="ui-icon-button code-editor__action" disabled={actionDisabled}
                 aria-label={t("problemRunLocal")} title={t("problemRunLocal")} aria-busy={running || undefined}
@@ -275,6 +439,9 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
         )}
       </CodeEditorSurface>
       <footer className="code-editor__status">
+        {externalMessage && <span className={externalStatus === "active" ? "code-editor__position" : "code-editor__position code-editor__settings-error"}
+          title={externalMessage}
+          role={externalStatus === "active" ? "status" : "alert"}>{externalMessage}</span>}
         {metrics.problems > 0 && (
           <button type="button" className="code-editor__problems" aria-label={problemsLabel} title={problemsLabel}
             onClick={() => { if (view.current) openLintPanel(view.current); }}>

@@ -10,6 +10,7 @@ import collapseAll from "./icons/collapse-all.svg?no-inline";
 import copy from "./icons/copy.svg?no-inline";
 import debug from "./icons/debug.svg?no-inline";
 import editor from "./icons/editor.svg?no-inline";
+import externalEditor from "./icons/external-editor.svg?no-inline";
 import favoriteFilled from "./icons/favorite-filled.svg?no-inline";
 import favorites from "./icons/favorites.svg?no-inline";
 import fillInput from "./icons/fill-input.svg?no-inline";
@@ -48,6 +49,7 @@ const sources = {
   copy,
   debug,
   editor,
+  externalEditor,
   favoriteFilled,
   favorites,
   fillInput,
