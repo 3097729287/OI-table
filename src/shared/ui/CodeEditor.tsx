@@ -19,7 +19,8 @@ import { breakpointLines, codeEditorBreakpointGutter, codeEditorDebugReadOnly, d
   normalizeBreakpointLines, sameBreakpointLines, setBreakpointLines, setDebugLine } from "./codeEditorDebug";
 import { CodeEditorSurface, codeEditorContent, codeEditorDefaultKeymap, codeEditorSurfaceExtensions } from "./CodeEditorSurface";
 import {
-  flushProblemDraft, loadProblemDraft, problemDraftSaveStatus, queueProblemDraft, subscribeToProblemDraft, type DraftOperation,
+  flushProblemDraft, loadProblemDraft, problemDraftSaveStatus, queueProblemDraft, refreshExternalDraft, registerExternalDraft,
+  subscribeToProblemDraft, type DraftOperation,
 } from "./problemDrafts";
 import { Select } from "./Select";
 
@@ -34,7 +35,7 @@ type ExternalStatus = "opening" | "active" | "closing" | "missing" | "tooLarge" 
 type ExternalEdit = ReturnType<typeof openExternalEdit>;
 const closingEdits = new Map<string, Promise<boolean>>();
 
-function openExternalEdit(language: CodeLanguage, source: string, apply: (source: string, finish: boolean) => boolean,
+function openExternalEdit(problemId: string, language: CodeLanguage, source: string, apply: (source: string, forceApply: boolean) => boolean,
   report: (failed: boolean) => void) {
   const opened = invoke<string>("open_external_editor", { language, source });
   let applied = source;
@@ -42,35 +43,46 @@ function openExternalEdit(language: CodeLanguage, source: string, apply: (source
   let reading: Promise<boolean> | undefined;
   let closing: Promise<boolean> | undefined;
 
-  async function read(finish: boolean) {
+  async function read(finish: boolean, forceApply: boolean) {
+    const sessionId = await opened.catch(() => undefined);
+    if (sessionId === undefined) return true;
     try {
-      const sessionId = await opened;
       const update = await invoke<string | null>("read_external_editor", { sessionId, finish });
       if (update !== null) source = update;
-      if (applied !== source && apply(source, finish)) applied = source;
+      const synchronized = applied === source || apply(source, forceApply);
+      if (synchronized) applied = source;
       report(false);
-      return true;
+      return synchronized;
     } catch {
       report(true);
       return false;
     }
   }
 
-  function poll() {
-    if (!closing && !reading) reading = read(false).finally(() => { reading = undefined; });
+  function enqueueRead(finish = false, forceApply = finish) {
+    // An action needs a fresh read even when a poll has already captured an older save.
+    const next = Promise.resolve(reading).then(() => read(finish, forceApply));
+    reading = next;
+    void next.then(() => { if (reading === next) reading = undefined; });
+    return next;
   }
 
+  function poll() {
+    if (!closing && !reading) void enqueueRead();
+  }
+
+  const unregister = registerExternalDraft(problemId, language, (forceApply) => closing ?? enqueueRead(false, forceApply));
   void opened.then(() => {
     if (closing) return;
     timer = window.setInterval(poll, 350);
     window.addEventListener("focus", poll);
     poll();
-  }, () => {});
+  }, unregister);
 
   return { language, opened, close() {
     window.clearInterval(timer);
     window.removeEventListener("focus", poll);
-    return closing ??= Promise.resolve(reading).then(() => read(true));
+    return closing ??= enqueueRead(true).finally(unregister);
   } };
 }
 
@@ -142,6 +154,7 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
   const drafts = useRef(new Map<CodeLanguage, SavedDraft>());
   const sources = useRef<Record<CodeLanguage, string | Text>>({ cpp: "", python: "" });
   const externalEdit = useRef<ExternalEdit>(undefined);
+  const preparingAction = useRef(false);
   const [localization] = useState(() => new Compartment());
   const [editability] = useState(() => new Compartment());
   const [language, setLanguage] = useState(preferredLanguage);
@@ -314,9 +327,9 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
     });
   }
 
-  function applyExternalSource(codeLanguage: CodeLanguage, source: string, immediate: boolean) {
+  function applyExternalSource(codeLanguage: CodeLanguage, source: string, forceApply: boolean) {
     const editor = view.current;
-    if (editor && debugBindings.current.debugReadOnly && !immediate) return false;
+    if (editor && debugBindings.current.debugReadOnly && !forceApply) return false;
     const active = editor && activeLanguage.current === codeLanguage ? editor : null;
     const saved = editor && !active ? drafts.current.get(codeLanguage) : undefined;
     const before = (active?.state.doc ?? saved?.state.doc ?? sources.current[codeLanguage]).toString().replace(/\r\n?/g, "\n");
@@ -356,8 +369,8 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
 
     const codeLanguage = activeLanguage.current;
     setExternalStatus("opening");
-    const session = openExternalEdit(codeLanguage, editor.state.doc.toString(),
-      (source, immediate) => applyExternalSource(codeLanguage, source, immediate),
+    const session = openExternalEdit(problemId, codeLanguage, editor.state.doc.toString(),
+      (source, forceApply) => applyExternalSource(codeLanguage, source, forceApply),
       (failed) => {
         if (externalEdit.current !== session) return;
         setExternalStatus((status) => {
@@ -377,7 +390,24 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
     }
   }
 
-  const actionDisabled = loadState !== "ready" || running || debugReadOnly || metrics.length === 0;
+  async function launchWithDraft(action: (editor: EditorView, codeLanguage: CodeLanguage) => void) {
+    const editor = view.current;
+    const codeLanguage = activeLanguage.current;
+    if (!editor || preparingAction.current) return;
+    const refresh = refreshExternalDraft(problemId, codeLanguage);
+    if (refresh) {
+      preparingAction.current = true;
+      try {
+        if (!await refresh) return;
+      } finally {
+        preparingAction.current = false;
+      }
+    }
+    if (view.current === editor && activeLanguage.current === codeLanguage &&
+      !debugBindings.current.debugReadOnly && editor.state.doc.length > 0) action(editor, codeLanguage);
+  }
+
+  const actionDisabled = loadState !== "ready" || running || debugReadOnly || (metrics.length === 0 && externalLanguage !== language);
   const externalAction = t(externalActive ? "problemExternalEditorStop" : "problemExternalEditorOpen");
   const externalMessage = externalStatus === "active" ? t("problemExternalEditorActive", {
     language: codeLanguageOptions.find(({ value }) => value === externalLanguage)?.label ?? "",
@@ -406,17 +436,15 @@ export default function CodeEditor({ problemId, preferredLanguage, onRun, runnin
             {onRun && (
               <button type="button" className="ui-icon-button code-editor__action" disabled={actionDisabled}
                 aria-label={t("problemRunLocal")} title={t("problemRunLocal")} aria-busy={running || undefined}
-                onClick={() => { if (view.current) onRun(language, view.current.state.doc.toString()); }}>
+                onClick={() => void launchWithDraft((editor, codeLanguage) => onRun(codeLanguage, editor.state.doc.toString()))}>
                 <Icon name="run" />
               </button>
             )}
             {onDebug && (
               <button type="button" className="ui-icon-button code-editor__action" disabled={actionDisabled || debugUnavailable}
                 aria-label={t("problemDebugStart")} title={t("problemDebugStart")}
-                onClick={() => {
-                  const editor = view.current;
-                  if (editor) onDebug(language, editor.state.doc.toString(), [...editor.state.field(breakpointLines)]);
-                }}>
+                onClick={() => void launchWithDraft((editor, codeLanguage) =>
+                  onDebug(codeLanguage, editor.state.doc.toString(), [...editor.state.field(breakpointLines)]))}>
                 <Icon name="debug" />
               </button>
             )}

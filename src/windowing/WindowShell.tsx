@@ -7,7 +7,7 @@ import { useSettings } from "../shared/settings";
 import { locale, t } from "../i18n";
 import { useLanguagePreference } from "../i18n/languagePreference";
 import { StatusMessage } from "../shared/StatusMessage";
-import { flushAllProblemDrafts } from "../shared/ui/problemDrafts";
+import { flushAllProblemDrafts, refreshExternalDraftsBeforeExit } from "../shared/ui/problemDrafts";
 import { WorkspaceSidebar } from "../workspace/sidebar";
 import { applyMainWindowOptions, currentWindow, isMainWindow } from "./routes";
 import { TitleBar } from "./TitleBar";
@@ -23,7 +23,7 @@ export function WindowShell() {
   const [configuration, setConfiguration] = useState<"ready" | "failed">();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [windowClosing, setWindowClosing] = useState(false);
-  const [draftCloseFailed, setDraftCloseFailed] = useState(false);
+  const [draftCloseFailure, setDraftCloseFailure] = useState<"external" | "save">();
   const Page = currentWindow?.Page;
   const startupSettled = configuration !== undefined && (settings !== undefined || loadFailed);
 
@@ -101,9 +101,10 @@ export function WindowShell() {
       closing = true;
       flushSync(() => {
         setWindowClosing(true);
-        setDraftCloseFailed(false);
+        setDraftCloseFailure(undefined);
       });
-      if (await flushAllProblemDrafts().catch(() => false)) {
+      const externalSynced = await refreshExternalDraftsBeforeExit().catch(() => false);
+      if (externalSynced && await flushAllProblemDrafts().catch(() => false)) {
         await checkpointProblemDrafts();
         if (await flushAllProblemDrafts().catch(() => false)) return;
       }
@@ -111,7 +112,7 @@ export function WindowShell() {
       closing = false;
       if (active) {
         setWindowClosing(false);
-        setDraftCloseFailed(true);
+        setDraftCloseFailure(externalSynced ? "save" : "external");
       }
     }).then((stop) => {
       if (active) unlisten = stop;
@@ -134,9 +135,9 @@ export function WindowShell() {
         feedback={windowClosing ? {
           state: "loading",
           message: t("windowActionPending"),
-        } : draftCloseFailed ? {
+        } : draftCloseFailure ? {
           state: "error",
-          message: t("windowDraftSaveFailed"),
+          message: t(draftCloseFailure === "external" ? "problemExternalEditorSyncFailed" : "windowDraftSaveFailed"),
         } : configuration === "failed" ? {
           state: "error",
           message: t("windowConfigurationFailed"),

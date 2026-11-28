@@ -45,6 +45,25 @@ const pending = new Map<string, PendingSave>();
 const versions = new Map<string, DraftVersion>();
 const reads = new Map<string, Promise<ProblemDraft | null>>();
 const changes = new EventTarget();
+const externalDrafts = new Map<string, { language: CodeLanguage; refresh: (forceApply: boolean) => Promise<boolean> }>();
+
+export function registerExternalDraft(problemId: string, language: CodeLanguage, refresh: (forceApply: boolean) => Promise<boolean>) {
+  const draft = { language, refresh };
+  externalDrafts.set(problemId, draft);
+  return () => {
+    if (externalDrafts.get(problemId) === draft) externalDrafts.delete(problemId);
+  };
+}
+
+export function refreshExternalDraft(problemId: string, language: CodeLanguage) {
+  const draft = externalDrafts.get(problemId);
+  return draft?.language === language ? draft.refresh(false) : undefined;
+}
+
+export async function refreshExternalDraftsBeforeExit() {
+  const results = await Promise.all([...externalDrafts.values()].map(({ refresh }) => refresh(true)));
+  return results.every(Boolean);
+}
 
 function storageKey(problemId: string) {
   return `oi-table.problem-draft.${problemId}`;
@@ -116,6 +135,11 @@ export async function loadProblemDraft(problemId: string): Promise<ProblemDraft 
   }
   const saved = await request;
   return pending.get(problemId)?.getDraft() ?? saved;
+}
+
+export async function loadProblemDraftForExecution(problemId: string, language: CodeLanguage) {
+  if (await refreshExternalDraft(problemId, language) === false) throw new Error("Could not read the external draft");
+  return loadProblemDraft(problemId);
 }
 
 export function subscribeToProblemDraft(problemId: string, listener: () => void) {

@@ -9,7 +9,7 @@ import { DelayedLoadingMessage, StatusMessage } from "../../shared/StatusMessage
 import type { ProblemMarkdownSampleActions } from "../../shared/ui/MarkdownViewer";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
 import { Select } from "../../shared/ui/Select";
-import { loadProblemDraft } from "../../shared/ui/problemDrafts";
+import { loadProblemDraftForExecution } from "../../shared/ui/problemDrafts";
 import { isDebugActive, ProblemDebugContext } from "./localDebug";
 import { runEditorCode } from "./localRun";
 import { CodeEditor, MarkdownViewer, PlainTextEditor } from "./problemComponents";
@@ -152,6 +152,7 @@ export function ProblemDetail({ problem, title, settings }: {
   const session = debuggerWorkspace?.state;
   const debug = session?.problemId === problem.id ? session : undefined;
   const [breakpoints, setBreakpoints] = useState(() => readBreakpoints(problem.id));
+  const latestBreakpoints = useRef(breakpoints);
   const [language, setLanguage] = useState<LanguagePreference>("interface");
   const [layoutOverride, setLayoutOverride] = useState<boolean>();
   const [split, setSplit] = useState(false);
@@ -160,7 +161,7 @@ export function ProblemDetail({ problem, title, settings }: {
   const [launchState, setLaunchState] = useState<"loading" | "empty" | "failed">();
   const [activate, setActivate] = useState<{ id: ProblemWorkspaceTabId; focus?: boolean }>();
   const busy = useRef<symbol | undefined>(undefined);
-  const launchRequest = useRef<ReturnType<typeof loadProblemDraft> | undefined>(undefined);
+  const launchRequest = useRef<ReturnType<typeof loadProblemDraftForExecution> | undefined>(undefined);
   const launchAction = useRef<() => void>(() => {});
   const launch = useCallback(() => launchAction.current(), []);
   const layoutButton = useRef<HTMLButtonElement>(null);
@@ -240,7 +241,7 @@ export function ProblemDetail({ problem, title, settings }: {
     setActivate({ id: "output" });
     try {
       if (!draft) {
-        const saved = await loadProblemDraft(problem.id);
+        const saved = await loadProblemDraftForExecution(problem.id, codeLanguage);
         if (busy.current !== request) return;
         const source = saved?.drafts[codeLanguage];
         if (!source?.trim()) {
@@ -285,7 +286,7 @@ export function ProblemDetail({ problem, title, settings }: {
 
   async function startSavedDraft() {
     if (!debuggerWorkspace || !isDebugTarget || busy.current || launchRequest.current || isDebugActive(session)) return;
-    const request = loadProblemDraft(problem.id);
+    const request = loadProblemDraftForExecution(problem.id, codeLanguage);
     launchRequest.current = request;
     setLaunchState("loading");
     try {
@@ -298,7 +299,7 @@ export function ProblemDetail({ problem, title, settings }: {
         return;
       }
       const lineCount = source.split("\n").length;
-      startDebug(codeLanguage, source, breakpoints[codeLanguage].filter((line) => line <= lineCount));
+      startDebug(codeLanguage, source, latestBreakpoints.current[codeLanguage].filter((line) => line <= lineCount));
     } catch {
       if (launchRequest.current !== request) return;
       setLaunchState("failed");
@@ -309,7 +310,8 @@ export function ProblemDetail({ problem, title, settings }: {
   }
 
   function updateBreakpoints(codeLanguage: CodeLanguage, lines: number[]) {
-    const next = { ...breakpoints, [codeLanguage]: lines };
+    const next = { ...latestBreakpoints.current, [codeLanguage]: lines };
+    latestBreakpoints.current = next;
     setBreakpoints(next);
     debuggerWorkspace?.setBreakpoints(problem.id, codeLanguage, lines);
     try {
