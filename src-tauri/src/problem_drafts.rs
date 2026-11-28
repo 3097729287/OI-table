@@ -12,7 +12,7 @@ mod model;
 #[cfg(test)]
 mod tests;
 
-const MAX_DRAFT_BYTES: usize = 1024 * 1024;
+pub(crate) const MAX_DRAFT_BYTES: usize = 1024 * 1024;
 const MAX_PROBLEM_ID_BYTES: usize = 146;
 const MAX_SAFE_INTEGER: u64 = (1 << 53) - 1;
 

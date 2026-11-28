@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
@@ -7,15 +7,11 @@ import { useSettings } from "../shared/settings";
 import { locale, t } from "../i18n";
 import { useLanguagePreference } from "../i18n/languagePreference";
 import { StatusMessage } from "../shared/StatusMessage";
-import { flushAllProblemDrafts } from "../shared/ui/problemDrafts";
+import { checkpointProblemDrafts, isDraftWorkspaceClosing, prepareDraftsForClose } from "../shared/ui/problemDraftSession";
 import { WorkspaceSidebar } from "../workspace/sidebar";
 import { applyMainWindowOptions, currentWindow, isMainWindow } from "./routes";
 import { TitleBar } from "./TitleBar";
 import "./window-shell.css";
-
-function checkpointProblemDrafts() {
-  return invoke<void>("checkpoint_problem_drafts").catch(console.error);
-}
 
 export function WindowShell() {
   const { settings, loadFailed } = useSettings();
@@ -23,7 +19,7 @@ export function WindowShell() {
   const [configuration, setConfiguration] = useState<"ready" | "failed">();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [windowClosing, setWindowClosing] = useState(false);
-  const [draftCloseFailed, setDraftCloseFailed] = useState(false);
+  const [draftCloseFailure, setDraftCloseFailure] = useState<"external" | "save">();
   const Page = currentWindow?.Page;
   const startupSettled = configuration !== undefined && (settings !== undefined || loadFailed);
 
@@ -91,27 +87,23 @@ export function WindowShell() {
   useEffect(() => {
     if (!isMainWindow || !isTauri()) return;
     let active = true;
-    let closing = false;
     let unlisten: (() => void) | undefined;
     void getCurrentWindow().onCloseRequested(async (event) => {
-      if (closing) {
+      if (isDraftWorkspaceClosing()) {
         event.preventDefault();
         return;
       }
-      closing = true;
+      const preparation = prepareDraftsForClose();
       flushSync(() => {
         setWindowClosing(true);
-        setDraftCloseFailed(false);
+        setDraftCloseFailure(undefined);
       });
-      if (await flushAllProblemDrafts().catch(() => false)) {
-        await checkpointProblemDrafts();
-        if (await flushAllProblemDrafts().catch(() => false)) return;
-      }
+      const result = await preparation;
+      if (result === "ready") return;
       event.preventDefault();
-      closing = false;
       if (active) {
         setWindowClosing(false);
-        setDraftCloseFailed(true);
+        setDraftCloseFailure(result === "external" ? "external" : "save");
       }
     }).then((stop) => {
       if (active) unlisten = stop;
@@ -134,9 +126,9 @@ export function WindowShell() {
         feedback={windowClosing ? {
           state: "loading",
           message: t("windowActionPending"),
-        } : draftCloseFailed ? {
+        } : draftCloseFailure ? {
           state: "error",
-          message: t("windowDraftSaveFailed"),
+          message: t(draftCloseFailure === "external" ? "problemExternalEditorSyncFailed" : "windowDraftSaveFailed"),
         } : configuration === "failed" ? {
           state: "error",
           message: t("windowConfigurationFailed"),

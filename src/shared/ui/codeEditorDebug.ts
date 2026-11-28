@@ -1,37 +1,20 @@
-import { EditorState, RangeSet, StateEffect, StateField, type Transaction } from "@codemirror/state";
+import { EditorState, RangeSet, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView, GutterMarker, keymap, lineNumberMarkers, lineNumbers } from "@codemirror/view";
+import { mapBreakpointLines, sameBreakpointLines } from "./problemDraftSession";
 
 export const setBreakpointLines = StateEffect.define<readonly number[]>();
 export const setDebugLine = StateEffect.define<number | undefined>();
 const toggleBreakpointLine = StateEffect.define<number>();
 
-export function normalizeBreakpointLines(lines: readonly number[], lineCount: number) {
-  return [...new Set(lines.filter((line) => Number.isInteger(line) && line >= 1 && line <= lineCount))]
-    .sort((left, right) => left - right);
-}
-
-export function sameBreakpointLines(left: readonly number[], right: readonly number[]) {
-  return left.length === right.length && left.every((line, index) => line === right[index]);
-}
-
-function mapBreakpointLines(lines: readonly number[], { changes, startState, newDoc }: Transaction) {
-  return normalizeBreakpointLines(lines.flatMap((number) => {
-    const { from, to } = startState.doc.line(number);
-    // Drop a deleted line with its newline. Otherwise follow its original start through edits.
-    const start = number < startState.doc.lines ? from : from - 1;
-    const end = Math.min(to + 1, startState.doc.length);
-    if (start >= 0 && changes.mapPos(start, -1) === changes.mapPos(end, 1)) return [];
-    return [newDoc.lineAt(changes.mapPos(from, 1)).number];
-  }), newDoc.lines);
-}
-
 export const breakpointLines = StateField.define<readonly number[]>({
   create: () => [],
   compare: sameBreakpointLines,
   update(lines, transaction) {
-    let next = transaction.docChanged ? mapBreakpointLines(lines, transaction) : lines;
+    let next = lines;
+    const replacement = transaction.effects.find((effect) => effect.is(setBreakpointLines));
+    if (replacement) next = replacement.value;
+    else if (transaction.docChanged) next = mapBreakpointLines(lines, transaction.startState.doc, transaction.newDoc, transaction.changes);
     for (const effect of transaction.effects) {
-      if (effect.is(setBreakpointLines)) next = effect.value;
       if (effect.is(toggleBreakpointLine)) {
         const line = effect.value;
         next = next.includes(line) ? next.filter((item) => item !== line) : [...next, line].sort((a, b) => a - b);
