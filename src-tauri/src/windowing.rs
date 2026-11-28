@@ -29,13 +29,76 @@ fn build_window(
     size: [f64; 2],
     min_size: [f64; 2],
 ) -> tauri::Result<WebviewWindow> {
-    WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
+    let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title(title)
         .decorations(false)
         .inner_size(size[0], size[1])
         .min_inner_size(min_size[0], min_size[1])
         .center()
-        .build()
+        .build()?;
+    #[cfg(windows)]
+    if let Err(error) = disable_webview_find(&window) {
+        log::warn!("Could not configure the WebView find shortcut: {error}");
+    }
+    Ok(window)
+}
+
+#[cfg(windows)]
+fn disable_webview_find(window: &WebviewWindow) -> tauri::Result<()> {
+    use webview2_com::{
+        AcceleratorKeyPressedEventHandler,
+        Microsoft::Web::WebView2::Win32::{
+            ICoreWebView2AcceleratorKeyPressedEventArgs2, COREWEBVIEW2_KEY_EVENT_KIND,
+            COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN,
+        },
+    };
+    use windows::{
+        core::Interface,
+        Win32::UI::Input::KeyboardAndMouse::{
+            GetKeyState, VK_CONTROL, VK_F, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+        },
+    };
+
+    window.with_webview(|webview| {
+        let handler = AcceleratorKeyPressedEventHandler::create(Box::new(|_, args| {
+            let Some(args) = args else {
+                return Ok(());
+            };
+            unsafe {
+                let mut key = 0;
+                args.VirtualKey(&mut key)?;
+                if key != u32::from(VK_F.0) {
+                    return Ok(());
+                }
+                let mut kind = COREWEBVIEW2_KEY_EVENT_KIND::default();
+                args.KeyEventKind(&mut kind)?;
+                let pressed = |key: windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY| {
+                    GetKeyState(i32::from(key.0)) < 0
+                };
+                if kind == COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN
+                    && pressed(VK_CONTROL)
+                    && ![VK_MENU, VK_SHIFT, VK_LWIN, VK_RWIN]
+                        .into_iter()
+                        .any(pressed)
+                {
+                    // Suppress WebView2's find bar while still delivering the shortcut to the page.
+                    match args.cast::<ICoreWebView2AcceleratorKeyPressedEventArgs2>() {
+                        Ok(args) => args.SetIsBrowserAcceleratorKeyEnabled(false)?,
+                        Err(_) => args.SetHandled(true)?,
+                    }
+                }
+            }
+            Ok(())
+        }));
+        let mut token = 0;
+        if let Err(error) = unsafe {
+            webview
+                .controller()
+                .add_AcceleratorKeyPressed(&handler, &mut token)
+        } {
+            log::warn!("Could not register the WebView find shortcut handler: {error}");
+        }
+    })
 }
 
 #[tauri::command]

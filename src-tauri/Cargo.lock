@@ -2418,6 +2418,8 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-single-instance",
  "tempfile",
+ "webview2-com",
+ "windows",
  "zip",
 ]
 

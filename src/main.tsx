@@ -9,10 +9,12 @@ import { WindowShell } from "./windowing/WindowShell";
 
 document.addEventListener("contextmenu", (event) => event.preventDefault());
 document.addEventListener("keydown", (event) => {
-  // Let editor keybindings handle Tab before suppressing the browser's focus traversal.
-  if (!event.defaultPrevented && event.key === "Tab" && !event.ctrlKey && !event.altKey && !event.metaKey) {
-    event.preventDefault();
-  }
+  if (event.defaultPrevented || event.altKey) return;
+
+  // Focused editor and component shortcuts run before browser defaults are suppressed.
+  const focusTraversal = event.key === "Tab" && !event.ctrlKey && !event.metaKey;
+  const pageFind = event.key.toLowerCase() === "f" && (event.ctrlKey || event.metaKey) && !event.shiftKey;
+  if (focusTraversal || pageFind) event.preventDefault();
 });
 
 createRoot(document.getElementById("root")!).render(
