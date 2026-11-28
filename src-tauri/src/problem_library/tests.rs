@@ -44,6 +44,10 @@ fn fixture_files(library: &str) -> Vec<PackageFile> {
     let mut files = Vec::new();
     read_directory(&root, &root, &mut files);
     files.sort_by(|left, right| left.path.cmp(&right.path));
+    if library == BASICS {
+        // Keep version-history scenarios independent of updates to the published example.
+        edit_manifest(&mut files, |manifest| manifest["releaseVersion"] = json!(1));
+    }
     files
 }
 
@@ -517,6 +521,7 @@ fn installs_from_native_directory_and_zip_paths() {
     assert!(matches!(source, super::ImportSource::Directory));
     let imported = super::install_from_path(&database, &folder, source).unwrap();
     assert_eq!(imported[0].inserted, 2);
+    assert_eq!(imported[0].library.release_version, 2);
 
     let path = directory.path().join("graph-library.ZIP");
     let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());

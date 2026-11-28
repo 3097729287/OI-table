@@ -8,7 +8,7 @@ The first line contains $n$ and $q$, with $1 \le n,q \le 200000$. The second lin
 
 Print one range sum per line, in query order.
 
-## Example
+## Example 1
 
 ```text
 5 3
@@ -22,4 +22,20 @@ Print one range sum per line, in query order.
 9
 8
 0
+```
+
+## Example 2
+
+```text
+4 3
+1000000000 1000000000 1000000000 -1000000000
+1 3
+4 4
+1 4
+```
+
+```text
+3000000000
+-1000000000
+2000000000
 ```

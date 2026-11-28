@@ -1,16 +1,8 @@
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { syntaxHighlighting } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
-import { tags } from "@lezer/highlight";
+import { codeHighlighter } from "../editor/syntaxHighlighting";
 
-export const codeSyntaxHighlighting = syntaxHighlighting(HighlightStyle.define([
-  { tag: [tags.keyword, tags.modifier, tags.controlKeyword], color: "var(--code-syntax-keyword)" },
-  { tag: [tags.typeName, tags.className, tags.namespace], color: "var(--code-syntax-type)" },
-  { tag: [tags.string, tags.regexp], color: "var(--code-syntax-string)" },
-  { tag: [tags.number, tags.bool, tags.null], color: "var(--code-syntax-number)" },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "var(--code-syntax-function)" },
-  { tag: [tags.comment, tags.docComment], color: "var(--code-syntax-comment)" },
-  { tag: tags.meta, color: "var(--code-syntax-meta)" },
-]));
+export const codeSyntaxHighlighting = syntaxHighlighting(codeHighlighter);
 
 export const codeEditorTheme = EditorView.theme({
   "&": {

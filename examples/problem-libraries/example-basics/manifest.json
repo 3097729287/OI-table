@@ -4,7 +4,7 @@
   "authorId": "demo",
   "authorName": { "zhCN": "示例作者", "en": "Example Author" },
   "name": { "zhCN": "基础算法示例库", "en": "Basic Algorithms Example Library" },
-  "releaseVersion": 1,
+  "releaseVersion": 2,
   "complete": true,
   "archives": [
     { "id": "algorithms", "name": { "zhCN": "基础算法", "en": "Basic Algorithms" } },
