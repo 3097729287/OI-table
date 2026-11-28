@@ -9,7 +9,7 @@ import { DelayedLoadingMessage, StatusMessage } from "../../shared/StatusMessage
 import type { ProblemMarkdownSampleActions } from "../../shared/ui/MarkdownViewer";
 import { ScrollArea } from "../../shared/ui/ScrollArea";
 import { Select } from "../../shared/ui/Select";
-import { loadProblemDraftForExecution } from "../../shared/ui/problemDrafts";
+import { isDraftWorkspaceClosing, ProblemDraftSession } from "../../shared/ui/problemDraftSession";
 import { isDebugActive, ProblemDebugContext } from "./localDebug";
 import { runEditorCode } from "./localRun";
 import { CodeEditor, MarkdownViewer, PlainTextEditor } from "./problemComponents";
@@ -19,29 +19,10 @@ import { ProblemSubmissions } from "./ProblemSubmissions";
 import { ProblemWorkspace, type ProblemWorkspaceTab, type ProblemWorkspaceTabId } from "./ProblemWorkspace";
 
 type LanguagePreference = ContentLocale | "interface";
+type LaunchOrigin = "editor" | "sample" | "sidebar";
+type ProblemLaunch = { language: CodeLanguage; stdin: string } & ({ kind: "debug" } | { kind: "run"; expected?: string });
 
 const languageNames = { "zh-CN": "简体中文", en: "English" } as const;
-
-type ProblemBreakpoints = Record<CodeLanguage, number[]>;
-
-function breakpointKey(problemId: string) {
-  return `oi-table.problem-breakpoints.${problemId}`;
-}
-
-function readBreakpoints(problemId: string): ProblemBreakpoints {
-  const empty = { cpp: [], python: [] };
-  try {
-    const stored = localStorage.getItem(breakpointKey(problemId));
-    if (!stored) return empty;
-    const parsed = JSON.parse(stored) as Partial<Record<CodeLanguage, unknown>> | null;
-    const read = (lines: unknown) => Array.isArray(lines)
-      ? [...new Set(lines.filter((line): line is number => Number.isSafeInteger(line) && line > 0))].sort((a, b) => a - b)
-      : [];
-    return { cpp: read(parsed?.cpp), python: read(parsed?.python) };
-  } catch {
-    return empty;
-  }
-}
 
 function readTranslation(text: LocalizedProblemText, preferred: ContentLocale): { value: string; locale: ContentLocale } {
   const value = preferred === "zh-CN" ? text.zhCN : text.en;
@@ -140,19 +121,29 @@ function ProblemStatement({ problem, locale, fallbackTitle, sampleActions }: {
   );
 }
 
-export function ProblemDetail({ problem, title, settings }: {
+interface ProblemDetailProps {
   problem: LibraryProblemDetail;
   title: string;
   settings: Pick<AppSettings, "problemDoubleColumn" | "editorDefaultLanguage">;
-}) {
+}
+
+export function ProblemDetail(props: ProblemDetailProps) {
+  const [draft, setDraft] = useState<ProblemDraftSession>();
+  useLayoutEffect(() => {
+    const lease = ProblemDraftSession.acquire(props.problem.id);
+    setDraft(lease.draft);
+    return lease.dispose;
+  }, [props.problem.id]);
+  return draft && <ProblemDetailContent {...props} draft={draft} />;
+}
+
+function ProblemDetailContent({ problem, title, settings, draft }: ProblemDetailProps & { draft: ProblemDraftSession }) {
   const debuggerWorkspace = useContext(ProblemDebugContext);
   const releaseDebug = debuggerWorkspace?.release;
   const registerLaunch = debuggerWorkspace?.registerLaunch;
   const isDebugTarget = debuggerWorkspace?.activeProblemId === problem.id;
   const session = debuggerWorkspace?.state;
   const debug = session?.problemId === problem.id ? session : undefined;
-  const [breakpoints, setBreakpoints] = useState(() => readBreakpoints(problem.id));
-  const latestBreakpoints = useRef(breakpoints);
   const [language, setLanguage] = useState<LanguagePreference>("interface");
   const [layoutOverride, setLayoutOverride] = useState<boolean>();
   const [split, setSplit] = useState(false);
@@ -160,10 +151,8 @@ export function ProblemDetail({ problem, title, settings }: {
   const [run, setRun] = useState<ProblemRunResult>();
   const [launchState, setLaunchState] = useState<"loading" | "empty" | "failed">();
   const [activate, setActivate] = useState<{ id: ProblemWorkspaceTabId; focus?: boolean }>();
-  const busy = useRef<symbol | undefined>(undefined);
-  const launchRequest = useRef<ReturnType<typeof loadProblemDraftForExecution> | undefined>(undefined);
-  const launchAction = useRef<() => void>(() => {});
-  const launch = useCallback(() => launchAction.current(), []);
+  const launchRequest = useRef<{ origin: LaunchOrigin }>(undefined);
+  const startDebugger = useRef(debuggerWorkspace?.start);
   const layoutButton = useRef<HTMLButtonElement>(null);
   const doubleColumn = layoutOverride ?? settings.problemDoubleColumn;
   const locale = language === "interface" ? problemContentLocale(interfaceLocale) : language;
@@ -174,6 +163,7 @@ export function ProblemDetail({ problem, title, settings }: {
   const debugStderr = debug?.stderr || (debug?.error === "compile_failed" ? debug.errorDetail : undefined) || "";
   const desktop = isTauri();
   const debugging = isDebugActive(debug);
+  const debugActive = isDebugActive(session);
   const codeLanguage = settings.editorDefaultLanguage;
   const editorLanguage = debugging && debug ? debug.language : codeLanguage;
   const running = run?.state === "running" || run?.state === "loading-draft";
@@ -185,24 +175,14 @@ export function ProblemDetail({ problem, title, settings }: {
     : launchState === "failed" ? t("problemDraftLoadFailed") : undefined;
 
   useLayoutEffect(() => () => {
-    busy.current = undefined;
+    launchRequest.current = undefined;
     releaseDebug?.(problem.id);
   }, [problem.id, releaseDebug]);
 
   useLayoutEffect(() => {
-    launchAction.current = () => { void startSavedDraft(); };
-  });
-
-  useLayoutEffect(() => {
-    if (!isDebugTarget) setLaunchState(undefined);
-    return () => { launchRequest.current = undefined; };
-  }, [isDebugTarget]);
-
-  useLayoutEffect(() => {
-    if (isDebugTarget && desktop) {
-      return registerLaunch?.(problem.id, { start: launch, disabled: launchDisabled, message: launchMessage });
-    }
-  }, [isDebugTarget, desktop, registerLaunch, problem.id, launch, launchDisabled, launchMessage]);
+    startDebugger.current = debuggerWorkspace?.start;
+    draft.setDebugging(debugging);
+  }, [debuggerWorkspace?.start, draft, debugging]);
 
   useLayoutEffect(() => {
     if (debugSessionId !== undefined) setActivate({ id: "output", focus: false });
@@ -227,38 +207,54 @@ export function ProblemDetail({ problem, title, settings }: {
     });
   }
 
-  const runDraft = useCallback(async ({ stdin, draft, expected }: {
-    stdin: string;
-    draft?: { language: CodeLanguage; source: string };
-    expected?: string;
-  }) => {
-    if (busy.current || debugging) return;
-    const request = Symbol();
-    busy.current = request;
-    launchRequest.current = undefined;
-    setLaunchState(undefined);
-    setRun({ state: draft ? "running" : "loading-draft" });
-    setActivate({ id: "output" });
-    try {
-      if (!draft) {
-        const saved = await loadProblemDraftForExecution(problem.id, codeLanguage);
-        if (busy.current !== request) return;
-        const source = saved?.drafts[codeLanguage];
-        if (!source?.trim()) {
-          setRun({ state: "empty-draft" });
-          return;
-        }
-        draft = { language: codeLanguage, source };
-        setRun({ state: "running" });
-      }
-      const result = await runEditorCode(draft.language, draft.source, stdin, expected);
-      if (busy.current === request) setRun(result);
-    } catch {
-      if (busy.current === request) setRun({ state: "failed-draft" });
-    } finally {
-      if (busy.current === request) busy.current = undefined;
+  const launch = useCallback(async (request: ProblemLaunch, origin: LaunchOrigin) => {
+    if (launchRequest.current || isDraftWorkspaceClosing() ||
+        (request.kind === "debug" ? debugActive || !startDebugger.current : debugging)) return;
+    const attempt = { origin };
+    launchRequest.current = attempt;
+    setLaunchState("loading");
+    if (origin === "sample") {
+      setRun({ state: "loading-draft" });
+      setActivate({ id: "output" });
     }
-  }, [problem.id, debugging, codeLanguage]);
+    let result: ProblemRunResult | undefined;
+    try {
+      const snapshot = await draft.prepareForLaunch(request.language);
+      if (launchRequest.current !== attempt || isDraftWorkspaceClosing()) return;
+      if (!snapshot.source.trim()) result = { state: "empty-draft" };
+      else if (request.kind === "debug") startDebugger.current?.(draft.problemId, snapshot, request.stdin);
+      else {
+        setLaunchState(undefined);
+        setRun({ state: "running" });
+        if (origin !== "sample") setActivate({ id: "output" });
+        result = await runEditorCode(snapshot.language, snapshot.source, request.stdin, request.expected);
+      }
+    } catch {
+      result = { state: "failed-draft" };
+    } finally {
+      if (launchRequest.current === attempt) {
+        launchRequest.current = undefined;
+        const issue = result?.state === "empty-draft" ? "empty" : result?.state === "failed-draft" ? "failed" : undefined;
+        setLaunchState(origin === "sample" ? undefined : issue);
+        if (origin === "sample" || (result && !issue)) setRun(result);
+        if (issue && origin !== "sample") setActivate({ id: "code", focus: false });
+      }
+    }
+  }, [draft, debugActive, debugging]);
+
+  useLayoutEffect(() => {
+    if (isDebugTarget) return;
+    if (launchRequest.current?.origin === "sidebar") launchRequest.current = undefined;
+    if (!launchRequest.current) setLaunchState(undefined);
+  }, [isDebugTarget]);
+
+  useLayoutEffect(() => {
+    if (!isDebugTarget || !desktop) return;
+    return registerLaunch?.(problem.id, {
+      start: () => void launch({ kind: "debug", language: codeLanguage, stdin: input }, "sidebar"),
+      disabled: launchDisabled, message: launchMessage,
+    });
+  }, [isDebugTarget, desktop, registerLaunch, problem.id, launch, codeLanguage, input, launchDisabled, launchMessage]);
 
   const sampleActions = useMemo<ProblemMarkdownSampleActions>(() => ({
     labels: {
@@ -269,58 +265,14 @@ export function ProblemDetail({ problem, title, settings }: {
       copyFailed: t("problemSampleCopyFailed"),
     },
     onRun: desktop ? ({ input, expectedOutput }) => {
-      if (expectedOutput !== undefined) void runDraft({ stdin: input, expected: expectedOutput });
+      if (expectedOutput !== undefined) void launch({ kind: "run", language: codeLanguage, stdin: input, expected: expectedOutput }, "sample");
     } : undefined,
     onFill: (sampleInput) => {
       setInput(sampleInput);
       setActivate({ id: "input" });
     },
-    runDisabled: running || debugging,
-  }), [interfaceLocale, desktop, running, debugging, runDraft]);
-
-  function startDebug(codeLanguage: CodeLanguage, source: string, lines: number[]) {
-    if (busy.current) return;
-    setLaunchState(undefined);
-    debuggerWorkspace?.start(problem.id, codeLanguage, source, input, lines);
-  }
-
-  async function startSavedDraft() {
-    if (!debuggerWorkspace || !isDebugTarget || busy.current || launchRequest.current || isDebugActive(session)) return;
-    const request = loadProblemDraftForExecution(problem.id, codeLanguage);
-    launchRequest.current = request;
-    setLaunchState("loading");
-    try {
-      const draft = await request;
-      if (launchRequest.current !== request) return;
-      const source = draft?.drafts[codeLanguage];
-      if (!source) {
-        setLaunchState("empty");
-        setActivate({ id: "code", focus: false });
-        return;
-      }
-      const lineCount = source.split("\n").length;
-      startDebug(codeLanguage, source, latestBreakpoints.current[codeLanguage].filter((line) => line <= lineCount));
-    } catch {
-      if (launchRequest.current !== request) return;
-      setLaunchState("failed");
-      setActivate({ id: "code", focus: false });
-    } finally {
-      if (launchRequest.current === request) launchRequest.current = undefined;
-    }
-  }
-
-  function updateBreakpoints(codeLanguage: CodeLanguage, lines: number[]) {
-    const next = { ...latestBreakpoints.current, [codeLanguage]: lines };
-    latestBreakpoints.current = next;
-    setBreakpoints(next);
-    debuggerWorkspace?.setBreakpoints(problem.id, codeLanguage, lines);
-    try {
-      if (next.cpp.length || next.python.length) localStorage.setItem(breakpointKey(problem.id), JSON.stringify(next));
-      else localStorage.removeItem(breakpointKey(problem.id));
-    } catch {
-      // Breakpoints remain available in this workspace when storage is unavailable.
-    }
-  }
+    runDisabled: launchDisabled || debugging,
+  }), [interfaceLocale, desktop, launchDisabled, debugging, launch, codeLanguage]);
 
   const tabs: ProblemWorkspaceTab[] = [
     {
@@ -341,12 +293,11 @@ export function ProblemDetail({ problem, title, settings }: {
       id: "code", label: t("problemCodeTab"), lazy: true,
       content: <div className="problem-detail__editor">
         <Suspense fallback={<DelayedLoadingMessage>{t("problemEditorLoading")}</DelayedLoadingMessage>}>
-          <CodeEditor problemId={problem.id} preferredLanguage={editorLanguage} running={running}
-            onRun={desktop ? (language, source) => void runDraft({ stdin: input, draft: { language, source } }) : undefined}
-            breakpoints={breakpoints} onBreakpointsChange={updateBreakpoints}
-            debugReadOnly={debugging} debugUnavailable={launchState === "loading" || (isDebugActive(session) && !debug)}
+          <CodeEditor draft={draft} preferredLanguage={editorLanguage} running={running} preparing={launchState === "loading"}
+            onLaunch={(kind, language) => void launch({ kind, language, stdin: input }, "editor")}
+            debugReadOnly={debugging} debug={debuggerWorkspace ? debugActive ? "busy" : "ready" : undefined}
             debugLine={debug?.status === "paused" ? debug.line ?? undefined : undefined} debugRevealKey={revealKey}
-            onDebug={desktop && debuggerWorkspace ? startDebug : undefined} />
+          />
         </Suspense>
       </div>,
     },

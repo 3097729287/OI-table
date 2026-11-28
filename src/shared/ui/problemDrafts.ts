@@ -43,27 +43,7 @@ const delay = 2_000;
 const appendTimeout = 10_000;
 const pending = new Map<string, PendingSave>();
 const versions = new Map<string, DraftVersion>();
-const reads = new Map<string, Promise<ProblemDraft | null>>();
 const changes = new EventTarget();
-const externalDrafts = new Map<string, { language: CodeLanguage; refresh: (forceApply: boolean) => Promise<boolean> }>();
-
-export function registerExternalDraft(problemId: string, language: CodeLanguage, refresh: (forceApply: boolean) => Promise<boolean>) {
-  const draft = { language, refresh };
-  externalDrafts.set(problemId, draft);
-  return () => {
-    if (externalDrafts.get(problemId) === draft) externalDrafts.delete(problemId);
-  };
-}
-
-export function refreshExternalDraft(problemId: string, language: CodeLanguage) {
-  const draft = externalDrafts.get(problemId);
-  return draft?.language === language ? draft.refresh(false) : undefined;
-}
-
-export async function refreshExternalDraftsBeforeExit() {
-  const results = await Promise.all([...externalDrafts.values()].map(({ refresh }) => refresh(true)));
-  return results.every(Boolean);
-}
 
 function storageKey(problemId: string) {
   return `oi-table.problem-draft.${problemId}`;
@@ -93,18 +73,17 @@ function removeJournal(problemId: string, stored: string) {
   }
 }
 
-async function loadNativeDraft(problemId: string): Promise<ProblemDraft | null> {
-  const previousRevision = versions.get(problemId)?.revision;
-  const saved = await invoke<NativeDraft | null>("get_problem_draft", { problemId });
+export async function loadProblemDraft(problemId: string): Promise<ProblemDraft | null> {
   const queued = pending.get(problemId);
   if (queued) return queued.getDraft();
-
-  const revision = saved?.revision ?? 0;
-  const latestRevision = versions.get(problemId)?.revision;
-  if (latestRevision !== undefined && latestRevision !== previousRevision && latestRevision > revision) {
-    // A batch finished while this read was in flight.
-    return loadNativeDraft(problemId);
+  if (!isTauri()) {
+    const draft = readJournal(problemId)?.draft ?? null;
+    versions.set(problemId, { revision: 0, language: draft?.language });
+    return draft;
   }
+
+  const saved = await invoke<NativeDraft | null>("get_problem_draft", { problemId });
+  const revision = saved?.revision ?? 0;
   versions.set(problemId, { revision, language: saved?.language });
 
   const journal = readJournal(problemId);
@@ -116,30 +95,7 @@ async function loadNativeDraft(problemId: string): Promise<ProblemDraft | null> 
       return journal.draft;
     }
   }
-  return saved && { language: saved.language, drafts: saved.drafts };
-}
-
-export async function loadProblemDraft(problemId: string): Promise<ProblemDraft | null> {
-  const queued = pending.get(problemId);
-  if (queued) return queued.getDraft();
-  if (!isTauri()) {
-    const draft = readJournal(problemId)?.draft ?? null;
-    versions.set(problemId, { revision: 0, language: draft?.language });
-    return draft;
-  }
-
-  let request = reads.get(problemId);
-  if (!request) {
-    request = loadNativeDraft(problemId).finally(() => reads.delete(problemId));
-    reads.set(problemId, request);
-  }
-  const saved = await request;
-  return pending.get(problemId)?.getDraft() ?? saved;
-}
-
-export async function loadProblemDraftForExecution(problemId: string, language: CodeLanguage) {
-  if (await refreshExternalDraft(problemId, language) === false) throw new Error("Could not read the external draft");
-  return loadProblemDraft(problemId);
+  return saved;
 }
 
 export function subscribeToProblemDraft(problemId: string, listener: () => void) {

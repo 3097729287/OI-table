@@ -73,10 +73,11 @@ export interface LocalDebug extends DebugSession {
   loadVariableChildren(reference: number): Promise<readonly DebugVariable[]>;
 }
 
+type DebugSource = { language: CodeLanguage; source: string; breakpoints: readonly number[]; readBreakpoints(): readonly number[] };
+
 interface DebugWorkspace {
   state?: LocalDebug;
-  start(problemId: string, language: CodeLanguage, source: string, stdin: string, breakpoints: number[]): void;
-  setBreakpoints(problemId: string, language: CodeLanguage, breakpoints: number[]): void;
+  start(problemId: string, draft: DebugSource, stdin: string): void;
   release(problemId: string): void;
 }
 
@@ -112,12 +113,13 @@ let nextSessionId = Date.now();
 
 export function useLocalDebug(onStart: () => void, onReveal: (problemId: string) => void): DebugWorkspace {
   const active = useRef<DebugSession | undefined>(undefined);
-  const breakpoints = useRef<number[]>([]);
+  const readBreakpoints = useRef<DebugSource["readBreakpoints"]>(undefined);
   const variableRequests = useRef<VariableRequests | undefined>(undefined);
   const [session, setSession] = useState<DebugSession>();
 
   const replace = useCallback((next?: DebugSession) => {
     active.current = next;
+    if (!isDebugActive(next)) readBreakpoints.current = undefined;
     setSession(next);
   }, []);
 
@@ -169,20 +171,16 @@ export function useLocalDebug(onStart: () => void, onReveal: (problemId: string)
     }
   }
 
-  function start(problemId: string, language: CodeLanguage, source: string, stdin: string, lines: number[]) {
+  function start(problemId: string, draft: DebugSource, stdin: string) {
     if (isDebugActive(active.current)) return;
     const sessionId = ++nextSessionId;
-    breakpoints.current = lines;
+    const { language, source, breakpoints } = draft;
+    readBreakpoints.current = draft.readBreakpoints;
     replace({ sessionId, problemId, language, status: "starting", revealKey: 0, variableRevision: 0 });
     onStart();
     void runCommand(sessionId, () => invoke<DebugSnapshot>("debug_start", {
-      request: { sessionId, language, source, stdin, breakpoints: lines },
+      request: { sessionId, language, source, stdin, breakpoints },
     }));
-  }
-
-  function setBreakpoints(problemId: string, language: CodeLanguage, lines: number[]) {
-    const current = active.current;
-    if (current?.problemId === problemId && current.language === language) breakpoints.current = lines;
   }
 
   async function stop(current: DebugSession) {
@@ -213,7 +211,7 @@ export function useLocalDebug(onStart: () => void, onReveal: (problemId: string)
     const { sessionId } = current;
     replace({ ...current, status: "running", line: null, error: undefined, errorDetail: undefined, errorPhase: undefined });
     void runCommand(sessionId, () => invoke<DebugSnapshot>("debug_step", {
-      request: { sessionId, action, breakpoints: breakpoints.current },
+      request: { sessionId, action, breakpoints: readBreakpoints.current?.() ?? [] },
     }));
   }
 
@@ -303,5 +301,5 @@ export function useLocalDebug(onStart: () => void, onReveal: (problemId: string)
     return result;
   }, [fail, replace]);
 
-  return { state: session && { ...session, action, selectFrame, reveal, loadVariableChildren }, start, setBreakpoints, release };
+  return { state: session && { ...session, action, selectFrame, reveal, loadVariableChildren }, start, release };
 }
