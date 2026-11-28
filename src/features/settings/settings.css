@@ -22,6 +22,23 @@
   margin-block-start: var(--space-md);
 }
 
+.settings-shortcut-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  min-inline-size: 0;
+}
+
+.settings-shortcut-actions button {
+  inline-size: auto;
+}
+
+.settings-shortcut-actions kbd {
+  font-family: var(--font-monospace);
+}
+
 .log-settings h2 {
   font-size: var(--ui-font-size);
 }

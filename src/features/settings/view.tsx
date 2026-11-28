@@ -6,6 +6,7 @@ import AppearanceSection from "./appearance/section";
 import DiagnosticsSection from "./diagnostics/section";
 import EditorSection from "./editor/section";
 import RunDebugSection from "./run-debug/section";
+import ShortcutsSection from "./shortcuts/section";
 import { SettingsPage } from "./SettingsPage";
 import { useSettingsForm } from "./useSettingsForm";
 
@@ -26,6 +27,7 @@ export const workspaceView = {
   variants: {
     appearance: { params: { group: "appearance" }, title: "appearance", icon: "appearance", Section: AppearanceSection },
     editor: { params: { group: "editor" }, title: "editor", icon: "editor", Section: EditorSection },
+    shortcuts: { params: { group: "shortcuts" }, title: "shortcutSettings", Section: ShortcutsSection },
     runDebug: { params: { group: "run-debug" }, title: "runAndDebug", icon: "run", Section: RunDebugSection },
     diagnostics: { params: { group: "diagnostics" }, title: "dataAndDiagnostics", icon: "activity", Section: DiagnosticsSection },
   },

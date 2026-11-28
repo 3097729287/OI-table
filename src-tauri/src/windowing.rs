@@ -29,13 +29,18 @@ fn build_window(
     size: [f64; 2],
     min_size: [f64; 2],
 ) -> tauri::Result<WebviewWindow> {
-    WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
+    let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title(title)
         .decorations(false)
         .inner_size(size[0], size[1])
         .min_inner_size(min_size[0], min_size[1])
         .center()
-        .build()
+        .build()?;
+    #[cfg(windows)]
+    if let Err(error) = crate::shortcuts::install(&window) {
+        log::warn!("Could not configure WebView shortcuts: {error}");
+    }
+    Ok(window)
 }
 
 #[tauri::command]

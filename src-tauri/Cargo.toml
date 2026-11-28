@@ -28,3 +28,7 @@ tempfile = "3"
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
 zip = { version = "9.8.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows = "0.62"

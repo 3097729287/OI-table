@@ -12,7 +12,8 @@ import { locale, t } from "../../i18n";
 import { codeLanguageOptions, type CodeLanguage } from "../codeLanguages";
 import { codeAutocomplete, codeLanguageExtensions, syntaxDiagnostics } from "../editor/languageSupport";
 import { Icon } from "../Icon";
-import { updateSettings } from "../settings";
+import { formatShortcut, shortcutFor } from "../keybindings";
+import { updateSettings, useSettings } from "../settings";
 import { DelayedLoadingMessage, StatusMessage } from "../StatusMessage";
 import { codeSyntaxHighlighting } from "./codeEditorTheme";
 import { breakpointLines, codeEditorBreakpointGutter, codeEditorDebugReadOnly, debugLine as debugLineField,
@@ -29,10 +30,12 @@ const editorExtensions = [
 
 type SavedDraft = { state: EditorState; scroll: ReturnType<EditorView["scrollSnapshot"]> };
 
-function editorLocalization(debugEnabled: boolean) {
+function editorLocalization(debugEnabled: boolean, breakpointShortcut: string | null) {
+  const breakpointLabel = t("problemDebugToggleBreakpoint");
+  const hint = breakpointShortcut ? breakpointLabel + " (" + formatShortcut(breakpointShortcut) + ")" : breakpointLabel;
   return [
     codeEditorContent(t("problemCodeDraft")),
-    debugEnabled ? codeEditorBreakpointGutter(`${t("problemDebugToggleBreakpoint")} (F9)`) : [],
+    debugEnabled ? codeEditorBreakpointGutter(hint, breakpointShortcut) : [],
     EditorState.phrases.of({
       Diagnostics: t("problemEditorDiagnosticList"),
       "No diagnostics": t("problemEditorNoDiagnostics"),
@@ -66,6 +69,8 @@ export default function CodeEditor({ draft, preferredLanguage, onLaunch, running
   const activeLanguage = useRef(preferredLanguage);
   const latestDefaultLanguageUpdate = useRef<Promise<void>>(undefined);
   const debugEnabled = desktop && debug !== undefined;
+  const { settings } = useSettings();
+  const breakpointShortcut = shortcutFor("editor.toggleBreakpoint", settings?.keybindings);
   const container = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
   const drafts = useRef(new Map<CodeLanguage, SavedDraft>());
@@ -158,11 +163,11 @@ export default function CodeEditor({ draft, preferredLanguage, onLaunch, running
     const editor = view.current;
     if (!editor) return;
     editor.dispatch({ effects: [
-      localization.reconfigure(editorLocalization(debugEnabled)),
+      localization.reconfigure(editorLocalization(debugEnabled, breakpointShortcut)),
       editability.reconfigure(debugReadOnly || externalLanguage === activeLanguage.current ? codeEditorDebugReadOnly : []),
     ] });
     forceLinting(editor);
-  }, [localization, editability, locale, debugEnabled, debugReadOnly, externalLanguage, language, mountedEditor]);
+  }, [localization, editability, locale, debugEnabled, breakpointShortcut, debugReadOnly, externalLanguage, language, mountedEditor]);
 
   useLayoutEffect(() => {
     const editor = view.current;

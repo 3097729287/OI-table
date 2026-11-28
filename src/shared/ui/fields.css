@@ -16,13 +16,6 @@
   opacity: 0.55;
 }
 
-.ui-field:focus-visible,
-.ui-input:has(.ui-input__control:focus-visible) {
-  outline: 1px solid currentColor;
-  outline-offset: -2px;
-  box-shadow: none;
-}
-
 .ui-input {
   display: inline-flex;
   min-inline-size: 0;
@@ -40,10 +33,6 @@
   color: inherit;
   font: inherit;
   appearance: none;
-}
-
-.ui-input__control:focus-visible {
-  box-shadow: none;
 }
 
 .ui-input__control[type="number"] {
@@ -147,12 +136,6 @@
 
 .ui-icon-button[aria-pressed="true"] {
   color: var(--accent-color);
-}
-
-.ui-icon-button:focus-visible {
-  outline: 1px solid var(--accent-color);
-  outline-offset: -1px;
-  box-shadow: none;
 }
 
 .ui-select__label {

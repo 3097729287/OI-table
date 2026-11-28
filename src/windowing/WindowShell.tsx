@@ -1,8 +1,9 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { scheduleProblemComponentsPreload } from "../features/problem/problemComponents";
+import { registerShortcutScope } from "../shared/keybindings";
 import { useSettings } from "../shared/settings";
 import { locale, t } from "../i18n";
 import { useLanguagePreference } from "../i18n/languagePreference";
@@ -23,9 +24,12 @@ export function WindowShell() {
   const Page = currentWindow?.Page;
   const startupSettled = configuration !== undefined && (settings !== undefined || loadFailed);
 
-  function toggleSidebar() {
-    setSidebarVisible((visible) => !visible);
-  }
+  const toggleSidebar = useCallback(() => setSidebarVisible((visible) => !visible), []);
+  useLayoutEffect(() => {
+    if (isMainWindow && !windowClosing) {
+      return registerShortcutScope(document, "workspace", { "workbench.toggleSidebar": toggleSidebar });
+    }
+  }, [toggleSidebar, windowClosing]);
 
   useLayoutEffect(() => {
     document.documentElement.lang = locale;
