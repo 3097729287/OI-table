@@ -70,8 +70,8 @@ function MarkdownCopyButton({ value, label, feedbackLabels }: {
 
   return (
     <>
-      <button type="button" className="ui-icon-button" aria-label={label} title={notice ?? label}
-        onClick={() => void copy()}><Icon name={currentFeedback?.copied ? "check" : "copy"} /></button>
+      <button type="button" className="ui-icon-button" aria-label={label} title={label}
+        onClick={() => void copy()}><Icon name="copy" /></button>
       {feedbackLabels && <span className="markdown-viewer__copy-notice" role="status">{notice}</span>}
     </>
   );
